@@ -11,6 +11,9 @@ license = { file = "LICENSE" }
 authors = [
   { name = "OpenAGI Foundation", email = "contact@agiopen.org" }
 ]
+
+requires-python = ">= 3.10"
+
 dependencies = []
 
 [project.urls]
