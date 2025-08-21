@@ -5,10 +5,6 @@
 #  This file is part of the official API project.
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
-#
-#  This file is part of the official API project.
-#  Licensed under the MIT License.
-# -----------------------------------------------------------------------------
 
 from oagi.pyautogui_action_handler import PyautoguiActionHandler
 from oagi.screenshot_maker import ScreenshotMaker

@@ -5,10 +5,6 @@
 #  This file is part of the official API project.
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
-#
-#  This file is part of the official API project.
-#  Licensed under the MIT License.
-# -----------------------------------------------------------------------------
 
 from .action_handler import ActionHandler
 from .image_provider import ImageProvider

@@ -5,10 +5,6 @@
 #  This file is part of the official API project.
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
-#
-#  This file is part of the official API project.
-#  Licensed under the MIT License.
-# -----------------------------------------------------------------------------
 
 from .types import Action, ActionHandler, ActionType, Image, ImageProvider, Step
 
@@ -35,11 +31,11 @@ class ShortTask:
         return result
 
     def auto_mode(
-            self,
-            task_desc,
-            max_steps=5,
-            executor: ActionHandler = None,
-            image_provider: ImageProvider = None,
+        self,
+        task_desc,
+        max_steps=5,
+        executor: ActionHandler = None,
+        image_provider: ImageProvider = None,
     ) -> bool:
         self.init_task(task_desc, max_steps=max_steps)
 

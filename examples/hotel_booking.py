@@ -1,15 +1,3 @@
-# -----------------------------------------------------------------------------
-#  Copyright (c) OpenAGI Foundation
-#  All rights reserved.
-#
-#  This file is part of the official API project.
-#  Licensed under the MIT License.
-# -----------------------------------------------------------------------------
-#
-#  This file is part of the official API project.
-#  Licensed under the MIT License.
-# -----------------------------------------------------------------------------
-
 from oagi import PyautoguiActionHandler, ScreenshotMaker, ShortTask
 
 
@@ -20,10 +8,10 @@ def execute_task_auto(task_desc, max_steps=5):
         task_desc,
         max_steps=max_steps,
         executor=PyautoguiActionHandler(),  # or executor = lambda actions: print(actions) for debugging
-        image_provider=(ls := ScreenshotMaker()),
+        image_provider=(sm := ScreenshotMaker()),
     )
 
-    return is_completed, ls.last_image()
+    return is_completed, sm.last_image()
 
 
 def execute_task_manual(task_desc, max_steps=5):
