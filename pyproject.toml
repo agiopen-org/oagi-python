@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling==1.26.3", "hatch-fancy-pypi-readme"]
+build-backend = "hatchling.build"
 
 [project]
 name = "oagi"
-version = "0.0.0"
+version = "0.1.0"
 description = "Official API of OpenAGI Foundation"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -14,7 +14,18 @@ authors = [
 
 requires-python = ">= 3.10"
 
-dependencies = []
+dependencies = [
+    "httpx>=0.28.0",
+    "pydantic>=2.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/agiopen-org/oagi"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.9",
+]
+
+[tool.ruff.lint]
+extend-select = ["I"]
