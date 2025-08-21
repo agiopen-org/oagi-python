@@ -8,7 +8,7 @@
 
 from typing import Protocol
 
-from .models import Image
+from .image import Image
 
 
 class ImageProvider(Protocol):

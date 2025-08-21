@@ -6,5 +6,11 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+from typing import Protocol
 
-class Image: ...
+
+class Image(Protocol):
+    """Protocol for image objects that can be read as bytes."""
+
+    def read(self) -> bytes:
+        """Read the image data as bytes."""

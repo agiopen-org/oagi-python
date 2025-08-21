@@ -7,7 +7,8 @@
 # -----------------------------------------------------------------------------
 
 from .action_handler import ActionHandler
+from .image import Image
 from .image_provider import ImageProvider
-from .models import Action, ActionType, Image, Step
+from .models import Action, ActionType, Step
 
 __all__ = ["Action", "ActionType", "Image", "Step", "ActionHandler", "ImageProvider"]

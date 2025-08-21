@@ -7,7 +7,6 @@
 # -----------------------------------------------------------------------------
 
 from .action import Action, ActionType
-from .image import Image
 from .step import Step
 
-__all__ = ["Action", "ActionType", "Image", "Step"]
+__all__ = ["Action", "ActionType", "Step"]
