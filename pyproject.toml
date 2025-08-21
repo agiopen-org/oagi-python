@@ -25,6 +25,8 @@ Homepage = "https://github.com/agiopen-org/oagi"
 [dependency-groups]
 dev = [
     "ruff>=0.12.9",
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
 ]
 
 [tool.ruff.lint]
