@@ -6,19 +6,17 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from typing import Optional
-
 from .sync_client import SyncClient, encode_screenshot_from_bytes
 from .types import ActionHandler, Image, ImageProvider, Step
 
 
 class ShortTask:
-    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
         self.client = SyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
         self.base_url = self.client.base_url
-        self.task_id: Optional[str] = None
-        self.task_description: Optional[str] = None
+        self.task_id: str | None = None
+        self.task_description: str | None = None
         self.model = "vision-model-v1"  # default model
 
     def init_task(self, task_desc: str, max_steps: int = 5):
@@ -31,18 +29,8 @@ class ShortTask:
         if not self.task_description:
             raise ValueError("Task description must be set. Call init_task() first.")
 
-        # Convert Image to base64 string
-        # Assuming Image is bytes-like or has a method to get bytes
-        if hasattr(screenshot, "read"):
-            # If it's file-like
-            screenshot_bytes = screenshot.read()
-        elif isinstance(screenshot, bytes):
-            screenshot_bytes = screenshot
-        else:
-            # If it's a path string or other format, handle accordingly
-            raise ValueError(
-                "Unsupported screenshot format. Expected bytes or file-like object."
-            )
+        # Convert Image to bytes using the protocol
+        screenshot_bytes = screenshot.read()
 
         screenshot_b64 = encode_screenshot_from_bytes(screenshot_bytes)
 

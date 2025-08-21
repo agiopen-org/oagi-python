@@ -9,10 +9,17 @@
 from .types import Image
 
 
+class MockImage:
+    """Mock image implementation for testing/stub purposes."""
+
+    def read(self) -> bytes:
+        return b"mock screenshot data"
+
+
 class ScreenshotMaker:
     def __call__(self) -> Image:
         print("Taking screenshot")
-        return Image()
+        return MockImage()
 
     def last_image(self) -> Image:
-        return Image()
+        return MockImage()
