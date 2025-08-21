@@ -18,3 +18,6 @@ format: .uv
 lint: .uv
 	uv run ruff check
 	uv run ruff format --check
+
+build: .uv
+	uv build
