@@ -21,3 +21,11 @@ lint: .uv
 
 build: .uv
 	uv build
+
+.PHONY: test
+test: .uv
+	uv run pytest
+
+.PHONY: test-verbose
+test-verbose: .uv
+	uv run pytest -v
