@@ -19,31 +19,27 @@ def get_logger(name: str) -> logging.Logger:
     Default: INFO
     """
     logger = logging.getLogger(f"oagi.{name}")
+    oagi_root = logging.getLogger("oagi")
     
-    # Only configure if not already configured
-    if not logger.handlers and logger.level == logging.NOTSET:
-        # Get log level from environment
-        log_level = os.getenv("OAGI_LOG", "INFO").upper()
+    # Get log level from environment
+    log_level = os.getenv("OAGI_LOG", "INFO").upper()
+    
+    # Convert string to logging level
+    try:
+        level = getattr(logging, log_level)
+    except AttributeError:
+        level = logging.INFO
+    
+    # Configure root oagi logger once
+    if not oagi_root.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        oagi_root.addHandler(handler)
         
-        # Convert string to logging level
-        try:
-            level = getattr(logging, log_level)
-        except AttributeError:
-            level = logging.INFO
-            
-        logger.setLevel(level)
-        
-        # Create console handler if none exists
-        if not logging.getLogger("oagi").handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-            handler.setFormatter(formatter)
-            
-            # Add handler to root oagi logger
-            oagi_root = logging.getLogger("oagi")
-            oagi_root.addHandler(handler)
-            oagi_root.setLevel(level)
+    # Always update level in case environment variable changed
+    oagi_root.setLevel(level)
     
     return logger
