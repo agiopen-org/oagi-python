@@ -13,7 +13,10 @@ from typing import Optional
 import httpx
 from pydantic import BaseModel
 
+from .logging import get_logger
 from .types import Action
+
+logger = get_logger("sync_client")
 
 
 class Usage(BaseModel):
@@ -62,6 +65,8 @@ class SyncClient:
 
         self.base_url = self.base_url.rstrip("/")
         self.client = httpx.Client(base_url=self.base_url)
+        
+        logger.info(f"SyncClient initialized with base_url: {self.base_url}")
 
     def __enter__(self):
         return self
@@ -114,15 +119,22 @@ class SyncClient:
         if max_actions is not None:
             payload["max_actions"] = max_actions
 
+        logger.info(f"Making API request to /v1/message with model: {model}")
+        logger.debug(f"Request includes task_description: {task_description is not None}, task_id: {task_id is not None}")
+        
         response = self.client.post("/v1/message", json=payload, headers=headers)
 
         if response.status_code == 200:
-            return LLMResponse(**response.json())
+            result = LLMResponse(**response.json())
+            logger.info(f"API request successful - task_id: {result.task_id}, step: {result.current_step}, complete: {result.is_complete}")
+            logger.debug(f"Response included {len(result.actions)} actions")
+            return result
         else:
             # Handle error responses
             try:
                 error_data = response.json()
                 error = ErrorResponse(**error_data)
+                logger.error(f"API Error {error.code}: {error.error} - {error.message}")
                 raise httpx.HTTPStatusError(
                     f"API Error {error.code}: {error.error} - {error.message}",
                     request=response.request,
@@ -130,6 +142,7 @@ class SyncClient:
                 )
             except ValueError:
                 # If response is not JSON, raise generic error
+                logger.error(f"Non-JSON API error response: {response.status_code}")
                 response.raise_for_status()
 
     def health_check(self) -> dict:
@@ -139,9 +152,16 @@ class SyncClient:
         Returns:
             dict: Health check response
         """
-        response = self.client.get("/health")
-        response.raise_for_status()
-        return response.json()
+        logger.debug("Making health check request")
+        try:
+            response = self.client.get("/health")
+            response.raise_for_status()
+            result = response.json()
+            logger.debug("Health check successful")
+            return result
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Health check failed: {e}")
+            raise
 
 
 def encode_screenshot_from_bytes(image_bytes: bytes) -> str:
