@@ -10,8 +10,5 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from oagi.pyautogui_action_handler import PyautoguiActionHandler
-from oagi.screenshot_maker import ScreenshotMaker
-from oagi.short_task import ShortTask
 
-__all__ = ["ShortTask", "PyautoguiActionHandler", "ScreenshotMaker"]
+class Image: ...

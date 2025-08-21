@@ -10,8 +10,12 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from oagi.pyautogui_action_handler import PyautoguiActionHandler
-from oagi.screenshot_maker import ScreenshotMaker
-from oagi.short_task import ShortTask
+from pydantic import BaseModel
 
-__all__ = ["ShortTask", "PyautoguiActionHandler", "ScreenshotMaker"]
+from .action import Action
+
+
+class Step(BaseModel):
+    reason: str
+    actions: list[Action]
+    stop: bool = False

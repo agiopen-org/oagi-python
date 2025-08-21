@@ -10,8 +10,8 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from oagi.pyautogui_action_handler import PyautoguiActionHandler
-from oagi.screenshot_maker import ScreenshotMaker
-from oagi.short_task import ShortTask
+from .action_handler import ActionHandler
+from .image_provider import ImageProvider
+from .models import Action, ActionType, Image, Step
 
-__all__ = ["ShortTask", "PyautoguiActionHandler", "ScreenshotMaker"]
+__all__ = ["Action", "ActionType", "Image", "Step", "ActionHandler", "ImageProvider"]
