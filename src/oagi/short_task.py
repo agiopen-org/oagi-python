@@ -34,7 +34,7 @@ class ShortTask:
             raise ValueError("Task description must be set. Call init_task() first.")
 
         logger.debug(f"Executing step for task: '{self.task_description}'")
-        
+
         try:
             # Convert Image to bytes using the protocol
             screenshot_bytes = screenshot.read()
@@ -44,7 +44,9 @@ class ShortTask:
             response = self.client.create_message(
                 model=self.model,
                 screenshot=screenshot_b64,
-                task_description=self.task_description if self.task_id is None else None,
+                task_description=self.task_description
+                if self.task_id is None
+                else None,
                 task_id=self.task_id,
             )
 
@@ -53,7 +55,9 @@ class ShortTask:
                 if self.task_id is None:
                     logger.debug(f"Task ID assigned: {response.task_id}")
                 else:
-                    logger.debug(f"Task ID changed: {self.task_id} -> {response.task_id}")
+                    logger.debug(
+                        f"Task ID changed: {self.task_id} -> {response.task_id}"
+                    )
                 self.task_id = response.task_id
 
             # Convert API response to Step
@@ -62,14 +66,16 @@ class ShortTask:
                 actions=response.actions,
                 stop=response.is_complete,
             )
-            
+
             if response.is_complete:
                 logger.info(f"Task completed after {response.current_step} steps")
             else:
-                logger.debug(f"Step {response.current_step} completed with {len(response.actions)} actions")
-            
+                logger.debug(
+                    f"Step {response.current_step} completed with {len(response.actions)} actions"
+                )
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error during step execution: {e}")
             raise
@@ -92,7 +98,9 @@ class ShortTask:
         image_provider: ImageProvider = None,
     ) -> bool:
         """Run the task in automatic mode with the provided executor and image provider."""
-        logger.info(f"Starting auto mode for task: '{task_desc}' (max_steps: {max_steps})")
+        logger.info(
+            f"Starting auto mode for task: '{task_desc}' (max_steps: {max_steps})"
+        )
         self.init_task(task_desc, max_steps=max_steps)
 
         for i in range(max_steps):

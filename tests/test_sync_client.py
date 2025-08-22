@@ -314,6 +314,7 @@ def sample_action():
 class TestDataModels:
     def test_usage_model(self, sample_usage):
         assert sample_usage.prompt_tokens == 100
+
         assert sample_usage.completion_tokens == 50
         assert sample_usage.total_tokens == 150
 

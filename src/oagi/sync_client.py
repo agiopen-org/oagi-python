@@ -65,7 +65,7 @@ class SyncClient:
 
         self.base_url = self.base_url.rstrip("/")
         self.client = httpx.Client(base_url=self.base_url)
-        
+
         logger.info(f"SyncClient initialized with base_url: {self.base_url}")
 
     def __enter__(self):
@@ -120,13 +120,17 @@ class SyncClient:
             payload["max_actions"] = max_actions
 
         logger.info(f"Making API request to /v1/message with model: {model}")
-        logger.debug(f"Request includes task_description: {task_description is not None}, task_id: {task_id is not None}")
-        
+        logger.debug(
+            f"Request includes task_description: {task_description is not None}, task_id: {task_id is not None}"
+        )
+
         response = self.client.post("/v1/message", json=payload, headers=headers)
 
         if response.status_code == 200:
             result = LLMResponse(**response.json())
-            logger.info(f"API request successful - task_id: {result.task_id}, step: {result.current_step}, complete: {result.is_complete}")
+            logger.info(
+                f"API request successful - task_id: {result.task_id}, step: {result.current_step}, complete: {result.is_complete}"
+            )
             logger.debug(f"Response included {len(result.actions)} actions")
             return result
         else:
