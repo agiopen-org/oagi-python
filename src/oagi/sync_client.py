@@ -126,7 +126,9 @@ class SyncClient:
             f"Request includes task_description: {task_description is not None}, task_id: {task_id is not None}"
         )
 
-        response = self.client.post("/v1/message", json=payload, headers=headers, timeout=self.timeout)
+        response = self.client.post(
+            "/v1/message", json=payload, headers=headers, timeout=self.timeout
+        )
 
         if response.status_code == 200:
             result = LLMResponse(**response.json())

@@ -29,7 +29,7 @@ class ShortTask:
             model=self.model,
             screenshot="",
             task_description=self.task_description,
-            task_id=None
+            task_id=None,
         )
         self.task_id = response.task_id  # Reset task_id for new task
         logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
