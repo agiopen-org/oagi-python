@@ -35,6 +35,7 @@ class LLMResponse(BaseModel):
     current_step: int
     is_complete: bool
     actions: list[Action]
+    reason: str | None
     usage: Usage
 
 
@@ -65,6 +66,7 @@ class SyncClient:
 
         self.base_url = self.base_url.rstrip("/")
         self.client = httpx.Client(base_url=self.base_url)
+        self.timeout = 60
 
         logger.info(f"SyncClient initialized with base_url: {self.base_url}")
 
@@ -124,7 +126,7 @@ class SyncClient:
             f"Request includes task_description: {task_description is not None}, task_id: {task_id is not None}"
         )
 
-        response = self.client.post("/v1/message", json=payload, headers=headers)
+        response = self.client.post("/v1/message", json=payload, headers=headers, timeout=self.timeout)
 
         if response.status_code == 200:
             result = LLMResponse(**response.json())

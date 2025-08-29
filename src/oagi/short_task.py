@@ -25,7 +25,13 @@ class ShortTask:
     def init_task(self, task_desc: str, max_steps: int = 5):
         """Initialize a new task with the given description."""
         self.task_description = task_desc
-        self.task_id = None  # Reset task_id for new task
+        response = self.client.create_message(
+            model=self.model,
+            screenshot="",
+            task_description=self.task_description,
+            task_id=None
+        )
+        self.task_id = response.task_id  # Reset task_id for new task
         logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
 
     def step(self, screenshot: Image) -> Step:
@@ -44,9 +50,7 @@ class ShortTask:
             response = self.client.create_message(
                 model=self.model,
                 screenshot=screenshot_b64,
-                task_description=self.task_description
-                if self.task_id is None
-                else None,
+                task_description=self.task_description,
                 task_id=self.task_id,
             )
 
@@ -62,7 +66,7 @@ class ShortTask:
 
             # Convert API response to Step
             result = Step(
-                reason=f"Step {response.current_step}: Analyzing task '{response.task_description}'",
+                reason=response.reason,
                 actions=response.actions,
                 stop=response.is_complete,
             )

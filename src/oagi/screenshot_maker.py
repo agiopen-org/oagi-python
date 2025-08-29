@@ -9,9 +9,17 @@
 from .types import Image
 
 
-class MockImage:
-    """Mock image implementation for testing/stub purposes."""
+class FileImage:
+    def __init__(self, path: str):
+        self.path = path
+        with open(path, "rb") as f:
+            self.data = f.read()
 
+    def read(self) -> bytes:
+        return self.data
+
+
+class MockImage:
     def read(self) -> bytes:
         return b"mock screenshot data"
 
