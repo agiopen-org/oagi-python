@@ -1,51 +1,17 @@
-from oagi import PyautoguiActionHandler, ScreenshotMaker, ShortTask
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
+from datetime import date
 
-
-def execute_task_auto(task_desc, max_steps=5):
-    short_task = ShortTask(api_key="your_api_key", base_url="your_base_url")
-
-    is_completed = short_task.auto_mode(
-        task_desc,
-        max_steps=max_steps,
-        executor=PyautoguiActionHandler(),  # or executor = lambda actions: print(actions) for debugging
-        image_provider=(sm := ScreenshotMaker()),
-    )
-
-    return is_completed, sm.last_image()
-
-
-def execute_task_manual(task_desc, max_steps=5):
-    short_task = ShortTask(api_key="your_api_key", base_url="your_base_url")
-    short_task.init_task(task_desc, max_steps=max_steps)
-    executor = PyautoguiActionHandler()  # executor = OutputExecutor()
-    image_provider = ScreenshotMaker()
-
-    for i in range(max_steps):
-        image = image_provider()
-        # do something with image, maybe save it or OCR then break
-        step = short_task.step(image)
-        # do something with step, maybe print to debug
-        print(f"Step {i}: {step.reason=}")
-
-        if step.stop:
-            print(f"Task completed after {i} steps.")
-            is_completed = True
-            screenshot = image_provider.last_image()
-            break
-
-        executor(step.actions)
-    else:
-        # If we didn't break out of the loop, we used up all our steps
-        is_completed = False
-        screenshot = image_provider()
-
-    print(f"manual execution completed: {is_completed=}, {task_desc=}\n")
-    return is_completed, screenshot
+from examples.execute_task_auto import execute_task_auto
+from examples.execute_task_manual import execute_task_manual
 
 
 def get_date():
-    from datetime import date
-
     today = date.today()
     # move to first day of this month
     first_day_this_month = today.replace(day=1)
@@ -77,9 +43,9 @@ def main():
     print(f"auto execution completed: {is_completed=}, {desc=}\n")
 
     execute_task = execute_task_manual  # or execute_task_auto
-    is_completed, screenshot = execute_task("Click where to and enter Foster City")
-    is_completed, screenshot = execute_task(f"Click dates and click {start_date}")
-    is_completed, screenshot = execute_task(f"Click {end_date} and hit search")
+    execute_task("Click where to and enter Foster City")
+    execute_task(f"Click dates and click {start_date}")
+    execute_task(f"Click {end_date} and hit search")
 
 
 if __name__ == "__main__":
