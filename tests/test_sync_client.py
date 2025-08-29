@@ -25,15 +25,22 @@ from oagi.types import Action, ActionType
 
 
 @pytest.fixture
-def mock_httpx_client():
-    with patch("httpx.Client") as mock_client_class:
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        yield mock_client
+def mock_health_response():
+    mock_response = Mock()
+    mock_response.json.return_value = {"status": "healthy"}
+    return mock_response
+
+
+@pytest.fixture
+def test_client(api_env):
+    client = SyncClient(base_url=api_env["base_url"], api_key=api_env["api_key"])
+    yield client
+    client.close()
 
 
 @pytest.fixture
 def successful_llm_response_data():
+    # Keep this for backward compatibility with existing tests that expect 570 total tokens
     return {
         "id": "test-123",
         "task_id": "task-456",
@@ -48,52 +55,7 @@ def successful_llm_response_data():
     }
 
 
-@pytest.fixture
-def error_response_data():
-    return {
-        "error": "authentication_error",
-        "message": "Invalid API key provided",
-        "code": 401,
-    }
-
-
-@pytest.fixture
-def mock_success_response(successful_llm_response_data):
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = successful_llm_response_data
-    return mock_response
-
-
-@pytest.fixture
-def mock_error_response(error_response_data):
-    mock_response = Mock()
-    mock_response.status_code = 401
-    mock_response.json.return_value = error_response_data
-    return mock_response
-
-
-@pytest.fixture
-def mock_health_response():
-    mock_response = Mock()
-    mock_response.json.return_value = {"status": "healthy"}
-    return mock_response
-
-
-@pytest.fixture
-def test_client():
-    client = SyncClient(base_url="https://api.example.com", api_key="test-key")
-    yield client
-    client.close()
-
-
 class TestSyncClient:
-    def setup_method(self):
-        # Clear environment variables before each test
-        for key in ["OAGI_BASE_URL", "OAGI_API_KEY"]:
-            if key in os.environ:
-                del os.environ[key]
-
     def test_init_with_parameters(self):
         client = SyncClient(base_url="https://api.example.com", api_key="test-key")
         assert client.base_url == "https://api.example.com"
@@ -142,9 +104,13 @@ class TestSyncClient:
             assert client.base_url == "https://api.example.com"
 
     def test_create_message_success(
-        self, mock_httpx_client, mock_success_response, test_client
+        self, mock_httpx_client, successful_llm_response_data, test_client
     ):
-        mock_httpx_client.post.return_value = mock_success_response
+        # Create mock response with correct data
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = successful_llm_response_data
+        mock_httpx_client.post.return_value = mock_response
 
         response = test_client.create_message(
             model="vision-model-v1",
@@ -174,28 +140,16 @@ class TestSyncClient:
                 "max_actions": 5,
             },
             headers={"x-api-key": "test-key"},
+            timeout=60,
         )
 
-    def test_create_message_with_all_parameters(self, mock_httpx_client, test_client):
+    def test_create_message_with_all_parameters(
+        self, mock_httpx_client, test_client, api_response_completed
+    ):
         # Create a completed task response
         completed_response = Mock()
         completed_response.status_code = 200
-        completed_response.json.return_value = {
-            "id": "test-123",
-            "task_id": "task-456",
-            "object": "task.completion",
-            "created": 1677652288,
-            "model": "vision-model-v1",
-            "task_description": "Test task",
-            "current_step": 2,
-            "is_complete": True,
-            "actions": [],
-            "usage": {
-                "prompt_tokens": 100,
-                "completion_tokens": 50,
-                "total_tokens": 150,
-            },
-        }
+        completed_response.json.return_value = api_response_completed
         mock_httpx_client.post.return_value = completed_response
 
         test_client.create_message(
@@ -219,6 +173,7 @@ class TestSyncClient:
                 "max_actions": 10,
             },
             headers=expected_headers,
+            timeout=60,
         )
 
     def test_create_message_error_response(
@@ -249,6 +204,32 @@ class TestSyncClient:
             test_client.create_message(
                 model="vision-model-v1", screenshot="test_screenshot"
             )
+
+    def test_create_message_timeout(
+        self, mock_httpx_client, test_client, http_timeout_error
+    ):
+        # Mock a timeout error
+        mock_httpx_client.post.side_effect = http_timeout_error
+
+        with pytest.raises(httpx.TimeoutException, match="Request timed out"):
+            test_client.create_message(
+                model="vision-model-v1",
+                screenshot="test_screenshot",
+                task_description="Test task",
+            )
+
+        # Verify the request was made with the correct timeout
+        mock_httpx_client.post.assert_called_once_with(
+            "/v1/message",
+            json={
+                "model": "vision-model-v1",
+                "screenshot": "test_screenshot",
+                "task_description": "Test task",
+                "max_actions": 5,
+            },
+            headers={"x-api-key": "test-key"},
+            timeout=60,
+        )
 
     def test_health_check_success(
         self, mock_httpx_client, mock_health_response, test_client

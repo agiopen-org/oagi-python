@@ -1,0 +1,189 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
+
+import os
+from unittest.mock import Mock, patch
+
+import httpx
+import pytest
+
+from oagi.types import Action, ActionType
+
+
+@pytest.fixture(autouse=True)
+def clean_env():
+    """Clean environment variables before and after each test."""
+    env_vars = ["OAGI_LOG", "OAGI_BASE_URL", "OAGI_API_KEY"]
+
+    # Store original values
+    original_values = {}
+    for var in env_vars:
+        if var in os.environ:
+            original_values[var] = os.environ[var]
+
+    yield
+
+    # Restore original values or remove if they didn't exist
+    for var in env_vars:
+        if var in original_values:
+            os.environ[var] = original_values[var]
+        elif var in os.environ:
+            del os.environ[var]
+
+
+@pytest.fixture
+def api_env():
+    """Set up API environment variables."""
+    os.environ["OAGI_BASE_URL"] = "https://api.example.com"
+    os.environ["OAGI_API_KEY"] = "test-key"
+    return {
+        "base_url": "https://api.example.com",
+        "api_key": "test-key",
+    }
+
+
+@pytest.fixture
+def mock_httpx_client():
+    """Mock httpx.Client instance with patching."""
+    with patch("oagi.sync_client.httpx.Client") as mock_class:
+        mock_client = Mock()
+        mock_class.return_value = mock_client
+        yield mock_client
+
+
+@pytest.fixture
+def mock_httpx_client_class(mock_httpx_client):
+    """Mock httpx.Client class - returns the already patched class."""
+    # Since mock_httpx_client already patches the class, we just need to return the mock
+    with patch("oagi.sync_client.httpx.Client") as mock_class:
+        mock_class.return_value = mock_httpx_client
+        yield mock_class
+
+
+@pytest.fixture
+def sample_action():
+    """Sample Action object for testing."""
+    return Action(type=ActionType.CLICK, argument="300, 150", count=1)
+
+
+@pytest.fixture
+def sample_usage():
+    """Sample usage data."""
+    return {
+        "prompt_tokens": 100,
+        "completion_tokens": 50,
+        "total_tokens": 150,
+    }
+
+
+@pytest.fixture
+def api_response_data(sample_action, sample_usage):
+    """Standard API response data structure."""
+    return {
+        "id": "test-123",
+        "task_id": "task-456",
+        "object": "task.completion",
+        "created": 1677652288,
+        "model": "vision-model-v1",
+        "task_description": "Test task",
+        "current_step": 1,
+        "is_complete": False,
+        "actions": [
+            {
+                "type": sample_action.type.value,
+                "argument": sample_action.argument,
+                "count": sample_action.count,
+            }
+        ],
+        "usage": sample_usage,
+    }
+
+
+@pytest.fixture
+def api_response_completed(sample_usage):
+    """API response for completed task."""
+    return {
+        "id": "test-123",
+        "task_id": "task-456",
+        "object": "task.completion",
+        "created": 1677652288,
+        "model": "vision-model-v1",
+        "task_description": "Test task",
+        "current_step": 2,
+        "is_complete": True,
+        "actions": [],
+        "usage": sample_usage,
+    }
+
+
+@pytest.fixture
+def api_response_init_task(sample_usage):
+    """API response for task initialization."""
+    return {
+        "id": "test-123",
+        "task_id": "task-456",
+        "created": 1677652288,
+        "model": "vision-model-v1",
+        "task_description": "Test task",
+        "current_step": 1,
+        "is_complete": False,
+        "actions": [],
+        "usage": sample_usage,
+    }
+
+
+@pytest.fixture
+def mock_success_response(api_response_data):
+    """Mock successful HTTP response."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = api_response_data
+    return mock_response
+
+
+@pytest.fixture
+def mock_error_response():
+    """Mock error HTTP response."""
+    mock_response = Mock()
+    mock_response.status_code = 401
+    mock_response.json.return_value = {
+        "error": "authentication_error",
+        "message": "Invalid API key",
+        "code": 401,
+    }
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "API Error 401: authentication_error - Invalid API key",
+        request=Mock(),
+        response=mock_response,
+    )
+    return mock_response
+
+
+@pytest.fixture
+def mock_server_error():
+    """Mock server error response."""
+    mock_response = Mock()
+    mock_response.status_code = 500
+    mock_response.text = "Internal Server Error"
+    return mock_response
+
+
+@pytest.fixture
+def http_timeout_error():
+    """Create an HTTP timeout exception."""
+    return httpx.TimeoutException("Request timed out after 60 seconds")
+
+
+@pytest.fixture
+def http_status_error(mock_server_error):
+    """Create an HTTP status error."""
+    return httpx.HTTPStatusError(
+        "Server error",
+        request=Mock(),
+        response=mock_server_error,
+    )

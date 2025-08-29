@@ -12,6 +12,6 @@ from .action import Action
 
 
 class Step(BaseModel):
-    reason: str
+    reason: str | None = None
     actions: list[Action]
     stop: bool = False

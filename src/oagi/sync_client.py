@@ -35,7 +35,7 @@ class LLMResponse(BaseModel):
     current_step: int
     is_complete: bool
     actions: list[Action]
-    reason: str | None
+    reason: str | None = None
     usage: Usage
 
 

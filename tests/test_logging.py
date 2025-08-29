@@ -9,7 +9,9 @@
 import logging
 import os
 from io import StringIO
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+import pytest
 
 from oagi.logging import get_logger
 
@@ -39,47 +41,25 @@ class TestLogging:
         assert oagi_root.level == logging.INFO
         assert logger.name == "oagi.test"
 
-    def test_debug_log_level(self):
-        os.environ["OAGI_LOG"] = "DEBUG"
+    @pytest.mark.parametrize(
+        "env_value,expected_level",
+        [
+            ("DEBUG", logging.DEBUG),
+            ("INFO", logging.INFO),
+            ("WARNING", logging.WARNING),
+            ("ERROR", logging.ERROR),
+            ("CRITICAL", logging.CRITICAL),
+            ("debug", logging.DEBUG),  # Case insensitive
+            ("info", logging.INFO),  # Case insensitive
+        ],
+    )
+    def test_log_level_configuration(self, env_value, expected_level):
+        """Test that log level is correctly set from environment variable."""
+        os.environ["OAGI_LOG"] = env_value
         get_logger("test")
         oagi_root = logging.getLogger("oagi")
 
-        assert oagi_root.level == logging.DEBUG
-
-    def test_info_log_level(self):
-        os.environ["OAGI_LOG"] = "INFO"
-        get_logger("test")
-        oagi_root = logging.getLogger("oagi")
-
-        assert oagi_root.level == logging.INFO
-
-    def test_warning_log_level(self):
-        os.environ["OAGI_LOG"] = "WARNING"
-        get_logger("test")
-        oagi_root = logging.getLogger("oagi")
-
-        assert oagi_root.level == logging.WARNING
-
-    def test_error_log_level(self):
-        os.environ["OAGI_LOG"] = "ERROR"
-        get_logger("test")
-        oagi_root = logging.getLogger("oagi")
-
-        assert oagi_root.level == logging.ERROR
-
-    def test_critical_log_level(self):
-        os.environ["OAGI_LOG"] = "CRITICAL"
-        get_logger("test")
-        oagi_root = logging.getLogger("oagi")
-
-        assert oagi_root.level == logging.CRITICAL
-
-    def test_case_insensitive_log_level(self):
-        os.environ["OAGI_LOG"] = "debug"
-        get_logger("test")
-        oagi_root = logging.getLogger("oagi")
-
-        assert oagi_root.level == logging.DEBUG
+        assert oagi_root.level == expected_level
 
     def test_invalid_log_level_defaults_to_info(self):
         os.environ["OAGI_LOG"] = "INVALID_LEVEL"
@@ -127,9 +107,37 @@ class TestLogging:
         # Level should be updated
         assert oagi_root.level == logging.DEBUG
 
+    @pytest.mark.parametrize(
+        "log_level,should_appear,should_not_appear",
+        [
+            (
+                "DEBUG",
+                ["Debug message", "Info message", "Warning message", "Error message"],
+                [],
+            ),
+            (
+                "INFO",
+                ["Info message", "Warning message", "Error message"],
+                ["Debug message"],
+            ),
+            (
+                "WARNING",
+                ["Warning message", "Error message"],
+                ["Debug message", "Info message"],
+            ),
+            (
+                "ERROR",
+                ["Error message"],
+                ["Debug message", "Info message", "Warning message"],
+            ),
+        ],
+    )
     @patch("sys.stderr", new_callable=StringIO)
-    def test_actual_logging_output(self, mock_stderr):
-        os.environ["OAGI_LOG"] = "DEBUG"
+    def test_log_filtering_by_level(
+        self, mock_stderr, log_level, should_appear, should_not_appear
+    ):
+        """Test that log messages are correctly filtered based on log level."""
+        os.environ["OAGI_LOG"] = log_level
         logger = get_logger("test_module")
 
         # Test different log levels
@@ -140,42 +148,23 @@ class TestLogging:
 
         output = mock_stderr.getvalue()
 
-        # All messages should appear at DEBUG level
-        assert "Debug message" in output
-        assert "Info message" in output
-        assert "Warning message" in output
-        assert "Error message" in output
+        # Check messages that should appear
+        for message in should_appear:
+            assert message in output, f"{message} should appear at {log_level} level"
 
-        # Check logger name in output
-        assert "oagi.test_module" in output
+        # Check messages that should not appear
+        for message in should_not_appear:
+            assert message not in output, (
+                f"{message} should not appear at {log_level} level"
+            )
 
-    @patch("sys.stderr", new_callable=StringIO)
-    def test_log_filtering_by_level(self, mock_stderr):
-        os.environ["OAGI_LOG"] = "WARNING"
-        logger = get_logger("test_module")
-
-        # Test different log levels
-        logger.debug("Debug message")
-        logger.info("Info message")
-        logger.warning("Warning message")
-        logger.error("Error message")
-
-        output = mock_stderr.getvalue()
-
-        # Only WARNING and ERROR should appear
-        assert "Debug message" not in output
-        assert "Info message" not in output
-        assert "Warning message" in output
-        assert "Error message" in output
+        # Check logger name in output if any messages appear
+        if should_appear:
+            assert "oagi.test_module" in output
 
 
 class TestLoggingIntegration:
     def setup_method(self):
-        # Clear environment variables and reset logging state
-        for key in ["OAGI_LOG", "OAGI_BASE_URL", "OAGI_API_KEY"]:
-            if key in os.environ:
-                del os.environ[key]
-
         # Clear any existing oagi loggers
         oagi_logger = logging.getLogger("oagi")
         oagi_logger.handlers.clear()
@@ -188,10 +177,9 @@ class TestLoggingIntegration:
                 logger.handlers.clear()
                 logger.setLevel(logging.NOTSET)
 
-    def test_sync_client_logging(self, caplog):
+    def test_sync_client_logging(self, api_env, caplog):
+        """Test that SyncClient logs initialization correctly."""
         os.environ["OAGI_LOG"] = "INFO"
-        os.environ["OAGI_BASE_URL"] = "https://api.example.com"
-        os.environ["OAGI_API_KEY"] = "test-key"
 
         with caplog.at_level(logging.INFO, logger="oagi"):
             from oagi.sync_client import SyncClient
@@ -200,75 +188,99 @@ class TestLoggingIntegration:
             client.close()
 
         assert (
-            "SyncClient initialized with base_url: https://api.example.com"
+            f"SyncClient initialized with base_url: {api_env['base_url']}"
             in caplog.text
         )
         assert any("oagi.sync_client" in record.name for record in caplog.records)
 
-    def test_short_task_logging(self, caplog):
-        os.environ["OAGI_LOG"] = "INFO"
-        os.environ["OAGI_BASE_URL"] = "https://api.example.com"
-        os.environ["OAGI_API_KEY"] = "test-key"
+    @pytest.mark.parametrize(
+        "log_level,task_desc,should_have_step,expected_messages,unexpected_messages",
+        [
+            (
+                "INFO",
+                "Test task",
+                False,
+                ["Task initialized: 'Test task' (max_steps: 3)"],
+                [],
+            ),
+            (
+                "DEBUG",
+                "Debug test",
+                True,
+                [
+                    "Executing step for task",
+                    "Making API request to /v1/message",
+                    "Request includes task_description: True",
+                ],
+                [],
+            ),
+            (
+                "ERROR",
+                "Error test",
+                "error",  # Special case - will trigger error
+                ["Error during step execution"],
+                ["Task initialized", "SyncClient initialized"],
+            ),
+        ],
+    )
+    def test_task_logging_levels(
+        self,
+        mock_httpx_client_class,
+        mock_httpx_client,
+        api_env,
+        api_response_init_task,
+        http_status_error,
+        caplog,
+        log_level,
+        task_desc,
+        should_have_step,
+        expected_messages,
+        unexpected_messages,
+    ):
+        """Test ShortTask logging at different levels."""
+        os.environ["OAGI_LOG"] = log_level
 
-        with caplog.at_level(logging.INFO, logger="oagi"):
-            from oagi.short_task import ShortTask
+        # Setup mock response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        response_data = api_response_init_task.copy()
+        response_data["task_description"] = task_desc
+        mock_response.json.return_value = response_data
 
-            task = ShortTask()
-            task.init_task("Test task", max_steps=3)
-            task.close()
+        if should_have_step == "error":
+            # First call succeeds, second fails
+            mock_httpx_client.post.side_effect = [mock_response, http_status_error]
+        else:
+            mock_httpx_client.post.return_value = mock_response
 
-        assert "Task initialized: 'Test task' (max_steps: 3)" in caplog.text
-        assert any("oagi.short_task" in record.name for record in caplog.records)
-
-    def test_debug_level_integration(self, caplog):
-        os.environ["OAGI_LOG"] = "DEBUG"
-        os.environ["OAGI_BASE_URL"] = "https://api.example.com"
-        os.environ["OAGI_API_KEY"] = "test-key"
-
-        with caplog.at_level(logging.DEBUG, logger="oagi"):
+        with caplog.at_level(getattr(logging, log_level), logger="oagi"):
             from oagi.screenshot_maker import MockImage
             from oagi.short_task import ShortTask
 
             task = ShortTask()
-            task.init_task("Debug test")
 
-            try:
-                # This will fail with network error but should show debug logs
+            if log_level == "INFO":
+                task.init_task(task_desc, max_steps=3)
+            else:
+                task.init_task(task_desc)
+
+            if should_have_step == "error":
+                try:
+                    task.step(MockImage())
+                except Exception:
+                    pass  # Expected to fail
+            elif should_have_step:
                 task.step(MockImage())
-            except Exception:
-                pass  # Expected to fail
 
             task.close()
 
-        # Should contain debug messages
-        assert "Executing step for task" in caplog.text
-        assert "Making API request to /v1/message" in caplog.text
-        assert "Request includes task_description: True" in caplog.text
+        # Check expected messages
+        for msg in expected_messages:
+            assert msg in caplog.text, f"Expected '{msg}' in logs"
 
-    def test_error_level_integration(self, caplog):
-        os.environ["OAGI_LOG"] = "ERROR"
-        os.environ["OAGI_BASE_URL"] = "https://api.example.com"
-        os.environ["OAGI_API_KEY"] = "test-key"
-
-        with caplog.at_level(logging.ERROR, logger="oagi"):
-            from oagi.screenshot_maker import MockImage
-            from oagi.short_task import ShortTask
-
-            task = ShortTask()
-            task.init_task("Error test")
-
-            try:
-                # This will fail with network error
-                task.step(MockImage())
-            except Exception:
-                pass  # Expected to fail
-
-            task.close()
-
-        # Should only contain error messages, no info or debug
-        assert "Task initialized" not in caplog.text
-        assert "SyncClient initialized" not in caplog.text
-        assert "Error during step execution" in caplog.text
+        # Check unexpected messages
+        for msg in unexpected_messages:
+            assert msg not in caplog.text, f"Did not expect '{msg}' in logs"
 
     def test_no_logging_with_invalid_config(self, caplog):
         # Don't set OAGI_BASE_URL or OAGI_API_KEY to trigger errors
