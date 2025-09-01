@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from oagi import ShortTask
+from oagi.exceptions import ConfigurationError
 from oagi.logging import get_logger
 from oagi.screenshot_maker import MockImage
 from oagi.sync_client import SyncClient
@@ -287,7 +288,7 @@ class TestLoggingIntegration:
         with caplog.at_level(logging.INFO, logger="oagi"):
             try:
                 SyncClient()
-            except ValueError:
+            except ConfigurationError:
                 pass  # Expected to fail
 
         # Should not have any successful initialization logs

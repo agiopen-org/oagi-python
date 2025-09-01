@@ -12,6 +12,17 @@ import os
 import httpx
 from pydantic import BaseModel
 
+from .exceptions import (
+    APIError,
+    AuthenticationError,
+    ConfigurationError,
+    NetworkError,
+    NotFoundError,
+    RateLimitError,
+    RequestTimeoutError,
+    ServerError,
+    ValidationError,
+)
 from .logging import get_logger
 from .types import Action
 
@@ -60,13 +71,13 @@ class SyncClient:
 
         # Validate required configuration
         if not self.base_url:
-            raise ValueError(
+            raise ConfigurationError(
                 "OAGI base URL must be provided either as 'base_url' parameter or "
                 "OAGI_BASE_URL environment variable"
             )
 
         if not self.api_key:
-            raise ValueError(
+            raise ConfigurationError(
                 "OAGI API key must be provided either as 'api_key' parameter or "
                 "OAGI_API_KEY environment variable"
             )
@@ -137,28 +148,44 @@ class SyncClient:
             f"Request includes task_description: {task_description is not None}, task_id: {task_id is not None}"
         )
 
-        response = self.client.post(
-            "/v1/message", json=payload, headers=headers, timeout=self.timeout
-        )
+        try:
+            response = self.client.post(
+                "/v1/message", json=payload, headers=headers, timeout=self.timeout
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"Request timed out after {self.timeout} seconds")
+            raise RequestTimeoutError(
+                f"Request timed out after {self.timeout} seconds", e
+            )
+        except httpx.NetworkError as e:
+            logger.error(f"Network error: {e}")
+            raise NetworkError(f"Network error: {e}", e)
 
         try:
             response_data = response.json()
         except ValueError:
-            # If response is not JSON, raise generic error
+            # If response is not JSON, raise API error
             logger.error(f"Non-JSON API response: {response.status_code}")
-            response.raise_for_status()
-            raise
+            raise APIError(
+                f"Invalid response format (status {response.status_code})",
+                status_code=response.status_code,
+                response=response,
+            )
 
         # Check if it's an error response (non-200 status or has error field)
         if response.status_code != 200:
             error_resp = ErrorResponse(**response_data)
             if error_resp.error:
-                logger.error(
-                    f"API Error {error_resp.error.code}: {error_resp.error.message}"
-                )
-                raise httpx.HTTPStatusError(
-                    f"API Error {error_resp.error.code}: {error_resp.error.message}",
-                    request=response.request,
+                error_code = error_resp.error.code
+                error_msg = error_resp.error.message
+                logger.error(f"API Error [{error_code}]: {error_msg}")
+
+                # Map to specific exception types based on status code
+                exception_class = self._get_exception_class(response.status_code)
+                raise exception_class(
+                    error_msg,
+                    code=error_code,
+                    status_code=response.status_code,
                     response=response,
                 )
             else:
@@ -166,7 +193,12 @@ class SyncClient:
                 logger.error(
                     f"API error response without details: {response.status_code}"
                 )
-                response.raise_for_status()
+                exception_class = self._get_exception_class(response.status_code)
+                raise exception_class(
+                    f"API error (status {response.status_code})",
+                    status_code=response.status_code,
+                    response=response,
+                )
 
         # Parse successful response
         result = LLMResponse(**response_data)
@@ -174,11 +206,12 @@ class SyncClient:
         # Check if the response contains an error (even with 200 status)
         if result.error:
             logger.error(
-                f"API Error in response: {result.error.code}: {result.error.message}"
+                f"API Error in response: [{result.error.code}]: {result.error.message}"
             )
-            raise httpx.HTTPStatusError(
-                f"API Error {result.error.code}: {result.error.message}",
-                request=response.request,
+            raise APIError(
+                result.error.message,
+                code=result.error.code,
+                status_code=200,
                 response=response,
             )
 
@@ -187,6 +220,20 @@ class SyncClient:
         )
         logger.debug(f"Response included {len(result.actions)} actions")
         return result
+
+    def _get_exception_class(self, status_code: int) -> type[APIError]:
+        """Get the appropriate exception class based on status code."""
+        status_map = {
+            401: AuthenticationError,
+            404: NotFoundError,
+            422: ValidationError,
+            429: RateLimitError,
+        }
+
+        if status_code >= 500:
+            return ServerError
+
+        return status_map.get(status_code, APIError)
 
     def health_check(self) -> dict:
         """

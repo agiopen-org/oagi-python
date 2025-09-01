@@ -13,6 +13,12 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
+from oagi.exceptions import (
+    APIError,
+    AuthenticationError,
+    ConfigurationError,
+    RequestTimeoutError,
+)
 from oagi.sync_client import (
     ErrorDetail,
     ErrorResponse,
@@ -37,23 +43,6 @@ def test_client(api_env):
     client = SyncClient(base_url=api_env["base_url"], api_key=api_env["api_key"])
     yield client
     client.close()
-
-
-@pytest.fixture
-def successful_llm_response_data():
-    # Keep this for backward compatibility with existing tests that expect 570 total tokens
-    return {
-        "id": "test-123",
-        "task_id": "task-456",
-        "object": "task.completion",
-        "created": 1677652288,
-        "model": "vision-model-v1",
-        "task_description": "Test task",
-        "current_step": 1,
-        "is_complete": False,
-        "actions": [{"type": "click", "argument": "300, 150", "count": 1}],
-        "usage": {"prompt_tokens": 450, "completion_tokens": 120, "total_tokens": 570},
-    }
 
 
 class TestSyncClient:
@@ -82,15 +71,15 @@ class TestSyncClient:
         client.close()
 
     def test_init_missing_base_url_raises_error(self):
-        with pytest.raises(ValueError, match="OAGI base URL must be provided"):
+        with pytest.raises(ConfigurationError, match="OAGI base URL must be provided"):
             SyncClient(api_key="test-key")
 
     def test_init_missing_api_key_raises_error(self):
-        with pytest.raises(ValueError, match="OAGI API key must be provided"):
+        with pytest.raises(ConfigurationError, match="OAGI API key must be provided"):
             SyncClient(base_url="https://api.example.com")
 
     def test_init_missing_both_raises_base_url_error_first(self):
-        with pytest.raises(ValueError, match="OAGI base URL must be provided"):
+        with pytest.raises(ConfigurationError, match="OAGI base URL must be provided"):
             SyncClient()
 
     def test_base_url_trailing_slash_stripped(self):
@@ -105,12 +94,12 @@ class TestSyncClient:
             assert client.base_url == "https://api.example.com"
 
     def test_create_message_success(
-        self, mock_httpx_client, successful_llm_response_data, test_client
+        self, mock_httpx_client, api_response_data, test_client
     ):
         # Create mock response with correct data
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = successful_llm_response_data
+        mock_response.json.return_value = api_response_data
         mock_httpx_client.post.return_value = mock_response
 
         response = test_client.create_message(
@@ -128,8 +117,8 @@ class TestSyncClient:
         assert not response.is_complete
         assert len(response.actions) == 1
         assert response.actions[0].type == ActionType.CLICK
-        assert response.actions[0].argument == "300, 150"
-        assert response.usage.total_tokens == 570
+        assert response.actions[0].argument == "100, 200"
+        assert response.usage.total_tokens == 150
 
         # Verify the API call
         mock_httpx_client.post.assert_called_once_with(
@@ -185,8 +174,8 @@ class TestSyncClient:
         mock_httpx_client.post.return_value = mock_error_response
 
         with pytest.raises(
-            httpx.HTTPStatusError,
-            match="API Error authentication_error: Invalid API key",
+            AuthenticationError,
+            match="Invalid API key",
         ):
             test_client.create_message(
                 model="vision-model-v1", screenshot="test_screenshot"
@@ -199,23 +188,18 @@ class TestSyncClient:
         mock_response = Mock()
         mock_response.status_code = 500
         mock_response.json.side_effect = ValueError("Not JSON")
-        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "500 Server Error", request=Mock(), response=mock_response
-        )
         mock_httpx_client.post.return_value = mock_response
 
-        with pytest.raises(httpx.HTTPStatusError, match="500 Server Error"):
+        with pytest.raises(APIError, match="Invalid response format"):
             test_client.create_message(
                 model="vision-model-v1", screenshot="test_screenshot"
             )
 
-    def test_create_message_timeout(
-        self, mock_httpx_client, test_client, http_timeout_error
-    ):
+    def test_create_message_timeout(self, mock_httpx_client, test_client):
         # Mock a timeout error
-        mock_httpx_client.post.side_effect = http_timeout_error
+        mock_httpx_client.post.side_effect = httpx.TimeoutException("Request timed out")
 
-        with pytest.raises(httpx.TimeoutException, match="Request timed out"):
+        with pytest.raises(RequestTimeoutError, match="Request timed out"):
             test_client.create_message(
                 model="vision-model-v1",
                 screenshot="test_screenshot",
