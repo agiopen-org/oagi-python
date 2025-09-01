@@ -157,6 +157,7 @@ class TestSyncClient:
             screenshot="screenshot_data",
             task_description="Test task",
             task_id="existing-task",
+            instruction="Click submit button",
             max_actions=10,
             api_version="v1.2",
         )
@@ -170,6 +171,7 @@ class TestSyncClient:
                 "screenshot": "screenshot_data",
                 "task_description": "Test task",
                 "task_id": "existing-task",
+                "instruction": "Click submit button",
                 "max_actions": 10,
             },
             headers=expected_headers,

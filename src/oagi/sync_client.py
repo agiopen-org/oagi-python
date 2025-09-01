@@ -8,7 +8,6 @@
 
 import base64
 import os
-from typing import Optional
 
 import httpx
 from pydantic import BaseModel
@@ -46,7 +45,7 @@ class ErrorResponse(BaseModel):
 
 
 class SyncClient:
-    def __init__(self, base_url: Optional[str] = None, api_key: Optional[str] = None):
+    def __init__(self, base_url: str | None = None, api_key: str | None = None):
         # Get from environment if not provided
         self.base_url = base_url or os.getenv("OAGI_BASE_URL")
         self.api_key = api_key or os.getenv("OAGI_API_KEY")
@@ -84,10 +83,11 @@ class SyncClient:
         self,
         model: str,
         screenshot: str,  # base64 encoded
-        task_description: Optional[str] = None,
-        task_id: Optional[str] = None,
-        max_actions: Optional[int] = 5,
-        api_version: Optional[str] = None,
+        task_description: str | None = None,
+        task_id: str | None = None,
+        instruction: str | None = None,
+        max_actions: int | None = 5,
+        api_version: str | None = None,
     ) -> LLMResponse:
         """
         Call the /v1/message endpoint to analyze task and screenshot
@@ -97,6 +97,7 @@ class SyncClient:
             screenshot: Base64-encoded screenshot image
             task_description: Description of the task (required for new sessions)
             task_id: Task ID for continuing existing task
+            instruction: Additional instruction when continuing a session (only works with task_id)
             max_actions: Maximum number of actions to return (1-20)
             api_version: API version header
 
@@ -118,6 +119,8 @@ class SyncClient:
             payload["task_description"] = task_description
         if task_id is not None:
             payload["task_id"] = task_id
+        if instruction is not None:
+            payload["instruction"] = instruction
         if max_actions is not None:
             payload["max_actions"] = max_actions
 

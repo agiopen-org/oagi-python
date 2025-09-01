@@ -99,6 +99,7 @@ class TestStep:
                 screenshot="base64_encoded_image",
                 task_description="Test task",
                 task_id="existing-task",
+                instruction=None,
             )
 
             # Verify returned Step
@@ -130,6 +131,7 @@ class TestStep:
                 screenshot="base64_encoded_bytes",
                 task_description="Test task",
                 task_id=None,
+                instruction=None,
             )
 
             # Verify task_id was updated
@@ -181,6 +183,28 @@ class TestStep:
 
             with pytest.raises(Exception, match="API Error"):
                 task.step(b"image bytes")
+
+    def test_step_with_instruction(self, task, sample_llm_response):
+        task.task_description = "Test task"
+        task.task_id = "existing-task"
+        task.client.create_message.return_value = sample_llm_response
+
+        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+            mock_encode.return_value = "base64_encoded"
+
+            result = task.step(b"image bytes", instruction="Click the submit button")
+
+            # Verify API call includes instruction
+            task.client.create_message.assert_called_once_with(
+                model="vision-model-v1",
+                screenshot="base64_encoded",
+                task_description="Test task",
+                task_id="existing-task",
+                instruction="Click the submit button",
+            )
+
+            assert isinstance(result, Step)
+            assert not result.stop
 
 
 class TestContextManager:

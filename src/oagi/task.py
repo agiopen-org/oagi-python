@@ -36,8 +36,16 @@ class Task:
         self.task_id = response.task_id  # Reset task_id for new task
         logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
 
-    def step(self, screenshot: Image | bytes) -> Step:
-        """Send screenshot to the server and get the next actions."""
+    def step(self, screenshot: Image | bytes, instruction: str | None = None) -> Step:
+        """Send screenshot to the server and get the next actions.
+
+        Args:
+            screenshot: Screenshot as Image object or raw bytes
+            instruction: Optional additional instruction for this step (only works with existing task_id)
+
+        Returns:
+            Step: The actions and reasoning for this step
+        """
         if not self.task_description:
             raise ValueError("Task description must be set. Call init_task() first.")
 
@@ -57,6 +65,7 @@ class Task:
                 screenshot=screenshot_b64,
                 task_description=self.task_description,
                 task_id=self.task_id,
+                instruction=instruction,
             )
 
             # Update task_id from response
