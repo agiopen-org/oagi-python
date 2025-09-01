@@ -14,6 +14,7 @@ import httpx
 import pytest
 
 from oagi.sync_client import (
+    ErrorDetail,
     ErrorResponse,
     LLMResponse,
     SyncClient,
@@ -184,7 +185,8 @@ class TestSyncClient:
         mock_httpx_client.post.return_value = mock_error_response
 
         with pytest.raises(
-            httpx.HTTPStatusError, match="API Error 401: authentication_error"
+            httpx.HTTPStatusError,
+            match="API Error authentication_error: Invalid API key",
         ):
             test_client.create_message(
                 model="vision-model-v1", screenshot="test_screenshot"
@@ -302,10 +304,16 @@ class TestDataModels:
         assert sample_usage.total_tokens == 150
 
     def test_error_response_model(self):
-        error = ErrorResponse(error="test_error", message="Test message", code=400)
-        assert error.error == "test_error"
-        assert error.message == "Test message"
-        assert error.code == 400
+        # Test with error detail
+        error = ErrorResponse(
+            error=ErrorDetail(code="test_error", message="Test message")
+        )
+        assert error.error.code == "test_error"
+        assert error.error.message == "Test message"
+
+        # Test with None error (successful response)
+        error_none = ErrorResponse(error=None)
+        assert error_none.error is None
 
     def test_llm_response_model(self, sample_action, sample_usage):
         response = LLMResponse(
@@ -331,3 +339,4 @@ class TestDataModels:
         assert len(response.actions) == 1
         assert response.actions[0].type == ActionType.CLICK
         assert response.usage.total_tokens == 150
+        assert response.error is None  # No error in successful response

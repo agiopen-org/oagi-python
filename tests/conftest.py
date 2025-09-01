@@ -153,9 +153,10 @@ def mock_error_response():
     mock_response = Mock()
     mock_response.status_code = 401
     mock_response.json.return_value = {
-        "error": "authentication_error",
-        "message": "Invalid API key",
-        "code": 401,
+        "error": {
+            "code": "authentication_error",
+            "message": "Invalid API key",
+        }
     }
     mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
         "API Error 401: authentication_error - Invalid API key",

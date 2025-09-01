@@ -24,6 +24,19 @@ class Usage(BaseModel):
     total_tokens: int
 
 
+class ErrorDetail(BaseModel):
+    """Detailed error information."""
+
+    code: str
+    message: str
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response format."""
+
+    error: ErrorDetail | None
+
+
 class LLMResponse(BaseModel):
     id: str
     task_id: str
@@ -36,12 +49,7 @@ class LLMResponse(BaseModel):
     actions: list[Action]
     reason: str | None = None
     usage: Usage
-
-
-class ErrorResponse(BaseModel):
-    error: str
-    message: str
-    code: int
+    error: ErrorDetail | None = None
 
 
 class SyncClient:
@@ -133,28 +141,52 @@ class SyncClient:
             "/v1/message", json=payload, headers=headers, timeout=self.timeout
         )
 
-        if response.status_code == 200:
-            result = LLMResponse(**response.json())
-            logger.info(
-                f"API request successful - task_id: {result.task_id}, step: {result.current_step}, complete: {result.is_complete}"
-            )
-            logger.debug(f"Response included {len(result.actions)} actions")
-            return result
-        else:
-            # Handle error responses
-            try:
-                error_data = response.json()
-                error = ErrorResponse(**error_data)
-                logger.error(f"API Error {error.code}: {error.error} - {error.message}")
+        try:
+            response_data = response.json()
+        except ValueError:
+            # If response is not JSON, raise generic error
+            logger.error(f"Non-JSON API response: {response.status_code}")
+            response.raise_for_status()
+            raise
+
+        # Check if it's an error response (non-200 status or has error field)
+        if response.status_code != 200:
+            error_resp = ErrorResponse(**response_data)
+            if error_resp.error:
+                logger.error(
+                    f"API Error {error_resp.error.code}: {error_resp.error.message}"
+                )
                 raise httpx.HTTPStatusError(
-                    f"API Error {error.code}: {error.error} - {error.message}",
+                    f"API Error {error_resp.error.code}: {error_resp.error.message}",
                     request=response.request,
                     response=response,
                 )
-            except ValueError:
-                # If response is not JSON, raise generic error
-                logger.error(f"Non-JSON API error response: {response.status_code}")
+            else:
+                # Error response without error details
+                logger.error(
+                    f"API error response without details: {response.status_code}"
+                )
                 response.raise_for_status()
+
+        # Parse successful response
+        result = LLMResponse(**response_data)
+
+        # Check if the response contains an error (even with 200 status)
+        if result.error:
+            logger.error(
+                f"API Error in response: {result.error.code}: {result.error.message}"
+            )
+            raise httpx.HTTPStatusError(
+                f"API Error {result.error.code}: {result.error.message}",
+                request=response.request,
+                response=response,
+            )
+
+        logger.info(
+            f"API request successful - task_id: {result.task_id}, step: {result.current_step}, complete: {result.is_complete}"
+        )
+        logger.debug(f"Response included {len(result.actions)} actions")
+        return result
 
     def health_check(self) -> dict:
         """
