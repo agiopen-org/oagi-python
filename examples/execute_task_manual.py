@@ -6,14 +6,14 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from oagi import PyautoguiActionHandler, ScreenshotMaker, ShortTask
+from oagi import PyautoguiActionHandler, ScreenshotMaker, Task
 
 
 def execute_task_manual(task_desc, max_steps=5):
     # set OAGI_API_KEY and OAGI_BASE_URL
     # or ShortTask(api_key="your_api_key", base_url="your_base_url")
-    short_task = ShortTask()
-    short_task.init_task(task_desc, max_steps=max_steps)
+    task = Task()
+    task.init_task(task_desc, max_steps=max_steps)
     executor = (
         PyautoguiActionHandler()
     )  # executor = lambda actions: print(actions) for debugging
@@ -22,7 +22,7 @@ def execute_task_manual(task_desc, max_steps=5):
     for i in range(max_steps):
         image = image_provider()
         # do something with image, maybe save it or OCR then break
-        step = short_task.step(image)
+        step = task.step(image)
         # do something with step, maybe print to debug
         print(f"Step {i}: {step.reason=}")
 
