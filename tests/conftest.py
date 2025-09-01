@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
+from oagi.sync_client import LLMResponse
 from oagi.types import Action, ActionType
 
 
@@ -187,3 +188,48 @@ def http_status_error(mock_server_error):
         request=Mock(),
         response=mock_server_error,
     )
+
+
+@pytest.fixture
+def mock_sync_client():
+    """Create a mock SyncClient for task tests."""
+    with patch("oagi.task.SyncClient") as MockClient:
+        mock_instance = Mock()
+        mock_instance.api_key = "test-key"
+        mock_instance.base_url = "https://test.example.com"
+        MockClient.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def mock_image():
+    """Create a mock Image object."""
+    mock = Mock()
+    mock.read.return_value = b"fake image bytes"
+    return mock
+
+
+@pytest.fixture
+def sample_llm_response(api_response_data):
+    """Create a sample LLMResponse for testing."""
+    # Add additional fields that might not be in api_response_data
+    response_data = api_response_data.copy()
+    response_data["reason"] = "Need to click button and type text"
+
+    # Add a second action for more comprehensive testing
+    response_data["actions"] = [
+        {"type": ActionType.CLICK.value, "argument": "100, 200", "count": 1},
+        {"type": ActionType.TYPE.value, "argument": "hello", "count": 1},
+    ]
+
+    return LLMResponse(**response_data)
+
+
+@pytest.fixture
+def completed_llm_response(api_response_completed):
+    """Create a completed LLMResponse for testing."""
+    # Add additional fields that might not be in api_response_completed
+    response_data = api_response_completed.copy()
+    response_data["reason"] = "Task completed successfully"
+
+    return LLMResponse(**response_data)

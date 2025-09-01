@@ -6,9 +6,10 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
+@runtime_checkable
 class Image(Protocol):
     """Protocol for image objects that can be read as bytes."""
 
