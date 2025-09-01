@@ -20,9 +20,15 @@ def execute_task_manual(task_desc, max_steps=5):
     image_provider = ScreenshotMaker()
 
     for i in range(max_steps):
+        # image can also be bytes
+        # with open("test_screenshot.png", "rb") as f:
+        #     image = f.read()
         image = image_provider()
-        # do something with image, maybe save it or OCR then break
+
+        # For additional instructions
+        # step = task.step(image, instruction="some instruction")
         step = task.step(image)
+
         # do something with step, maybe print to debug
         print(f"Step {i}: {step.reason=}")
 
