@@ -32,4 +32,4 @@ dev = [
 ]
 
 [tool.ruff.lint]
-extend-select = ["I"]
+extend-select = ["I", "PLC0415"]

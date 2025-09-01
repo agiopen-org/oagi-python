@@ -13,7 +13,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from oagi import ShortTask
 from oagi.logging import get_logger
+from oagi.screenshot_maker import MockImage
+from oagi.sync_client import SyncClient
 
 
 class TestLogging:
@@ -182,8 +185,6 @@ class TestLoggingIntegration:
         os.environ["OAGI_LOG"] = "INFO"
 
         with caplog.at_level(logging.INFO, logger="oagi"):
-            from oagi.sync_client import SyncClient
-
             client = SyncClient()
             client.close()
 
@@ -254,9 +255,6 @@ class TestLoggingIntegration:
             mock_httpx_client.post.return_value = mock_response
 
         with caplog.at_level(getattr(logging, log_level), logger="oagi"):
-            from oagi.screenshot_maker import MockImage
-            from oagi.short_task import ShortTask
-
             task = ShortTask()
 
             if log_level == "INFO":
@@ -287,8 +285,6 @@ class TestLoggingIntegration:
         os.environ["OAGI_LOG"] = "INFO"
 
         with caplog.at_level(logging.INFO, logger="oagi"):
-            from oagi.sync_client import SyncClient
-
             try:
                 SyncClient()
             except ValueError:
