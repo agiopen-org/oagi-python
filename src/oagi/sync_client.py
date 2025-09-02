@@ -8,8 +8,10 @@
 
 import base64
 import os
+from functools import wraps
 
 import httpx
+from httpx import Response
 from pydantic import BaseModel
 
 from .exceptions import (
@@ -63,6 +65,27 @@ class LLMResponse(BaseModel):
     error: ErrorDetail | None = None
 
 
+def _log_trace_id(response: Response):
+    logger.error(f"Request Id: {response.headers.get('x-request-id', '')}")
+    logger.error(f"Trace Id: {response.headers.get('x-trace-id', '')}")
+
+
+def log_trace_on_failure(func):
+    """Decorator that logs trace ID when a method fails."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            # Try to get response from the exception if it has one
+            if (response := getattr(e, "response", None)) is not None:
+                _log_trace_id(response)
+            raise
+
+    return wrapper
+
+
 class SyncClient:
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         # Get from environment if not provided
@@ -98,6 +121,7 @@ class SyncClient:
         """Close the underlying httpx client"""
         self.client.close()
 
+    @log_trace_on_failure
     def create_message(
         self,
         model: str,

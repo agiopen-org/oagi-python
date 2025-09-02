@@ -7,6 +7,7 @@
 # -----------------------------------------------------------------------------
 
 import base64
+import logging
 import os
 from unittest.mock import Mock, patch
 
@@ -71,14 +72,26 @@ class TestSyncClient:
         client.close()
 
     def test_init_missing_base_url_raises_error(self):
+        # Clear environment variables to ensure test isolation
+        os.environ.pop("OAGI_BASE_URL", None)
+        os.environ.pop("OAGI_API_KEY", None)
+
         with pytest.raises(ConfigurationError, match="OAGI base URL must be provided"):
             SyncClient(api_key="test-key")
 
     def test_init_missing_api_key_raises_error(self):
+        # Clear environment variables to ensure test isolation
+        os.environ.pop("OAGI_BASE_URL", None)
+        os.environ.pop("OAGI_API_KEY", None)
+
         with pytest.raises(ConfigurationError, match="OAGI API key must be provided"):
             SyncClient(base_url="https://api.example.com")
 
     def test_init_missing_both_raises_base_url_error_first(self):
+        # Clear environment variables to ensure test isolation
+        os.environ.pop("OAGI_BASE_URL", None)
+        os.environ.pop("OAGI_API_KEY", None)
+
         with pytest.raises(ConfigurationError, match="OAGI base URL must be provided"):
             SyncClient()
 
@@ -268,6 +281,73 @@ class TestHelperFunctions:
 
         assert result == expected_base64
         mock_open.assert_called_once_with("/path/to/image.png", "rb")
+
+
+class TestTraceLogging:
+    def test_log_trace_on_failure_with_response(
+        self, mock_httpx_client, test_client, caplog
+    ):
+        # Create a mock response with trace headers
+        mock_response = Mock()
+        mock_response.headers = {"x-request-id": "req-123", "x-trace-id": "trace-456"}
+
+        # Create an exception with response attribute
+        error = httpx.HTTPStatusError(
+            "Server error", request=Mock(), response=mock_response
+        )
+        error.response = mock_response
+        mock_httpx_client.post.side_effect = error
+
+        with caplog.at_level(logging.ERROR, logger="oagi.sync_client"):
+            with pytest.raises(httpx.HTTPStatusError):
+                test_client.create_message(
+                    model="test-model", screenshot="test-screenshot"
+                )
+
+        # Check that trace IDs were logged
+        assert "Request Id: req-123" in caplog.text
+        assert "Trace Id: trace-456" in caplog.text
+
+    def test_log_trace_on_failure_without_response(
+        self, mock_httpx_client, test_client, caplog
+    ):
+        # Create an exception without response attribute
+        error = ValueError("Some error")
+        mock_httpx_client.post.side_effect = error
+
+        with caplog.at_level(logging.ERROR, logger="oagi.sync_client"):
+            with pytest.raises(ValueError):
+                test_client.create_message(
+                    model="test-model", screenshot="test-screenshot"
+                )
+
+        # Check that trace IDs were NOT logged (no response)
+        assert "Request Id:" not in caplog.text
+        assert "Trace Id:" not in caplog.text
+
+    def test_log_trace_on_failure_with_missing_headers(
+        self, mock_httpx_client, test_client, caplog
+    ):
+        # Create a mock response without trace headers
+        mock_response = Mock()
+        mock_response.headers = {}
+
+        # Create an exception with response attribute
+        error = httpx.HTTPStatusError(
+            "Server error", request=Mock(), response=mock_response
+        )
+        error.response = mock_response
+        mock_httpx_client.post.side_effect = error
+
+        with caplog.at_level(logging.ERROR, logger="oagi.sync_client"):
+            with pytest.raises(httpx.HTTPStatusError):
+                test_client.create_message(
+                    model="test-model", screenshot="test-screenshot"
+                )
+
+        # Check that empty trace IDs were logged
+        assert "Request Id: " in caplog.text
+        assert "Trace Id: " in caplog.text
 
 
 @pytest.fixture
