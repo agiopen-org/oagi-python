@@ -20,30 +20,54 @@ from oagi.screenshot_maker import MockImage
 from oagi.sync_client import SyncClient
 
 
-class TestLogging:
-    def setup_method(self):
-        # Clear environment variables and reset logging state
-        if "OAGI_LOG" in os.environ:
-            del os.environ["OAGI_LOG"]
+@pytest.fixture
+def clean_logging_state():
+    """Clean and reset OAGI logging state before and after test."""
 
-        # Clear any existing oagi loggers
+    def _clean_loggers():
         oagi_logger = logging.getLogger("oagi")
         oagi_logger.handlers.clear()
         oagi_logger.setLevel(logging.NOTSET)
 
-        # Clear any child loggers
+        # Clear child loggers
         for name in list(logging.Logger.manager.loggerDict.keys()):
             if name.startswith("oagi."):
                 logger = logging.getLogger(name)
                 logger.handlers.clear()
                 logger.setLevel(logging.NOTSET)
 
-    def test_default_log_level(self):
-        logger = get_logger("test")
-        oagi_root = logging.getLogger("oagi")
+    _clean_loggers()
+    yield
+    _clean_loggers()
 
-        assert oagi_root.level == logging.INFO
-        assert logger.name == "oagi.test"
+
+@pytest.fixture
+def set_log_level():
+    """Helper to set OAGI_LOG environment variable for tests."""
+
+    def _set_level(level: str):
+        os.environ["OAGI_LOG"] = level
+
+    return _set_level
+
+
+@pytest.fixture
+def oagi_root_logger():
+    """Get the root OAGI logger."""
+    return logging.getLogger("oagi")
+
+
+@pytest.fixture
+def test_logger():
+    """Create a test logger using get_logger."""
+    return get_logger("test")
+
+
+class TestLogging:
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_default_log_level(self, test_logger, oagi_root_logger):
+        assert oagi_root_logger.level == logging.INFO
+        assert test_logger.name == "oagi.test"
 
     @pytest.mark.parametrize(
         "env_value,expected_level",
@@ -53,63 +77,53 @@ class TestLogging:
             ("WARNING", logging.WARNING),
             ("ERROR", logging.ERROR),
             ("CRITICAL", logging.CRITICAL),
-            ("debug", logging.DEBUG),  # Case insensitive
-            ("info", logging.INFO),  # Case insensitive
+            ("debug", logging.DEBUG),
+            ("info", logging.INFO),
         ],
     )
-    def test_log_level_configuration(self, env_value, expected_level):
-        """Test that log level is correctly set from environment variable."""
-        os.environ["OAGI_LOG"] = env_value
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_log_level_configuration(
+        self, env_value, expected_level, set_log_level, oagi_root_logger
+    ):
+        set_log_level(env_value)
         get_logger("test")
-        oagi_root = logging.getLogger("oagi")
+        assert oagi_root_logger.level == expected_level
 
-        assert oagi_root.level == expected_level
-
-    def test_invalid_log_level_defaults_to_info(self):
-        os.environ["OAGI_LOG"] = "INVALID_LEVEL"
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_invalid_log_level_defaults_to_info(self, set_log_level, oagi_root_logger):
+        set_log_level("INVALID_LEVEL")
         get_logger("test")
-        oagi_root = logging.getLogger("oagi")
+        assert oagi_root_logger.level == logging.INFO
 
-        assert oagi_root.level == logging.INFO
-
-    def test_handler_configuration(self):
-        get_logger("test")
-        oagi_root = logging.getLogger("oagi")
-
-        assert len(oagi_root.handlers) == 1
-        handler = oagi_root.handlers[0]
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_handler_configuration(self, test_logger, oagi_root_logger):
+        assert len(oagi_root_logger.handlers) == 1
+        handler = oagi_root_logger.handlers[0]
         assert isinstance(handler, logging.StreamHandler)
 
-        # Check formatter
         formatter = handler.formatter
         assert "%(asctime)s - %(name)s - %(levelname)s - %(message)s" in formatter._fmt
 
-    def test_multiple_loggers_share_configuration(self):
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_multiple_loggers_share_configuration(self, oagi_root_logger):
         logger1 = get_logger("module1")
         logger2 = get_logger("module2")
 
-        oagi_root = logging.getLogger("oagi")
-
-        # Should only have one handler
-        assert len(oagi_root.handlers) == 1
-
-        # Both loggers should be under the same root
+        assert len(oagi_root_logger.handlers) == 1
         assert logger1.name == "oagi.module1"
         assert logger2.name == "oagi.module2"
 
-    def test_log_level_change_after_initialization(self):
-        # First initialization with INFO
-        os.environ["OAGI_LOG"] = "INFO"
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_log_level_change_after_initialization(
+        self, set_log_level, oagi_root_logger
+    ):
+        set_log_level("INFO")
         get_logger("test1")
-        oagi_root = logging.getLogger("oagi")
-        assert oagi_root.level == logging.INFO
+        assert oagi_root_logger.level == logging.INFO
 
-        # Change environment and create new logger
-        os.environ["OAGI_LOG"] = "DEBUG"
+        set_log_level("DEBUG")
         get_logger("test2")
-
-        # Level should be updated
-        assert oagi_root.level == logging.DEBUG
+        assert oagi_root_logger.level == logging.DEBUG
 
     @pytest.mark.parametrize(
         "log_level,should_appear,should_not_appear",
@@ -136,63 +150,58 @@ class TestLogging:
             ),
         ],
     )
+    @pytest.mark.usefixtures("clean_logging_state")
     @patch("sys.stderr", new_callable=StringIO)
     def test_log_filtering_by_level(
-        self, mock_stderr, log_level, should_appear, should_not_appear
+        self, mock_stderr, log_level, should_appear, should_not_appear, set_log_level
     ):
-        """Test that log messages are correctly filtered based on log level."""
-        os.environ["OAGI_LOG"] = log_level
+        set_log_level(log_level)
         logger = get_logger("test_module")
 
-        # Test different log levels
+        self._log_all_levels(logger)
+        output = mock_stderr.getvalue()
+
+        self._assert_messages_in_output(
+            output, should_appear, log_level, should_appear=True
+        )
+        self._assert_messages_in_output(
+            output, should_not_appear, log_level, should_appear=False
+        )
+
+        if should_appear:
+            assert "oagi.test_module" in output
+
+    def _log_all_levels(self, logger):
+        """Helper to log messages at all levels."""
         logger.debug("Debug message")
         logger.info("Info message")
         logger.warning("Warning message")
         logger.error("Error message")
 
-        output = mock_stderr.getvalue()
-
-        # Check messages that should appear
-        for message in should_appear:
-            assert message in output, f"{message} should appear at {log_level} level"
-
-        # Check messages that should not appear
-        for message in should_not_appear:
-            assert message not in output, (
-                f"{message} should not appear at {log_level} level"
-            )
-
-        # Check logger name in output if any messages appear
-        if should_appear:
-            assert "oagi.test_module" in output
+    def _assert_messages_in_output(self, output, messages, log_level, should_appear):
+        """Helper to assert messages appear or don't appear in output."""
+        for message in messages:
+            if should_appear:
+                assert message in output, (
+                    f"{message} should appear at {log_level} level"
+                )
+            else:
+                assert message not in output, (
+                    f"{message} should not appear at {log_level} level"
+                )
 
 
 class TestLoggingIntegration:
-    def setup_method(self):
-        # Clear any existing oagi loggers
-        oagi_logger = logging.getLogger("oagi")
-        oagi_logger.handlers.clear()
-        oagi_logger.setLevel(logging.NOTSET)
-
-        # Clear any child loggers
-        for name in list(logging.Logger.manager.loggerDict.keys()):
-            if name.startswith("oagi."):
-                logger = logging.getLogger(name)
-                logger.handlers.clear()
-                logger.setLevel(logging.NOTSET)
-
-    def test_sync_client_logging(self, api_env, caplog):
-        """Test that SyncClient logs initialization correctly."""
-        os.environ["OAGI_LOG"] = "INFO"
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_sync_client_logging(self, api_env, caplog, set_log_level):
+        set_log_level("INFO")
 
         with caplog.at_level(logging.INFO, logger="oagi"):
             client = SyncClient()
             client.close()
 
-        assert (
-            f"SyncClient initialized with base_url: {api_env['base_url']}"
-            in caplog.text
-        )
+        expected_msg = f"SyncClient initialized with base_url: {api_env['base_url']}"
+        assert expected_msg in caplog.text
         assert any("oagi.sync_client" in record.name for record in caplog.records)
 
     @pytest.mark.parametrize(
@@ -219,12 +228,13 @@ class TestLoggingIntegration:
             (
                 "ERROR",
                 "Error test",
-                "error",  # Special case - will trigger error
+                "error",
                 ["Error during step execution"],
                 ["Task initialized", "SyncClient initialized"],
             ),
         ],
     )
+    @pytest.mark.usefixtures("clean_logging_state")
     def test_task_logging_levels(
         self,
         mock_httpx_client_class,
@@ -238,81 +248,87 @@ class TestLoggingIntegration:
         should_have_step,
         expected_messages,
         unexpected_messages,
+        set_log_level,
     ):
-        """Test ShortTask logging at different levels."""
-        os.environ["OAGI_LOG"] = log_level
+        set_log_level(log_level)
 
-        # Setup mock response
+        mock_response = self._create_mock_response(api_response_init_task, task_desc)
+        self._setup_mock_client_behavior(
+            mock_httpx_client, mock_response, should_have_step, http_status_error
+        )
+
+        with caplog.at_level(getattr(logging, log_level), logger="oagi"):
+            self._execute_task_scenario(task_desc, log_level, should_have_step)
+
+        self._assert_log_messages(caplog.text, expected_messages, unexpected_messages)
+
+    def _create_mock_response(self, api_response_init_task, task_desc):
+        """Helper to create mock HTTP response."""
         mock_response = Mock()
         mock_response.status_code = 200
         response_data = api_response_init_task.copy()
         response_data["task_description"] = task_desc
         mock_response.json.return_value = response_data
+        return mock_response
 
+    def _setup_mock_client_behavior(
+        self, mock_httpx_client, mock_response, should_have_step, http_status_error
+    ):
+        """Helper to setup mock client behavior based on test scenario."""
         if should_have_step == "error":
-            # First call succeeds, second fails
             mock_httpx_client.post.side_effect = [mock_response, http_status_error]
         else:
             mock_httpx_client.post.return_value = mock_response
 
-        with caplog.at_level(getattr(logging, log_level), logger="oagi"):
-            task = ShortTask()
+    def _execute_task_scenario(self, task_desc, log_level, should_have_step):
+        """Helper to execute the task scenario."""
+        task = ShortTask()
 
-            if log_level == "INFO":
-                task.init_task(task_desc, max_steps=3)
-            else:
-                task.init_task(task_desc)
+        if log_level == "INFO":
+            task.init_task(task_desc, max_steps=3)
+        else:
+            task.init_task(task_desc)
 
-            if should_have_step == "error":
-                try:
-                    task.step(MockImage())
-                except Exception:
-                    pass  # Expected to fail
-            elif should_have_step:
+        if should_have_step == "error":
+            try:
                 task.step(MockImage())
+            except Exception:
+                pass  # Expected to fail
+        elif should_have_step:
+            task.step(MockImage())
 
-            task.close()
+        task.close()
 
-        # Check expected messages
+    def _assert_log_messages(self, log_text, expected_messages, unexpected_messages):
+        """Helper to assert expected and unexpected messages in logs."""
         for msg in expected_messages:
-            assert msg in caplog.text, f"Expected '{msg}' in logs"
+            assert msg in log_text, f"Expected '{msg}' in logs"
 
-        # Check unexpected messages
         for msg in unexpected_messages:
-            assert msg not in caplog.text, f"Did not expect '{msg}' in logs"
+            assert msg not in log_text, f"Did not expect '{msg}' in logs"
 
-    def test_no_logging_with_invalid_config(self, caplog):
-        # Don't set OAGI_BASE_URL or OAGI_API_KEY to trigger errors
-        os.environ["OAGI_LOG"] = "INFO"
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_no_logging_with_invalid_config(self, caplog, set_log_level):
+        os.environ.pop("OAGI_BASE_URL", None)
+        os.environ.pop("OAGI_API_KEY", None)
+        set_log_level("INFO")
 
         with caplog.at_level(logging.INFO, logger="oagi"):
-            try:
+            with pytest.raises(ConfigurationError):
                 SyncClient()
-            except ConfigurationError:
-                pass  # Expected to fail
 
-        # Should not have any successful initialization logs
         assert "SyncClient initialized" not in caplog.text
 
-    def test_logger_namespace_isolation(self):
-        """Test that OAGI loggers don't interfere with other loggers"""
-        os.environ["OAGI_LOG"] = "DEBUG"
-
-        # Create an OAGI logger
+    @pytest.mark.usefixtures("clean_logging_state")
+    def test_logger_namespace_isolation(self, set_log_level, oagi_root_logger):
+        set_log_level("DEBUG")
         get_logger("test")
 
-        # Create a regular logger
         other_logger = logging.getLogger("other.module")
         other_logger.setLevel(logging.WARNING)
 
-        oagi_root = logging.getLogger("oagi")
-
-        # OAGI should be at DEBUG level
-        assert oagi_root.level == logging.DEBUG
-
-        # Other logger should remain unaffected
+        assert oagi_root_logger.level == logging.DEBUG
         assert other_logger.level == logging.WARNING
 
-        # Root logger should remain unaffected
         root_logger = logging.getLogger()
         assert root_logger.level != logging.DEBUG
