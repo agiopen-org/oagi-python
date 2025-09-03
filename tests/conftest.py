@@ -26,6 +26,8 @@ def clean_env():
     for var in env_vars:
         if var in os.environ:
             original_values[var] = os.environ[var]
+            # Clear the environment variable for test isolation
+            del os.environ[var]
 
     yield
 
