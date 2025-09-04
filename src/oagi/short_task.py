@@ -16,6 +16,14 @@ logger = get_logger("short_task")
 class ShortTask(Task):
     """Task implementation with automatic mode for short-duration tasks."""
 
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str = "vision-model-v1",
+    ):
+        super().__init__(api_key=api_key, base_url=base_url, model=model)
+
     def auto_mode(
         self,
         task_desc: str,

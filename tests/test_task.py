@@ -29,6 +29,14 @@ class TestTaskInit:
         assert task.task_description is None
         assert task.model == "vision-model-v1"
 
+    def test_init_with_custom_model(self, mock_sync_client):
+        task = Task(
+            api_key="test-key",
+            base_url="https://test.example.com",
+            model="custom-model",
+        )
+        assert task.model == "custom-model"
+
     def test_init_with_env_vars(self, mock_sync_client):
         with patch.dict(
             "os.environ",

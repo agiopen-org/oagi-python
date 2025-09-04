@@ -18,6 +18,20 @@ def short_task(mock_sync_client):
     return ShortTask(api_key="test-key", base_url="https://test.example.com")
 
 
+class TestShortTaskInit:
+    def test_init_with_default_model(self, mock_sync_client):
+        task = ShortTask(api_key="test-key", base_url="https://test.example.com")
+        assert task.model == "vision-model-v1"
+
+    def test_init_with_custom_model(self, mock_sync_client):
+        task = ShortTask(
+            api_key="test-key",
+            base_url="https://test.example.com",
+            model="custom-model",
+        )
+        assert task.model == "custom-model"
+
+
 class TestShortTaskAutoMode:
     def test_auto_mode_success(
         self, short_task, sample_llm_response, completed_llm_response

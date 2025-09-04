@@ -16,13 +16,18 @@ logger = get_logger("task")
 class Task:
     """Base class for task automation with the OAGI API."""
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str = "vision-model-v1",
+    ):
         self.client = SyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
         self.base_url = self.client.base_url
         self.task_id: str | None = None
         self.task_description: str | None = None
-        self.model = "vision-model-v1"  # default model
+        self.model = model
 
     def init_task(self, task_desc: str, max_steps: int = 5):
         """Initialize a new task with the given description."""
