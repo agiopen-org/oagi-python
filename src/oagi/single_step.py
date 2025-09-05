@@ -8,6 +8,7 @@
 
 from pathlib import Path
 
+from .pil_image import PILImage
 from .task import Task
 from .types import Image, Step
 
@@ -59,12 +60,12 @@ def single_step(
         ...     screenshot=image
         ... )
     """
-    # Convert file paths to bytes
+    # Convert file paths to bytes using PILImage
     if isinstance(screenshot, (str, Path)):
         path = Path(screenshot) if isinstance(screenshot, str) else screenshot
         if path.exists():
-            with open(path, "rb") as f:
-                screenshot_bytes = f.read()
+            pil_image = PILImage.from_file(str(path))
+            screenshot_bytes = pil_image.read()
         else:
             raise FileNotFoundError(f"Screenshot file not found: {path}")
     elif isinstance(screenshot, bytes):

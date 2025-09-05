@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from PIL import Image as PILImageLib
 
 from oagi.single_step import single_step
 from oagi.types import Action, ActionType, Image, Step
@@ -76,10 +77,10 @@ class TestSingleStep:
     def test_single_step_with_file_path(self, mock_task, tmp_path):
         mock_instance, MockTask = mock_task
 
-        # Create a temporary image file
+        # Create a valid temporary image file
         image_file = tmp_path / "test.png"
-        image_data = b"test image content"
-        image_file.write_bytes(image_data)
+        test_image = PILImageLib.new("RGB", (10, 10), color="red")
+        test_image.save(image_file, format="PNG")
 
         result = single_step(
             task_description="Navigate to settings",
@@ -88,16 +89,18 @@ class TestSingleStep:
 
         assert isinstance(result, Step)
 
-        # Verify file was read and passed as bytes
-        mock_instance.step.assert_called_once_with(image_data, instruction=None)
+        # Verify file was read and converted to JPEG bytes (default format)
+        call_args = mock_instance.step.call_args[0][0]
+        assert call_args[:3] == b"\xff\xd8\xff"  # JPEG signature
+        assert mock_instance.step.call_args[1]["instruction"] is None
 
     def test_single_step_with_path_object(self, mock_task, tmp_path):
         mock_instance, _ = mock_task
 
-        # Create a temporary image file
+        # Create a valid temporary image file
         image_file = tmp_path / "screenshot.png"
-        image_data = b"screenshot data"
-        image_file.write_bytes(image_data)
+        test_image = PILImageLib.new("RGB", (10, 10), color="blue")
+        test_image.save(image_file, format="PNG")
 
         result = single_step(
             task_description="Click button",
@@ -106,16 +109,18 @@ class TestSingleStep:
 
         assert isinstance(result, Step)
 
-        # Verify Path was handled correctly
-        mock_instance.step.assert_called_once_with(image_data, instruction=None)
+        # Verify Path was handled correctly and converted to JPEG
+        call_args = mock_instance.step.call_args[0][0]
+        assert call_args[:3] == b"\xff\xd8\xff"  # JPEG signature
+        assert mock_instance.step.call_args[1]["instruction"] is None
 
     def test_single_step_with_string_path(self, mock_task, tmp_path):
         mock_instance, _ = mock_task
 
-        # Create a temporary image file
+        # Create a valid temporary image file
         image_file = tmp_path / "image.png"
-        image_data = b"image data"
-        image_file.write_bytes(image_data)
+        test_image = PILImageLib.new("RGB", (10, 10), color="green")
+        test_image.save(image_file, format="PNG")
 
         result = single_step(
             task_description="Test task",
@@ -124,8 +129,10 @@ class TestSingleStep:
 
         assert isinstance(result, Step)
 
-        # Verify string path was handled correctly
-        mock_instance.step.assert_called_once_with(image_data, instruction=None)
+        # Verify string path was handled correctly and converted to JPEG
+        call_args = mock_instance.step.call_args[0][0]
+        assert call_args[:3] == b"\xff\xd8\xff"  # JPEG signature
+        assert mock_instance.step.call_args[1]["instruction"] is None
 
     def test_single_step_with_nonexistent_file_raises_error(self, mock_task):
         with pytest.raises(FileNotFoundError, match="Screenshot file not found"):
