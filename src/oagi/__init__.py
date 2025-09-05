@@ -24,6 +24,7 @@ from oagi.short_task import ShortTask
 from oagi.single_step import single_step
 from oagi.sync_client import ErrorDetail, ErrorResponse, LLMResponse, SyncClient
 from oagi.task import Task
+from oagi.types import ImageConfig
 
 __all__ = [
     # Core classes
@@ -35,6 +36,8 @@ __all__ = [
     # Handler classes
     "PyautoguiActionHandler",
     "ScreenshotMaker",
+    # Configuration
+    "ImageConfig",
     # Response models
     "LLMResponse",
     "ErrorResponse",

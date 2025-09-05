@@ -17,6 +17,9 @@ def execute_task_manual(task_desc, max_steps=5):
     executor = (
         PyautoguiActionHandler()
     )  # executor = lambda actions: print(actions) for debugging
+
+    # by default, screenshot will be resized to 1260 * 700 and jpeg with quality 85
+    # for best image quality, use ScreenshotMaker(config=ImageConfig(format="PNG"))
     image_provider = ScreenshotMaker()
 
     for i in range(max_steps):

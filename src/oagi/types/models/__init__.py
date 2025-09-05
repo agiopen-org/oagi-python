@@ -7,6 +7,7 @@
 # -----------------------------------------------------------------------------
 
 from .action import Action, ActionType
+from .image_config import ImageConfig
 from .step import Step
 
-__all__ = ["Action", "ActionType", "Step"]
+__all__ = ["Action", "ActionType", "ImageConfig", "Step"]

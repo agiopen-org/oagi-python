@@ -10,8 +10,10 @@ import io
 from typing import Optional
 
 import pyautogui
+from PIL import Image as PILImage
 
 from .types import Image
+from .types.models.image_config import ImageConfig
 
 
 class FileImage:
@@ -32,34 +34,77 @@ class MockImage:
 class ScreenshotImage:
     """Image class that wraps a pyautogui screenshot."""
 
-    def __init__(self, screenshot):
+    def __init__(self, screenshot, config: ImageConfig | None = None):
         """Initialize with a PIL Image from pyautogui."""
         self.screenshot = screenshot
+        self.config = config or ImageConfig()
         self._cached_bytes: Optional[bytes] = None
 
+    def _convert_format(self, image: PILImage.Image) -> bytes:
+        """Convert image to configured format (PNG or JPEG)."""
+        buffer = io.BytesIO()
+        save_kwargs = {"format": self.config.format}
+
+        if self.config.format == "JPEG":
+            save_kwargs["quality"] = self.config.quality
+            # Convert RGBA to RGB for JPEG if needed
+            if image.mode == "RGBA":
+                rgb_image = PILImage.new("RGB", image.size, (255, 255, 255))
+                rgb_image.paste(image, mask=image.split()[3])
+                rgb_image.save(buffer, **save_kwargs)
+            else:
+                image.save(buffer, **save_kwargs)
+        elif self.config.format == "PNG":
+            save_kwargs["optimize"] = self.config.optimize
+            image.save(buffer, **save_kwargs)
+
+        return buffer.getvalue()
+
     def read(self) -> bytes:
-        """Convert the screenshot to bytes (PNG format)."""
+        """Convert the screenshot to bytes with configured format."""
         if self._cached_bytes is None:
-            # Convert PIL Image to bytes
-            buffer = io.BytesIO()
-            self.screenshot.save(buffer, format="PNG")
-            self._cached_bytes = buffer.getvalue()
+            # Convert format (this happens after any resizing)
+            self._cached_bytes = self._convert_format(self.screenshot)
         return self._cached_bytes
 
 
 class ScreenshotMaker:
     """Takes screenshots using pyautogui."""
 
-    def __init__(self):
+    def __init__(self, config: ImageConfig | None = None):
+        self.config = config or ImageConfig()
         self._last_screenshot: Optional[ScreenshotImage] = None
+
+    def _resize_image(self, image: PILImage.Image) -> PILImage.Image:
+        """Resize image to configured dimensions if specified."""
+        if self.config.width or self.config.height:
+            # Get target dimensions (use original if not specified)
+            target_width = self.config.width or image.width
+            target_height = self.config.height or image.height
+
+            # Map resample string to PIL constant
+            resample_map = {
+                "NEAREST": PILImage.NEAREST,
+                "BILINEAR": PILImage.BILINEAR,
+                "BICUBIC": PILImage.BICUBIC,
+                "LANCZOS": PILImage.LANCZOS,
+            }
+            resample = resample_map[self.config.resample]
+
+            # Resize to exact dimensions
+            return image.resize((target_width, target_height), resample)
+        return image
 
     def __call__(self) -> Image:
         """Take a screenshot and return it as an Image."""
-        # Take a screenshot using pyautogui
+        # Step 1: Take a screenshot using pyautogui
         screenshot = pyautogui.screenshot()
 
-        # Wrap it in our ScreenshotImage class
-        screenshot_image = ScreenshotImage(screenshot)
+        # Step 2: Resize the image (if configured)
+        resized_screenshot = self._resize_image(screenshot)
+
+        # Step 3: Wrap in ScreenshotImage (format conversion happens on read())
+        screenshot_image = ScreenshotImage(resized_screenshot, self.config)
 
         # Store as the last screenshot
         self._last_screenshot = screenshot_image
