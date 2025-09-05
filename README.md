@@ -1,21 +1,85 @@
 # OAGI Python SDK
 
-## Basic Usage
+Python SDK for the OAGI API - vision-based task automation.
+
+## Installation
+
 ```bash
-pip install oagi # python >= 3.10
-```
-```bash
-export OAGI_BASE_URL=""
-export OAGI_API_KEY="sk-xxxx"
+pip install oagi  # requires Python >= 3.10
 ```
 
+## Quick Start
+
+Set your API credentials:
+```bash
+export OAGI_API_KEY="your-api-key"
+export OAGI_BASE_URL="https://api.oagi.com"  # or your server URL
+```
+
+### Single-Step Analysis
+
+Analyze a screenshot and get recommended actions:
+
 ```python
-from oagi import PyautoguiActionHandler, ScreenshotMaker, ShortTask
-short_task = ShortTask()
-is_completed = short_task.auto_mode(
-    "Search weather with Google",
-    max_steps=5,
-    executor=PyautoguiActionHandler(),
-    image_provider=(sm := ScreenshotMaker()),
+from oagi import single_step
+
+step = single_step(
+    task_description="Click the submit button",
+    screenshot="screenshot.png"  # or bytes, or Image object
+)
+
+print(f"Actions: {step.actions}")
+print(f"Complete: {step.is_complete}")
+```
+
+### Automated Task Execution
+
+Run tasks automatically with screenshot capture and action execution:
+
+```python
+from oagi import ShortTask, ScreenshotMaker, PyautoguiActionHandler
+
+task = ShortTask()
+completed = task.auto_mode(
+    "Search weather on Google",
+    max_steps=10,
+    executor=PyautoguiActionHandler(),  # Executes mouse/keyboard actions
+    image_provider=ScreenshotMaker(),    # Captures screenshots
 )
 ```
+
+### Image Processing
+
+Process and optimize images before sending to API:
+
+```python
+from oagi import PILImage, ImageConfig
+
+# Load and compress an image
+image = PILImage.from_file("large_screenshot.png")
+config = ImageConfig(
+    format="JPEG",
+    quality=85,
+    width=1260,
+    height=700
+)
+compressed = image.transform(config)
+
+# Use with single_step
+step = single_step("Click button", screenshot=compressed)
+```
+
+## Examples
+
+See the [`examples/`](examples/) directory for more usage patterns:
+- `google_weather.py` - Basic task execution with `ShortTask`
+- `single_step.py` - Basic single-step inference
+- `screenshot_with_config.py` - Image compression and optimization
+- `execute_task_auto.py` - Automated task execution
+
+## Documentation
+
+
+## License
+
+MIT
