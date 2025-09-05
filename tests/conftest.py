@@ -212,6 +212,19 @@ def mock_image():
     return mock
 
 
+class MockImage:
+    """Mock image class for testing."""
+
+    def read(self) -> bytes:
+        return b"mock screenshot data"
+
+
+@pytest.fixture
+def mock_image_class():
+    """Create a MockImage instance for testing."""
+    return MockImage()
+
+
 @pytest.fixture
 def sample_llm_response(api_response_data):
     """Create a sample LLMResponse for testing."""

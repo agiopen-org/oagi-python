@@ -12,16 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image as PILImageLib
 
-from oagi import FileImage, ImageConfig, MockImage, PILImage, ScreenshotMaker
-
-
-@pytest.fixture
-def test_image_file(tmp_path):
-    """Create a test image file with known data."""
-    test_file = tmp_path / "test.png"
-    test_data = b"test image data"
-    test_file.write_bytes(test_data)
-    return str(test_file), test_data
+from oagi import ImageConfig, PILImage, ScreenshotMaker
 
 
 @pytest.fixture
@@ -33,27 +24,6 @@ def mock_screenshot_image():
     mock_resized = MagicMock()
     mock.resize.return_value = mock_resized
     return mock, mock_resized
-
-
-class TestFileImage:
-    def test_file_image_reads_file(self, test_image_file):
-        file_path, expected_data = test_image_file
-        file_image = FileImage(file_path)
-        assert file_image.read() == expected_data
-
-    def test_file_image_caches_data(self, test_image_file):
-        file_path, _ = test_image_file
-        file_image = FileImage(file_path)
-
-        first_read = file_image.read()
-        second_read = file_image.read()
-        assert first_read is second_read
-
-
-class TestMockImage:
-    def test_mock_image_returns_mock_data(self):
-        mock_image = MockImage()
-        assert mock_image.read() == b"mock screenshot data"
 
 
 class TestScreenshotMaker:

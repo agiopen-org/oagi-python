@@ -16,8 +16,9 @@ import pytest
 from oagi import ShortTask
 from oagi.exceptions import ConfigurationError
 from oagi.logging import get_logger
-from oagi.screenshot_maker import MockImage
 from oagi.sync_client import SyncClient
+
+from .conftest import MockImage
 
 
 @pytest.fixture

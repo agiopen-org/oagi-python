@@ -20,7 +20,7 @@ from oagi.exceptions import (
 )
 from oagi.pil_image import PILImage
 from oagi.pyautogui_action_handler import PyautoguiActionHandler
-from oagi.screenshot_maker import FileImage, MockImage, ScreenshotMaker
+from oagi.screenshot_maker import ScreenshotMaker
 from oagi.short_task import ShortTask
 from oagi.single_step import single_step
 from oagi.sync_client import ErrorDetail, ErrorResponse, LLMResponse, SyncClient
@@ -36,8 +36,6 @@ __all__ = [
     "single_step",
     # Image classes
     "PILImage",
-    "FileImage",
-    "MockImage",
     # Handler classes
     "PyautoguiActionHandler",
     "ScreenshotMaker",
