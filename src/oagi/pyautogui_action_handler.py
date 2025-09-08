@@ -10,8 +10,26 @@ import re
 import time
 
 import pyautogui
+from pydantic import BaseModel, Field
 
 from .types import Action, ActionType
+
+
+class PyautoguiConfig(BaseModel):
+    """Configuration for PyautoguiActionHandler."""
+
+    drag_duration: float = Field(
+        default=0.5, description="Duration for drag operations in seconds"
+    )
+    scroll_amount: int = Field(
+        default=30, description="Amount to scroll (positive for up, negative for down)"
+    )
+    wait_duration: float = Field(
+        default=1.0, description="Duration for wait actions in seconds"
+    )
+    action_pause: float = Field(
+        default=0.1, description="Pause between PyAutoGUI actions in seconds"
+    )
 
 
 class PyautoguiActionHandler:
@@ -29,11 +47,13 @@ class PyautoguiActionHandler:
         actions (list[Action]): List of actions to be processed and executed.
     """
 
-    def __init__(self):
+    def __init__(self, config: PyautoguiConfig | None = None):
+        # Use default config if none provided
+        self.config = config or PyautoguiConfig()
         # Get screen dimensions for coordinate denormalization
         self.screen_width, self.screen_height = pyautogui.size()
         # Set default delay between actions
-        pyautogui.PAUSE = 0.1
+        pyautogui.PAUSE = self.config.action_pause
 
     def _denormalize_coords(self, x: float, y: float) -> tuple[int, int]:
         """Convert coordinates from 0-1000 range to actual screen coordinates."""
@@ -82,59 +102,70 @@ class PyautoguiActionHandler:
         keys = [key.strip() for key in args_str.split("+")]
         return keys
 
-    def _execute_action(self, action: Action) -> None:
-        """Execute a single action."""
-        count = action.count or 1
+    def _execute_single_action(self, action: Action) -> None:
+        """Execute a single action once."""
         arg = action.argument.strip("()")  # Remove outer parentheses if present
 
+        match action.type:
+            case ActionType.CLICK:
+                x, y = self._parse_coords(arg)
+                pyautogui.click(x, y)
+
+            case ActionType.LEFT_DOUBLE:
+                x, y = self._parse_coords(arg)
+                pyautogui.doubleClick(x, y)
+
+            case ActionType.RIGHT_SINGLE:
+                x, y = self._parse_coords(arg)
+                pyautogui.rightClick(x, y)
+
+            case ActionType.DRAG:
+                x1, y1, x2, y2 = self._parse_drag_coords(arg)
+                pyautogui.moveTo(x1, y1)
+                pyautogui.dragTo(
+                    x2, y2, duration=self.config.drag_duration, button="left"
+                )
+
+            case ActionType.HOTKEY:
+                keys = self._parse_hotkey(arg)
+                pyautogui.hotkey(*keys)
+
+            case ActionType.TYPE:
+                # Remove quotes if present
+                text = arg.strip("\"'")
+                pyautogui.typewrite(text)
+
+            case ActionType.SCROLL:
+                x, y, direction = self._parse_scroll(arg)
+                pyautogui.moveTo(x, y)
+                scroll_amount = (
+                    self.config.scroll_amount
+                    if direction == "up"
+                    else -self.config.scroll_amount
+                )
+                pyautogui.scroll(scroll_amount)
+
+            case ActionType.FINISH:
+                # Task completion - no action needed
+                pass
+
+            case ActionType.WAIT:
+                # Wait for a short period
+                time.sleep(self.config.wait_duration)
+
+            case ActionType.CALL_USER:
+                # Call user - implementation depends on requirements
+                print("User intervention requested")
+
+            case _:
+                print(f"Unknown action type: {action.type}")
+
+    def _execute_action(self, action: Action) -> None:
+        """Execute an action, potentially multiple times."""
+        count = action.count or 1
+
         for _ in range(count):
-            match action.type:
-                case ActionType.CLICK:
-                    x, y = self._parse_coords(arg)
-                    pyautogui.click(x, y)
-
-                case ActionType.LEFT_DOUBLE:
-                    x, y = self._parse_coords(arg)
-                    pyautogui.doubleClick(x, y)
-
-                case ActionType.RIGHT_SINGLE:
-                    x, y = self._parse_coords(arg)
-                    pyautogui.rightClick(x, y)
-
-                case ActionType.DRAG:
-                    x1, y1, x2, y2 = self._parse_drag_coords(arg)
-                    pyautogui.moveTo(x1, y1)
-                    pyautogui.dragTo(x2, y2, duration=0.5, button="left")
-
-                case ActionType.HOTKEY:
-                    keys = self._parse_hotkey(arg)
-                    pyautogui.hotkey(*keys)
-
-                case ActionType.TYPE:
-                    # Remove quotes if present
-                    text = arg.strip("\"'")
-                    pyautogui.typewrite(text)
-
-                case ActionType.SCROLL:
-                    x, y, direction = self._parse_scroll(arg)
-                    pyautogui.moveTo(x, y)
-                    scroll_amount = 5 if direction == "up" else -5
-                    pyautogui.scroll(scroll_amount)
-
-                case ActionType.FINISH:
-                    # Task completion - no action needed
-                    pass
-
-                case ActionType.WAIT:
-                    # Wait for a short period
-                    time.sleep(1)
-
-                case ActionType.CALL_USER:
-                    # Call user - implementation depends on requirements
-                    print("User intervention requested")
-
-                case _:
-                    print(f"Unknown action type: {action.type}")
+            self._execute_single_action(action)
 
     def __call__(self, actions: list[Action]) -> None:
         """Execute the provided list of actions."""

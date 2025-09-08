@@ -6,14 +6,16 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from oagi import single_step
+from oagi import ScreenshotMaker, single_step
 
+image_provider = ScreenshotMaker()
+image = image_provider()
 step = single_step(
     task_description="Search weather with Google",
-    screenshot="some/path/to/local/image",  # bytes or Path object or Image object
+    screenshot=image,  # bytes or Path object or Image object
     instruction="The operating system is macos",  # optional instruction
-    # api_key="your-api-key", if not set with OAGI_API_KEY env var
-    # base_url="https://api.example.com" if not set with OAGI_BASE_URL env var
+    api_key="sk-50DPDW87GnlNcH_0cAPRFZ4ntweCEdUrLEFIcQFaBhc",
+    base_url="http://127.0.0.1:8000",
 )
 
 print(step)
