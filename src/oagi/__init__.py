@@ -6,6 +6,10 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+from oagi.async_client import AsyncClient
+from oagi.async_short_task import AsyncShortTask
+from oagi.async_single_step import async_single_step
+from oagi.async_task import AsyncTask
 from oagi.exceptions import (
     APIError,
     AuthenticationError,
@@ -25,21 +29,33 @@ from oagi.short_task import ShortTask
 from oagi.single_step import single_step
 from oagi.sync_client import ErrorDetail, ErrorResponse, LLMResponse, SyncClient
 from oagi.task import Task
-from oagi.types import ImageConfig
+from oagi.types import (
+    AsyncActionHandler,
+    AsyncImageProvider,
+    ImageConfig,
+)
 
 __all__ = [
-    # Core classes
+    # Core sync classes
     "Task",
     "ShortTask",
     "SyncClient",
+    # Core async classes
+    "AsyncTask",
+    "AsyncShortTask",
+    "AsyncClient",
     # Functions
     "single_step",
+    "async_single_step",
     # Image classes
     "PILImage",
     # Handler classes
     "PyautoguiActionHandler",
     "PyautoguiConfig",
     "ScreenshotMaker",
+    # Async protocols
+    "AsyncActionHandler",
+    "AsyncImageProvider",
     # Configuration
     "ImageConfig",
     # Response models
