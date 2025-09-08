@@ -86,6 +86,31 @@ compressed = image.transform(config)
 step = single_step("Click button", screenshot=compressed)
 ```
 
+### Async Support
+
+Use async client for non-blocking operations and better concurrency:
+
+```python
+import asyncio
+from oagi import async_single_step, AsyncShortTask
+
+async def main():
+    # Single-step async analysis
+    step = await async_single_step(
+        "Find the search bar",
+        screenshot="screenshot.png"
+    )
+    print(f"Found {len(step.actions)} actions")
+    
+    # Async task automation
+    task = AsyncShortTask()
+    async with task:
+        await task.init_task("Complete the form")
+        # ... continue with async operations
+
+asyncio.run(main())
+```
+
 ## Examples
 
 See the [`examples/`](examples/) directory for more usage patterns:

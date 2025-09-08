@@ -7,6 +7,8 @@
 # -----------------------------------------------------------------------------
 
 from oagi.async_client import AsyncClient
+from oagi.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
+from oagi.async_screenshot_maker import AsyncScreenshotMaker
 from oagi.async_short_task import AsyncShortTask
 from oagi.async_single_step import async_single_step
 from oagi.async_task import AsyncTask
@@ -53,6 +55,9 @@ __all__ = [
     "PyautoguiActionHandler",
     "PyautoguiConfig",
     "ScreenshotMaker",
+    # Async handler classes
+    "AsyncPyautoguiActionHandler",
+    "AsyncScreenshotMaker",
     # Async protocols
     "AsyncActionHandler",
     "AsyncImageProvider",

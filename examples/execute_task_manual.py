@@ -6,7 +6,14 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from oagi import PyautoguiActionHandler, ScreenshotMaker, Task
+from oagi import (
+    AsyncPyautoguiActionHandler,
+    AsyncScreenshotMaker,
+    AsyncTask,
+    PyautoguiActionHandler,
+    ScreenshotMaker,
+    Task,
+)
 
 
 def execute_task_manual(task_desc, max_steps=5):
@@ -49,3 +56,43 @@ def execute_task_manual(task_desc, max_steps=5):
 
     print(f"manual execution completed: {is_completed=}, {task_desc=}\n")
     return is_completed, screenshot
+
+
+async def async_execute_task_manual(task_desc, max_steps=5):
+    # set OAGI_API_KEY and OAGI_BASE_URL
+    # or ShortTask(api_key="your_api_key", base_url="your_base_url")
+    async with AsyncTask() as task:
+        await task.init_task(task_desc, max_steps=max_steps)
+        executor = AsyncPyautoguiActionHandler()
+
+        # by default, screenshot will be resized to 1260 * 700 and jpeg with quality 85
+        # for best image quality, use ScreenshotMaker(config=ImageConfig(format="PNG"))
+        image_provider = AsyncScreenshotMaker()
+
+        for i in range(max_steps):
+            # image can also be bytes
+            # with open("test_screenshot.png", "rb") as f:
+            #     image = f.read()
+            image = await image_provider()
+
+            # For additional instructions
+            # step = task.step(image, instruction="some instruction")
+            step = await task.step(image)
+
+            # do something with step, maybe print to debug
+            print(f"Step {i}: {step.reason=}")
+
+            if step.stop:
+                print(f"Task completed after {i} steps.")
+                is_completed = True
+                screenshot = await image_provider.last_image()
+                break
+
+            await executor(step.actions)
+        else:
+            # If we didn't break out of the loop, we used up all our steps
+            is_completed = False
+            screenshot = await image_provider()
+
+        print(f"manual execution completed: {is_completed=}, {task_desc=}\n")
+        return is_completed, screenshot

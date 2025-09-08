@@ -27,3 +27,11 @@ class AsyncImageProvider(Protocol):
         Raises:
             RuntimeError: If an error occurs during image capture or generation.
         """
+
+    async def last_image(self) -> Image:
+        """
+        Asynchronously returns the last captured image.
+
+        Returns:
+            Image: The last captured image.
+        """
