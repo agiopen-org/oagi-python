@@ -10,7 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
-from oagi.pyautogui_action_handler import PyautoguiActionHandler, PyautoguiConfig
+from oagi.pyautogui_action_handler import (
+    CapsLockManager,
+    PyautoguiActionHandler,
+    PyautoguiConfig,
+)
 from oagi.types import Action, ActionType
 
 
@@ -152,3 +156,96 @@ class TestInputValidation:
         handler([action])
 
         mock_pyautogui.typewrite.assert_called_once_with("Hello World")
+
+
+class TestCapsLockManager:
+    def test_session_mode_text_transformation(self):
+        manager = CapsLockManager(mode="session")
+
+        # Initially caps is off
+        assert manager.transform_text("Hello World") == "Hello World"
+        assert manager.transform_text("123!@#") == "123!@#"
+
+        # Toggle caps on
+        manager.toggle()
+        assert manager.caps_enabled is True
+        assert manager.transform_text("Hello World") == "HELLO WORLD"
+        assert manager.transform_text("test123!") == "TEST123!"
+        assert manager.transform_text("123!@#") == "123!@#"
+
+        # Toggle caps off
+        manager.toggle()
+        assert manager.caps_enabled is False
+        assert manager.transform_text("Hello World") == "Hello World"
+
+    def test_system_mode_no_transformation(self):
+        manager = CapsLockManager(mode="system")
+
+        # System mode doesn't transform text
+        assert manager.transform_text("Hello World") == "Hello World"
+
+        manager.toggle()  # Should not affect state in system mode
+        assert manager.caps_enabled is False
+        assert manager.transform_text("Hello World") == "Hello World"
+
+    def test_should_use_system_capslock(self):
+        session_manager = CapsLockManager(mode="session")
+        system_manager = CapsLockManager(mode="system")
+
+        assert session_manager.should_use_system_capslock() is False
+        assert system_manager.should_use_system_capslock() is True
+
+
+class TestCapsLockIntegration:
+    def test_caps_lock_key_normalization(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+
+        # Test different caps lock variations
+        for variant in ["caps", "caps_lock", "capslock"]:
+            keys = handler._parse_hotkey(variant)
+            assert keys == ["capslock"]
+
+    def test_caps_lock_session_mode(self, mock_pyautogui):
+        config = PyautoguiConfig(capslock_mode="session")
+        handler = PyautoguiActionHandler(config=config)
+
+        # Type without caps
+        type_action = Action(type=ActionType.TYPE, argument="test", count=1)
+        handler([type_action])
+        mock_pyautogui.typewrite.assert_called_with("test")
+
+        # Toggle caps lock
+        caps_action = Action(type=ActionType.HOTKEY, argument="caps_lock", count=1)
+        handler([caps_action])
+        # In session mode, should not call pyautogui.hotkey for capslock
+        assert mock_pyautogui.hotkey.call_count == 0
+
+        # Type with caps enabled
+        mock_pyautogui.typewrite.reset_mock()
+        type_action = Action(type=ActionType.TYPE, argument="test", count=1)
+        handler([type_action])
+        mock_pyautogui.typewrite.assert_called_with("TEST")
+
+    def test_caps_lock_system_mode(self, mock_pyautogui):
+        config = PyautoguiConfig(capslock_mode="system")
+        handler = PyautoguiActionHandler(config=config)
+
+        # Toggle caps lock in system mode
+        caps_action = Action(type=ActionType.HOTKEY, argument="caps", count=1)
+        handler([caps_action])
+        # In system mode, should call pyautogui.hotkey
+        mock_pyautogui.hotkey.assert_called_once_with("capslock", interval=0.1)
+
+        # Type action should not transform text in system mode
+        mock_pyautogui.typewrite.reset_mock()
+        type_action = Action(type=ActionType.TYPE, argument="test", count=1)
+        handler([type_action])
+        mock_pyautogui.typewrite.assert_called_with("test")
+
+    def test_regular_hotkey_not_affected(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+
+        # Regular hotkeys should work normally
+        action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
+        handler([action])
+        mock_pyautogui.hotkey.assert_called_once_with("ctrl", "c", interval=0.1)

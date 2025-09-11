@@ -60,6 +60,7 @@ config = PyautoguiConfig(
     wait_duration=2.0,      # Longer waits (default: 1.0)
     action_pause=0.2,       # More pause between actions (default: 0.1)
     hotkey_interval=0.1,    # Interval between keys in hotkey combinations (default: 0.1)
+    capslock_mode="session" # Caps lock mode: 'session' or 'system' (default: 'session')
 )
 
 executor = PyautoguiActionHandler(config=config)

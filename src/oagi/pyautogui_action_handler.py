@@ -15,6 +15,42 @@ from pydantic import BaseModel, Field
 from .types import Action, ActionType
 
 
+class CapsLockManager:
+    """Manages caps lock state for text transformation."""
+
+    def __init__(self, mode: str = "session"):
+        """Initialize caps lock manager.
+
+        Args:
+            mode: Either "session" (internal state) or "system" (OS-level)
+        """
+        self.mode = mode
+        self.caps_enabled = False
+
+    def toggle(self):
+        """Toggle caps lock state in session mode."""
+        if self.mode == "session":
+            self.caps_enabled = not self.caps_enabled
+
+    def transform_text(self, text: str) -> str:
+        """Transform text based on caps lock state.
+
+        Args:
+            text: Input text to transform
+
+        Returns:
+            Transformed text (uppercase if caps enabled in session mode)
+        """
+        if self.mode == "session" and self.caps_enabled:
+            # Transform letters to uppercase, preserve special characters
+            return "".join(c.upper() if c.isalpha() else c for c in text)
+        return text
+
+    def should_use_system_capslock(self) -> bool:
+        """Check if system-level caps lock should be used."""
+        return self.mode == "system"
+
+
 class PyautoguiConfig(BaseModel):
     """Configuration for PyautoguiActionHandler."""
 
@@ -32,6 +68,10 @@ class PyautoguiConfig(BaseModel):
     )
     hotkey_interval: float = Field(
         default=0.1, description="Interval between key presses in hotkey combinations"
+    )
+    capslock_mode: str = Field(
+        default="session",
+        description="Caps lock handling mode: 'session' (internal state) or 'system' (OS-level)",
     )
 
 
@@ -57,6 +97,8 @@ class PyautoguiActionHandler:
         self.screen_width, self.screen_height = pyautogui.size()
         # Set default delay between actions
         pyautogui.PAUSE = self.config.action_pause
+        # Initialize caps lock manager
+        self.caps_manager = CapsLockManager(mode=self.config.capslock_mode)
 
     def _denormalize_coords(self, x: float, y: float) -> tuple[int, int]:
         """Convert coordinates from 0-1000 range to actual screen coordinates."""
@@ -97,12 +139,20 @@ class PyautoguiActionHandler:
         direction = match.group(3).lower()
         return x, y, direction
 
+    def _normalize_key(self, key: str) -> str:
+        """Normalize key names for consistency."""
+        key = key.strip().lower()
+        # Normalize caps lock variations
+        if key in ["caps_lock", "caps", "capslock"]:
+            return "capslock"
+        return key
+
     def _parse_hotkey(self, args_str: str) -> list[str]:
         """Parse hotkey string into list of keys."""
         # Remove parentheses if present
         args_str = args_str.strip("()")
         # Split by '+' to get individual keys
-        keys = [key.strip() for key in args_str.split("+")]
+        keys = [self._normalize_key(key) for key in args_str.split("+")]
         return keys
 
     def _execute_single_action(self, action: Action) -> None:
@@ -135,11 +185,25 @@ class PyautoguiActionHandler:
 
             case ActionType.HOTKEY:
                 keys = self._parse_hotkey(arg)
-                pyautogui.hotkey(*keys, interval=self.config.hotkey_interval)
+                # Check if this is a caps lock key press
+                if len(keys) == 1 and keys[0] == "capslock":
+                    if self.caps_manager.should_use_system_capslock():
+                        # System mode: use OS-level caps lock
+                        pyautogui.hotkey(
+                            "capslock", interval=self.config.hotkey_interval
+                        )
+                    else:
+                        # Session mode: toggle internal state
+                        self.caps_manager.toggle()
+                else:
+                    # Regular hotkey combination
+                    pyautogui.hotkey(*keys, interval=self.config.hotkey_interval)
 
             case ActionType.TYPE:
                 # Remove quotes if present
                 text = arg.strip("\"'")
+                # Apply caps lock transformation if needed
+                text = self.caps_manager.transform_text(text)
                 pyautogui.typewrite(text)
 
             case ActionType.SCROLL:
