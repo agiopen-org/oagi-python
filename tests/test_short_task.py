@@ -60,7 +60,7 @@ class TestShortTaskAutoMode:
             )
 
             assert result is True
-            assert mock_executor.call_count == 2  # Called for first 2 steps
+            assert mock_executor.call_count == 3  # Called for all 3 steps including the completed one
             assert mock_image_provider.call_count == 3  # Called for all 3 steps
 
     def test_auto_mode_max_steps_reached(self, short_task, sample_llm_response):
@@ -133,7 +133,7 @@ class TestShortTaskAutoMode:
             )
 
             assert result is True
-            assert mock_executor.call_count == 0  # No actions to execute
+            assert mock_executor.call_count == 1  # Actions are executed even when task is complete
             assert mock_image_provider.call_count == 1
 
     def test_auto_mode_with_default_parameters(

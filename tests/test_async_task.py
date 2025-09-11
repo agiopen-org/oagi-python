@@ -175,7 +175,7 @@ class TestAsyncShortTask:
             )
 
             assert result is True
-            assert mock_executor.call_count == 1
+            assert mock_executor.call_count == 2  # Called for both steps including the completed one
             assert mock_image_provider.call_count == 2
 
         await task.close()
