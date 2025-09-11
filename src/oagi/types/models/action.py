@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 class ActionType(str, Enum):
     CLICK = "click"
     LEFT_DOUBLE = "left_double"
+    LEFT_TRIPLE = "left_triple"
     RIGHT_SINGLE = "right_single"
     DRAG = "drag"
     HOTKEY = "hotkey"

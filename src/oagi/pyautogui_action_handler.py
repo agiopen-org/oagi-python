@@ -115,6 +115,10 @@ class PyautoguiActionHandler:
                 x, y = self._parse_coords(arg)
                 pyautogui.doubleClick(x, y)
 
+            case ActionType.LEFT_TRIPLE:
+                x, y = self._parse_coords(arg)
+                pyautogui.tripleClick(x, y)
+
             case ActionType.RIGHT_SINGLE:
                 x, y = self._parse_coords(arg)
                 pyautogui.rightClick(x, y)

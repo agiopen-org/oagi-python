@@ -36,6 +36,7 @@ def handler(mock_pyautogui):
     [
         (ActionType.CLICK, "500, 300", "click", (960, 324)),
         (ActionType.LEFT_DOUBLE, "400, 250", "doubleClick", (768, 270)),
+        (ActionType.LEFT_TRIPLE, "350, 200", "tripleClick", (672, 216)),
         (ActionType.RIGHT_SINGLE, "600, 400", "rightClick", (1152, 432)),
     ],
 )
