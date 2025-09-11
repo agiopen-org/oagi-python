@@ -59,6 +59,7 @@ config = PyautoguiConfig(
     scroll_amount=50,       # Larger scroll steps (default: 30)
     wait_duration=2.0,      # Longer waits (default: 1.0)
     action_pause=0.2,       # More pause between actions (default: 0.1)
+    hotkey_interval=0.1,    # Interval between keys in hotkey combinations (default: 0.1)
 )
 
 executor = PyautoguiActionHandler(config=config)

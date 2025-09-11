@@ -59,20 +59,20 @@ def test_drag_action(handler, mock_pyautogui, config):
     )
 
 
-@pytest.mark.parametrize(
-    "action_type,argument,expected_method,expected_args",
-    [
-        (ActionType.HOTKEY, "ctrl+c", "hotkey", ("ctrl", "c")),
-        (ActionType.TYPE, "Hello World", "typewrite", ("Hello World",)),
-    ],
-)
-def test_text_based_actions(
-    handler, mock_pyautogui, action_type, argument, expected_method, expected_args
-):
-    action = Action(type=action_type, argument=argument, count=1)
+def test_hotkey_action(handler, mock_pyautogui, config):
+    action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
     handler([action])
 
-    getattr(mock_pyautogui, expected_method).assert_called_once_with(*expected_args)
+    mock_pyautogui.hotkey.assert_called_once_with(
+        "ctrl", "c", interval=config.hotkey_interval
+    )
+
+
+def test_type_action(handler, mock_pyautogui):
+    action = Action(type=ActionType.TYPE, argument="Hello World", count=1)
+    handler([action])
+
+    mock_pyautogui.typewrite.assert_called_once_with("Hello World")
 
 
 @pytest.mark.parametrize(
@@ -95,6 +95,16 @@ def test_wait_action(handler, mock_pyautogui, config):
         action = Action(type=ActionType.WAIT, argument="", count=1)
         handler([action])
         mock_sleep.assert_called_once_with(config.wait_duration)
+
+
+def test_hotkey_with_custom_interval(mock_pyautogui):
+    custom_config = PyautoguiConfig(hotkey_interval=0.5)
+    handler = PyautoguiActionHandler(config=custom_config)
+
+    action = Action(type=ActionType.HOTKEY, argument="cmd+shift+a", count=1)
+    handler([action])
+
+    mock_pyautogui.hotkey.assert_called_once_with("cmd", "shift", "a", interval=0.5)
 
 
 def test_finish_action(handler, mock_pyautogui):
@@ -127,7 +137,7 @@ class TestActionExecution:
 
         mock_pyautogui.click.assert_called_once()
         mock_pyautogui.typewrite.assert_called_once_with("test")
-        mock_pyautogui.hotkey.assert_called_once_with("ctrl", "s")
+        mock_pyautogui.hotkey.assert_called_once_with("ctrl", "s", interval=0.1)
 
 
 class TestInputValidation:

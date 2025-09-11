@@ -30,6 +30,9 @@ class PyautoguiConfig(BaseModel):
     action_pause: float = Field(
         default=0.1, description="Pause between PyAutoGUI actions in seconds"
     )
+    hotkey_interval: float = Field(
+        default=0.1, description="Interval between key presses in hotkey combinations"
+    )
 
 
 class PyautoguiActionHandler:
@@ -132,7 +135,7 @@ class PyautoguiActionHandler:
 
             case ActionType.HOTKEY:
                 keys = self._parse_hotkey(arg)
-                pyautogui.hotkey(*keys)
+                pyautogui.hotkey(*keys, interval=self.config.hotkey_interval)
 
             case ActionType.TYPE:
                 # Remove quotes if present
