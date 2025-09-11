@@ -41,12 +41,12 @@ class ShortTask(Task):
             logger.debug(f"Auto mode step {i + 1}/{max_steps}")
             image = image_provider()
             step = self.step(image)
-            if step.stop:
-                logger.info(f"Auto mode completed successfully after {i + 1} steps")
-                return True
             if executor:
                 logger.debug(f"Executing {len(step.actions)} actions")
                 executor(step.actions)
+            if step.stop:
+                logger.info(f"Auto mode completed successfully after {i + 1} steps")
+                return True
 
         logger.warning(f"Auto mode reached max steps ({max_steps}) without completion")
         return False

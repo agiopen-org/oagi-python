@@ -41,14 +41,14 @@ class AsyncShortTask(AsyncTask):
             logger.debug(f"Async auto mode step {i + 1}/{max_steps}")
             image = await image_provider()
             step = await self.step(image)
+            if executor:
+                logger.debug(f"Executing {len(step.actions)} actions asynchronously")
+                await executor(step.actions)
             if step.stop:
                 logger.info(
                     f"Async auto mode completed successfully after {i + 1} steps"
                 )
                 return True
-            if executor:
-                logger.debug(f"Executing {len(step.actions)} actions asynchronously")
-                await executor(step.actions)
 
         logger.warning(
             f"Async auto mode reached max steps ({max_steps}) without completion"
