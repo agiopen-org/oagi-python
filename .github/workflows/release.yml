@@ -32,10 +32,17 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
           # Another option: Use Trusted Publishing (recommended, no token needed)
           # Configure at: https://pypi.org/manage/project/oagi/settings/publishing/
-          
+
+      - name: Get commit message
+        id: commit_message
+        run: |
+          # Get the commit message for the tagged commit
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          git log -1 --pretty=%B >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          body: ${{ steps.commit_message.outputs.message }}
           files: dist/*
-          generate_release_notes: true
