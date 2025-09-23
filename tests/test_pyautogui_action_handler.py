@@ -196,6 +196,76 @@ class TestCapsLockManager:
         assert system_manager.should_use_system_capslock() is True
 
 
+class TestCornerCoordinatesHandling:
+    """Test that corner coordinates are adjusted to prevent PyAutoGUI fail-safe."""
+
+    @pytest.mark.parametrize(
+        "input_coords,expected_coords",
+        [
+            # Top-left corner
+            ("0, 0", (1, 1)),
+            ("1, 1", (1, 1)),
+            # Top-right corner (assuming 1920x1080 screen)
+            ("1000, 0", (1919, 1)),
+            ("999, 1", (1918, 1)),
+            # Bottom-left corner
+            ("0, 1000", (1, 1079)),
+            ("1, 999", (1, 1078)),
+            # Bottom-right corner
+            ("1000, 1000", (1919, 1079)),
+            ("999, 999", (1918, 1078)),
+            # Middle coordinates should not be affected
+            ("500, 500", (960, 540)),
+            ("250, 750", (480, 810)),
+        ],
+    )
+    def test_corner_coordinate_adjustment(
+        self, mock_pyautogui, input_coords, expected_coords
+    ):
+        handler = PyautoguiActionHandler()
+        action = Action(type=ActionType.CLICK, argument=input_coords, count=1)
+        handler([action])
+        mock_pyautogui.click.assert_called_once_with(*expected_coords)
+
+    def test_drag_with_corner_coordinates(self, mock_pyautogui, config):
+        """Test drag operations with corner coordinates."""
+        handler = PyautoguiActionHandler()
+        # Drag from top-left corner to bottom-right corner
+        action = Action(type=ActionType.DRAG, argument="0, 0, 1000, 1000", count=1)
+        handler([action])
+
+        # Should adjust corner coordinates to prevent fail-safe
+        mock_pyautogui.moveTo.assert_called_once_with(1, 1)
+        mock_pyautogui.dragTo.assert_called_once_with(
+            1919, 1079, duration=config.drag_duration, button="left"
+        )
+
+    def test_scroll_with_corner_coordinates(self, mock_pyautogui, config):
+        """Test scroll operations at corner coordinates."""
+        handler = PyautoguiActionHandler()
+        action = Action(type=ActionType.SCROLL, argument="0, 0, up", count=1)
+        handler([action])
+
+        # Should adjust corner coordinates
+        mock_pyautogui.moveTo.assert_called_once_with(1, 1)
+        mock_pyautogui.scroll.assert_called_once_with(config.scroll_amount)
+
+    def test_multiple_clicks_at_corners(self, mock_pyautogui):
+        """Test multiple clicks at corner positions."""
+        handler = PyautoguiActionHandler()
+        actions = [
+            Action(type=ActionType.LEFT_DOUBLE, argument="0, 0", count=1),
+            Action(type=ActionType.LEFT_TRIPLE, argument="1000, 0", count=1),
+            Action(type=ActionType.RIGHT_SINGLE, argument="0, 1000", count=1),
+        ]
+        handler(actions)
+
+        # All corner coordinates should be adjusted
+        mock_pyautogui.doubleClick.assert_called_once_with(1, 1)
+        mock_pyautogui.tripleClick.assert_called_once_with(1919, 1)
+        mock_pyautogui.rightClick.assert_called_once_with(1, 1079)
+
+
 class TestCapsLockIntegration:
     def test_caps_lock_key_normalization(self, mock_pyautogui):
         handler = PyautoguiActionHandler()

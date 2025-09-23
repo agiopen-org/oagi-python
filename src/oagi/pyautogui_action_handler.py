@@ -101,9 +101,26 @@ class PyautoguiActionHandler:
         self.caps_manager = CapsLockManager(mode=self.config.capslock_mode)
 
     def _denormalize_coords(self, x: float, y: float) -> tuple[int, int]:
-        """Convert coordinates from 0-1000 range to actual screen coordinates."""
+        """Convert coordinates from 0-1000 range to actual screen coordinates.
+
+        Also handles corner coordinates to prevent PyAutoGUI fail-safe trigger.
+        Corner coordinates (0,0), (0,max), (max,0), (max,max) are offset by 1 pixel.
+        """
         screen_x = int(x * self.screen_width / 1000)
         screen_y = int(y * self.screen_height / 1000)
+
+        # Prevent fail-safe by adjusting corner coordinates
+        # Check if coordinates are at screen corners (with small tolerance)
+        if screen_x < 1:
+            screen_x = 1
+        elif screen_x > self.screen_width - 1:
+            screen_x = self.screen_width - 1
+
+        if screen_y < 1:
+            screen_y = 1
+        elif screen_y > self.screen_height - 1:
+            screen_y = self.screen_height - 1
+
         return screen_x, screen_y
 
     def _parse_coords(self, args_str: str) -> tuple[int, int]:
