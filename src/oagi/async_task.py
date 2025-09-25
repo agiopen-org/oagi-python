@@ -29,10 +29,27 @@ class AsyncTask:
         self.task_id: str | None = None
         self.task_description: str | None = None
         self.model = model
+        self.last_task_id: str | None = None
+        self.history_steps: int | None = None
 
-    async def init_task(self, task_desc: str, max_steps: int = 5):
-        """Initialize a new task with the given description."""
+    async def init_task(
+        self,
+        task_desc: str,
+        max_steps: int = 5,
+        last_task_id: str | None = None,
+        history_steps: int | None = None,
+    ):
+        """Initialize a new task with the given description.
+
+        Args:
+            task_desc: Task description
+            max_steps: Maximum number of steps (for logging)
+            last_task_id: Previous task ID to retrieve history from
+            history_steps: Number of historical steps to include (default: 1)
+        """
         self.task_description = task_desc
+        self.last_task_id = last_task_id
+        self.history_steps = history_steps
         response = await self.client.create_message(
             model=self.model,
             screenshot="",
@@ -41,6 +58,10 @@ class AsyncTask:
         )
         self.task_id = response.task_id  # Reset task_id for new task
         logger.info(f"Async task initialized: '{task_desc}' (max_steps: {max_steps})")
+        if last_task_id:
+            logger.info(
+                f"Will include {history_steps or 1} steps from previous task: {last_task_id}"
+            )
 
     async def step(
         self, screenshot: Image | bytes, instruction: str | None = None
@@ -74,6 +95,8 @@ class AsyncTask:
                 task_description=self.task_description,
                 task_id=self.task_id,
                 instruction=instruction,
+                last_task_id=self.last_task_id if self.task_id else None,
+                history_steps=self.history_steps if self.task_id else None,
             )
 
             # Update task_id from response

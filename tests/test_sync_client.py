@@ -19,6 +19,7 @@ from oagi.exceptions import (
     AuthenticationError,
     ConfigurationError,
     RequestTimeoutError,
+    ValidationError,
 )
 from oagi.sync_client import (
     ErrorDetail,
@@ -298,6 +299,143 @@ class TestHelperFunctions:
 
         assert result == expected_base64
         mock_open.assert_called_once_with("/path/to/image.png", "rb")
+
+
+class TestSyncClientHistory:
+    """Test the history functionality of SyncClient."""
+
+    @pytest.fixture
+    def base_client_setup(self):
+        """Set up base client with successful response."""
+        client = SyncClient(base_url="http://test.com", api_key="test-key")
+        with patch.object(client.client, "post") as mock_post:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "id": "resp-123",
+                "task_id": "task-456",
+                "object": "task.completion",
+                "created": 1677652288,
+                "model": "vision-model-v1",
+                "task_description": "Test task",
+                "current_step": 1,
+                "is_complete": False,
+                "actions": [],
+                "usage": {
+                    "prompt_tokens": 100,
+                    "completion_tokens": 50,
+                    "total_tokens": 150,
+                },
+            }
+            mock_post.return_value = mock_response
+            yield client, mock_post
+
+    def test_create_message_with_history(self, base_client_setup):
+        """Test create_message with history parameters."""
+        client, mock_post = base_client_setup
+
+        # Call with history parameters
+        client.create_message(
+            model="vision-model-v1",
+            screenshot="base64_image",
+            task_id="task-456",
+            last_task_id="previous-task",
+            history_steps=2,
+        )
+
+        # Verify request payload includes history params
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        payload = call_args[1]["json"]
+        assert payload["last_task_id"] == "previous-task"
+        assert payload["history_steps"] == 2
+
+    def test_create_message_without_history(self, base_client_setup):
+        """Test create_message without history parameters."""
+        client, mock_post = base_client_setup
+
+        # Call without history parameters
+        client.create_message(
+            model="vision-model-v1",
+            screenshot="base64_image",
+            task_id="task-456",
+        )
+
+        # Verify request payload doesn't include history params
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        payload = call_args[1]["json"]
+        assert "last_task_id" not in payload
+        assert "history_steps" not in payload
+
+    def test_history_validation_error(self):
+        """Test that server validation errors are handled properly."""
+        client = SyncClient(base_url="http://test.com", api_key="test-key")
+
+        with patch.object(client.client, "post") as mock_post:
+            # Mock validation error response
+            mock_response = Mock()
+            mock_response.status_code = 422
+            mock_response.json.return_value = {
+                "error": {
+                    "code": "validation_error",
+                    "message": "last_task_id can only be used when continuing a session with task_id",
+                }
+            }
+            mock_post.return_value = mock_response
+
+            # Try to use last_task_id without task_id
+            with pytest.raises(ValidationError) as exc_info:
+                client.create_message(
+                    model="vision-model-v1",
+                    screenshot="base64_image",
+                    task_description="New task",
+                    last_task_id="previous-task",
+                    history_steps=1,
+                )
+
+            assert "last_task_id can only be used" in str(exc_info.value)
+
+    def test_history_with_instruction(self, base_client_setup):
+        """Test combining history with instruction."""
+        client, mock_post = base_client_setup
+
+        # Call with both history and instruction
+        client.create_message(
+            model="vision-model-v1",
+            screenshot="base64_image",
+            task_id="task-456",
+            instruction="Click submit",
+            last_task_id="previous-task",
+            history_steps=1,
+        )
+
+        # Verify all parameters are included
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        payload = call_args[1]["json"]
+        assert payload["instruction"] == "Click submit"
+        assert payload["last_task_id"] == "previous-task"
+        assert payload["history_steps"] == 1
+
+    def test_history_default_steps(self, base_client_setup):
+        """Test that omitting history_steps works."""
+        client, mock_post = base_client_setup
+
+        # Call with only last_task_id
+        client.create_message(
+            model="vision-model-v1",
+            screenshot="base64_image",
+            task_id="task-456",
+            last_task_id="previous-task",
+        )
+
+        # Verify request
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        payload = call_args[1]["json"]
+        assert payload["last_task_id"] == "previous-task"
+        assert "history_steps" not in payload  # None values aren't sent
 
 
 class TestTraceLogging:

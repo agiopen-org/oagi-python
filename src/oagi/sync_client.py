@@ -130,6 +130,8 @@ class SyncClient:
         task_id: str | None = None,
         instruction: str | None = None,
         max_actions: int | None = 5,
+        last_task_id: str | None = None,
+        history_steps: int | None = None,
         api_version: str | None = None,
     ) -> LLMResponse:
         """
@@ -142,6 +144,8 @@ class SyncClient:
             task_id: Task ID for continuing existing task
             instruction: Additional instruction when continuing a session (only works with task_id)
             max_actions: Maximum number of actions to return (1-20)
+            last_task_id: Previous task ID to retrieve history from (only works with task_id)
+            history_steps: Number of historical steps to include from last_task_id (default: 1, max: 10)
             api_version: API version header
 
         Returns:
@@ -166,6 +170,10 @@ class SyncClient:
             payload["instruction"] = instruction
         if max_actions is not None:
             payload["max_actions"] = max_actions
+        if last_task_id is not None:
+            payload["last_task_id"] = last_task_id
+        if history_steps is not None:
+            payload["history_steps"] = history_steps
 
         logger.info(f"Making API request to /v1/message with model: {model}")
         logger.debug(

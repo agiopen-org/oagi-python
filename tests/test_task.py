@@ -108,6 +108,8 @@ class TestStep:
                 task_description="Test task",
                 task_id="existing-task",
                 instruction=None,
+                last_task_id=None,
+                history_steps=None,
             )
 
             # Verify returned Step
@@ -140,6 +142,8 @@ class TestStep:
                 task_description="Test task",
                 task_id=None,
                 instruction=None,
+                last_task_id=None,
+                history_steps=None,
             )
 
             # Verify task_id was updated
@@ -209,6 +213,8 @@ class TestStep:
                 task_description="Test task",
                 task_id="existing-task",
                 instruction="Click the submit button",
+                last_task_id=None,
+                history_steps=None,
             )
 
             assert isinstance(result, Step)
@@ -281,3 +287,147 @@ class TestIntegrationScenarios:
             # Verify second call used the task_id
             calls = task.client.create_message.call_args_list
             assert calls[1][1]["task_id"] == "task-456"
+
+
+class TestTaskHistory:
+    """Test Task class history functionality."""
+
+    def test_init_task_with_history(self, task, sample_llm_response):
+        """Test init_task with history parameters."""
+        task.client.create_message.return_value = sample_llm_response
+
+        # Initialize task with history
+        task.init_task(
+            "Test task",
+            max_steps=5,
+            last_task_id="previous-task",
+            history_steps=2,
+        )
+
+        # Verify task attributes
+        assert task.task_description == "Test task"
+        assert task.task_id == "task-456"
+        assert task.last_task_id == "previous-task"
+        assert task.history_steps == 2
+
+        # History is not sent during init, only stored
+        task.client.create_message.assert_called_once_with(
+            model="vision-model-v1",
+            screenshot="",
+            task_description="Test task",
+            task_id=None,
+        )
+
+    def test_init_task_without_history(self, task, sample_llm_response):
+        """Test init_task without history parameters."""
+        task.client.create_message.return_value = sample_llm_response
+
+        # Initialize task without history
+        task.init_task("Test task", max_steps=5)
+
+        # Verify task attributes
+        assert task.task_description == "Test task"
+        assert task.task_id == "task-456"
+        assert task.last_task_id is None
+        assert task.history_steps is None
+
+    def test_step_with_history(self, task, sample_llm_response):
+        """Test step method with history (continuing session)."""
+        task.task_description = "Test task"
+        task.task_id = "task-456"  # Already have task_id
+        task.last_task_id = "previous-task"
+        task.history_steps = 2
+        task.client.create_message.return_value = sample_llm_response
+
+        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+            mock_encode.return_value = "base64_encoded"
+
+            # Call step
+            task.step(b"screenshot_data", instruction="Click submit")
+
+            # Verify API call includes history params
+            task.client.create_message.assert_called_once_with(
+                model="vision-model-v1",
+                screenshot="base64_encoded",
+                task_description="Test task",
+                task_id="task-456",
+                instruction="Click submit",
+                last_task_id="previous-task",
+                history_steps=2,
+            )
+
+    def test_step_history_only_when_continuing(self, task, sample_llm_response):
+        """Test that history is only sent when continuing (task_id exists)."""
+        task.task_description = "Test task"
+        task.last_task_id = "previous-task"
+        task.history_steps = 1
+        task.client.create_message.return_value = sample_llm_response
+
+        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+            mock_encode.return_value = "base64_encoded"
+
+            # First step - no task_id yet
+            task.task_id = None
+            task.step(b"screenshot1")
+
+            # Verify first call - no history
+            first_call = task.client.create_message.call_args_list[0][1]
+            assert first_call["task_id"] is None
+            assert first_call["last_task_id"] is None
+            assert first_call["history_steps"] is None
+
+            # Task ID should be updated
+            assert task.task_id == "task-456"
+
+            # Second step - now have task_id
+            task.step(b"screenshot2")
+
+            # Verify second call - includes history
+            second_call = task.client.create_message.call_args_list[1][1]
+            assert second_call["task_id"] == "task-456"
+            assert second_call["last_task_id"] == "previous-task"
+            assert second_call["history_steps"] == 1
+
+    def test_init_task_with_default_history_steps(self, task, sample_llm_response):
+        """Test that history_steps can be omitted."""
+        task.client.create_message.return_value = sample_llm_response
+
+        # Initialize task with last_task_id but no history_steps
+        task.init_task(
+            "Test task",
+            max_steps=5,
+            last_task_id="previous-task",
+            # history_steps not specified
+        )
+
+        # Verify task attributes
+        assert task.last_task_id == "previous-task"
+        assert task.history_steps is None  # Not specified
+
+    def test_step_without_history(self, task, sample_llm_response):
+        """Test step method without history (first step)."""
+        task.task_description = "Test task"
+        task.task_id = None  # First step
+        task.client.create_message.return_value = sample_llm_response
+
+        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+            mock_encode.return_value = "base64_encoded"
+
+            # Call step
+            result = task.step(b"screenshot_data")
+
+            # Verify API call - no history params on first step
+            task.client.create_message.assert_called_once_with(
+                model="vision-model-v1",
+                screenshot="base64_encoded",
+                task_description="Test task",
+                task_id=None,
+                instruction=None,
+                last_task_id=None,
+                history_steps=None,
+            )
+
+            # Verify result
+            assert isinstance(result, Step)
+            assert not result.stop
+            assert len(result.actions) == 2
