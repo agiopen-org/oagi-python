@@ -65,7 +65,7 @@ class TestSingleStep:
 
         # Verify Task was created with correct params
         MockTask.assert_called_once_with(
-            api_key="test-key", base_url="https://api.example.com"
+            api_key="test-key", base_url="https://api.example.com", temperature=None
         )
 
         # Verify init_task and step were called

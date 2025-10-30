@@ -110,6 +110,7 @@ class TestStep:
                 instruction=None,
                 last_task_id=None,
                 history_steps=None,
+                temperature=None,
             )
 
             # Verify returned Step
@@ -144,6 +145,7 @@ class TestStep:
                 instruction=None,
                 last_task_id=None,
                 history_steps=None,
+                temperature=None,
             )
 
             # Verify task_id was updated
@@ -215,6 +217,7 @@ class TestStep:
                 instruction="Click the submit button",
                 last_task_id=None,
                 history_steps=None,
+                temperature=None,
             )
 
             assert isinstance(result, Step)
@@ -354,6 +357,7 @@ class TestTaskHistory:
                 instruction="Click submit",
                 last_task_id="previous-task",
                 history_steps=2,
+                temperature=None,
             )
 
     def test_step_history_only_when_continuing(self, task, sample_llm_response):
@@ -425,6 +429,7 @@ class TestTaskHistory:
                 instruction=None,
                 last_task_id=None,
                 history_steps=None,
+                temperature=None,
             )
 
             # Verify result
