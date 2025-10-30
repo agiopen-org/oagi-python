@@ -6,14 +6,15 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from .logging import get_logger
-from .task import Task
-from .types import ActionHandler, ImageProvider
+from ..logging import get_logger
+from ..types import ActionHandler, ImageProvider
+from .base import BaseAutoMode
+from .sync import Task
 
 logger = get_logger("short_task")
 
 
-class ShortTask(Task):
+class ShortTask(Task, BaseAutoMode):
     """Task implementation with automatic mode for short-duration tasks."""
 
     def __init__(
@@ -48,9 +49,8 @@ class ShortTask(Task):
             history_steps: Number of historical steps to include
             temperature: Sampling temperature for all steps (overrides task default if provided)
         """
-        logger.info(
-            f"Starting auto mode for task: '{task_desc}' (max_steps: {max_steps})"
-        )
+        self._log_auto_mode_start(task_desc, max_steps)
+
         self.init_task(
             task_desc,
             max_steps=max_steps,
@@ -59,15 +59,15 @@ class ShortTask(Task):
         )
 
         for i in range(max_steps):
-            logger.debug(f"Auto mode step {i + 1}/{max_steps}")
+            self._log_auto_mode_step(i + 1, max_steps)
             image = image_provider()
             step = self.step(image, temperature=temperature)
             if executor:
-                logger.debug(f"Executing {len(step.actions)} actions")
+                self._log_auto_mode_actions(len(step.actions))
                 executor(step.actions)
             if step.stop:
-                logger.info(f"Auto mode completed successfully after {i + 1} steps")
+                self._log_auto_mode_completion(i + 1)
                 return True
 
-        logger.warning(f"Auto mode reached max steps ({max_steps}) without completion")
+        self._log_auto_mode_max_steps(max_steps)
         return False

@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
+from oagi.client import SyncClient
 from oagi.exceptions import (
     APIError,
     AuthenticationError,
@@ -21,16 +22,9 @@ from oagi.exceptions import (
     RequestTimeoutError,
     ValidationError,
 )
-from oagi.sync_client import (
-    ErrorDetail,
-    ErrorResponse,
-    LLMResponse,
-    SyncClient,
-    Usage,
-    encode_screenshot_from_bytes,
-    encode_screenshot_from_file,
-)
+from oagi.task.base import encode_screenshot_from_bytes, encode_screenshot_from_file
 from oagi.types import Action, ActionType
+from oagi.types.models import ErrorDetail, ErrorResponse, LLMResponse, Usage
 
 
 @pytest.fixture

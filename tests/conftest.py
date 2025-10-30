@@ -12,8 +12,8 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
-from oagi.sync_client import LLMResponse
 from oagi.types import Action, ActionType
+from oagi.types.models import LLMResponse
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +53,7 @@ def api_env():
 @pytest.fixture
 def mock_httpx_client():
     """Mock httpx.Client instance with patching."""
-    with patch("oagi.sync_client.httpx.Client") as mock_class:
+    with patch("oagi.client.sync.httpx.Client") as mock_class:
         mock_client = Mock()
         mock_class.return_value = mock_client
         yield mock_client
@@ -63,7 +63,7 @@ def mock_httpx_client():
 def mock_httpx_client_class(mock_httpx_client):
     """Mock httpx.Client class - returns the already patched class."""
     # Since mock_httpx_client already patches the class, we just need to return the mock
-    with patch("oagi.sync_client.httpx.Client") as mock_class:
+    with patch("oagi.client.sync.httpx.Client") as mock_class:
         mock_class.return_value = mock_httpx_client
         yield mock_class
 
@@ -196,7 +196,7 @@ def http_status_error(mock_server_error):
 @pytest.fixture
 def mock_sync_client():
     """Create a mock SyncClient for task tests."""
-    with patch("oagi.task.SyncClient") as MockClient:
+    with patch("oagi.task.sync.SyncClient") as MockClient:
         mock_instance = Mock()
         mock_instance.api_key = "test-key"
         mock_instance.base_url = "https://test.example.com"

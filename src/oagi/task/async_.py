@@ -6,15 +6,15 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from .async_client import AsyncClient
-from .logging import get_logger
-from .sync_client import encode_screenshot_from_bytes
-from .types import Image, Step
+from ..client import AsyncClient
+from ..logging import get_logger
+from ..types import Image, Step
+from .base import BaseTask, encode_screenshot_from_bytes
 
 logger = get_logger("async_task")
 
 
-class AsyncTask:
+class AsyncTask(BaseTask):
     """Async base class for task automation with the OAGI API."""
 
     def __init__(
@@ -24,15 +24,10 @@ class AsyncTask:
         model: str = "vision-model-v1",
         temperature: float | None = None,
     ):
+        super().__init__(api_key, base_url, model, temperature)
         self.client = AsyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
         self.base_url = self.client.base_url
-        self.task_id: str | None = None
-        self.task_description: str | None = None
-        self.model = model
-        self.temperature = temperature
-        self.last_task_id: str | None = None
-        self.history_steps: int | None = None
 
     async def init_task(
         self,
@@ -49,21 +44,14 @@ class AsyncTask:
             last_task_id: Previous task ID to retrieve history from
             history_steps: Number of historical steps to include (default: 1)
         """
-        self.task_description = task_desc
-        self.last_task_id = last_task_id
-        self.history_steps = history_steps
+        self._prepare_init_task(task_desc, last_task_id, history_steps)
         response = await self.client.create_message(
             model=self.model,
             screenshot="",
             task_description=self.task_description,
             task_id=None,
         )
-        self.task_id = response.task_id  # Reset task_id for new task
-        logger.info(f"Async task initialized: '{task_desc}' (max_steps: {max_steps})")
-        if last_task_id:
-            logger.info(
-                f"Will include {history_steps or 1} steps from previous task: {last_task_id}"
-            )
+        self._process_init_response(response, task_desc, max_steps, prefix="Async ")
 
     async def step(
         self,
@@ -81,21 +69,16 @@ class AsyncTask:
         Returns:
             Step: The actions and reasoning for this step
         """
-        if not self.task_description:
-            raise ValueError("Task description must be set. Call init_task() first.")
-
-        logger.debug(f"Executing async step for task: '{self.task_description}'")
+        self._validate_step_preconditions()
+        self._log_step_execution(prefix="async ")
 
         try:
             # Convert Image to bytes using the protocol
-            if isinstance(screenshot, Image):
-                screenshot_bytes = screenshot.read()
-            else:
-                screenshot_bytes = screenshot
+            screenshot_bytes = self._prepare_screenshot(screenshot)
             screenshot_b64 = encode_screenshot_from_bytes(screenshot_bytes)
 
             # Use provided temperature or fall back to task default
-            temp = temperature if temperature is not None else self.temperature
+            temp = self._get_temperature(temperature)
 
             # Call API
             response = await self.client.create_message(
@@ -110,30 +93,10 @@ class AsyncTask:
             )
 
             # Update task_id from response
-            if self.task_id != response.task_id:
-                if self.task_id is None:
-                    logger.debug(f"Task ID assigned: {response.task_id}")
-                else:
-                    logger.debug(
-                        f"Task ID changed: {self.task_id} -> {response.task_id}"
-                    )
-                self.task_id = response.task_id
+            self._update_task_id(response)
 
             # Convert API response to Step
-            result = Step(
-                reason=response.reason,
-                actions=response.actions,
-                stop=response.is_complete,
-            )
-
-            if response.is_complete:
-                logger.info(f"Async task completed after {response.current_step} steps")
-            else:
-                logger.debug(
-                    f"Async step {response.current_step} completed with {len(response.actions)} actions"
-                )
-
-            return result
+            return self._build_step_response(response, prefix="Async ")
 
         except Exception as e:
             logger.error(f"Error during async step execution: {e}")

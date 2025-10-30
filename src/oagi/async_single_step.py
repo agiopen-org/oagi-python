@@ -8,8 +8,8 @@
 
 from pathlib import Path
 
-from .async_task import AsyncTask
 from .pil_image import PILImage
+from .task import AsyncTask
 from .types import Image, Step
 
 

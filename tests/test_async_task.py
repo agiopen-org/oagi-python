@@ -11,8 +11,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 import pytest_asyncio
 
-from oagi.async_short_task import AsyncShortTask
-from oagi.async_task import AsyncTask
+from oagi.task import AsyncShortTask, AsyncTask
 from oagi.types import Action, ActionType, Step
 
 
@@ -233,7 +232,7 @@ class TestAsyncTaskTemperature:
         ) as mock_create:
             mock_create.return_value = mock_llm_response
 
-            with patch("oagi.async_task.encode_screenshot_from_bytes") as mock_encode:
+            with patch("oagi.task.async_.encode_screenshot_from_bytes") as mock_encode:
                 mock_encode.return_value = "base64_encoded"
 
                 # Step with override temperature

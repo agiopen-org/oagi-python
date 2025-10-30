@@ -12,7 +12,7 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from oagi.async_client import AsyncClient, LLMResponse
+from oagi.client import AsyncClient
 from oagi.exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -20,6 +20,7 @@ from oagi.exceptions import (
     RequestTimeoutError,
 )
 from oagi.types import ActionType
+from oagi.types.models import LLMResponse
 
 
 @pytest_asyncio.fixture

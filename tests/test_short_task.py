@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from oagi.short_task import ShortTask
+from oagi.task import ShortTask
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ class TestShortTaskAutoMode:
             completed_llm_response,  # step 3 - completed
         ]
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             result = short_task.auto_mode(
@@ -73,7 +73,7 @@ class TestShortTaskAutoMode:
         # All responses are in-progress (never completes)
         short_task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             result = short_task.auto_mode(
@@ -98,7 +98,7 @@ class TestShortTaskAutoMode:
             completed_llm_response,  # step 1 - completed
         ]
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             result = short_task.auto_mode(
@@ -124,7 +124,7 @@ class TestShortTaskAutoMode:
             completed_llm_response,  # step 1 - immediately completed
         ]
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             result = short_task.auto_mode(
@@ -152,7 +152,7 @@ class TestShortTaskAutoMode:
             completed_llm_response,  # step 1 - completed
         ]
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             # Should work with None executor

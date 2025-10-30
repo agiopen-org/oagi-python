@@ -90,7 +90,7 @@ class TestStep:
         task.task_id = "existing-task"
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded_image"
 
             result = task.step(mock_image)
@@ -128,7 +128,7 @@ class TestStep:
 
         image_bytes = b"raw image bytes"
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded_bytes"
 
             result = task.step(image_bytes)
@@ -166,7 +166,7 @@ class TestStep:
         task.task_id = "task-456"
         task.client.create_message.return_value = completed_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             result = task.step(b"image bytes")
@@ -181,7 +181,7 @@ class TestStep:
         sample_llm_response.task_id = "new-task-id"
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             task.step(b"image bytes")
@@ -192,7 +192,7 @@ class TestStep:
         task.task_description = "Test task"
         task.client.create_message.side_effect = Exception("API Error")
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             with pytest.raises(Exception, match="API Error"):
@@ -203,7 +203,7 @@ class TestStep:
         task.task_id = "existing-task"
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             result = task.step(b"image bytes", instruction="Click the submit button")
@@ -259,7 +259,7 @@ class TestIntegrationScenarios:
         assert task.task_description == "Complete workflow test"
 
         # First step - in progress
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             step1 = task.step(b"screenshot1")
@@ -277,7 +277,7 @@ class TestIntegrationScenarios:
         task.task_description = "Test task"
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             # First step - sets task_id
@@ -342,7 +342,7 @@ class TestTaskHistory:
         task.history_steps = 2
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             # Call step
@@ -367,7 +367,7 @@ class TestTaskHistory:
         task.history_steps = 1
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             # First step - no task_id yet
@@ -414,7 +414,7 @@ class TestTaskHistory:
         task.task_id = None  # First step
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             # Call step
@@ -449,7 +449,7 @@ class TestTaskTemperature:
         task.task_description = "Test task"
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             task.step(b"screenshot_data")
@@ -470,7 +470,7 @@ class TestTaskTemperature:
         task.task_description = "Test task"
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             # Call step with different temperature
@@ -486,7 +486,7 @@ class TestTaskTemperature:
         task.task_description = "Test task"
         task.client.create_message.return_value = sample_llm_response
 
-        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+        with patch("oagi.task.sync.encode_screenshot_from_bytes") as mock_encode:
             mock_encode.return_value = "base64_encoded"
 
             task.step(b"screenshot_data")

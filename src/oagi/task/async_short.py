@@ -6,14 +6,15 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from .async_task import AsyncTask
-from .logging import get_logger
-from .types import AsyncActionHandler, AsyncImageProvider
+from ..logging import get_logger
+from ..types import AsyncActionHandler, AsyncImageProvider
+from .async_ import AsyncTask
+from .base import BaseAutoMode
 
 logger = get_logger("async_short_task")
 
 
-class AsyncShortTask(AsyncTask):
+class AsyncShortTask(AsyncTask, BaseAutoMode):
     """Async task implementation with automatic mode for short-duration tasks."""
 
     def __init__(
@@ -48,9 +49,8 @@ class AsyncShortTask(AsyncTask):
             history_steps: Number of historical steps to include
             temperature: Sampling temperature for all steps (overrides task default if provided)
         """
-        logger.info(
-            f"Starting async auto mode for task: '{task_desc}' (max_steps: {max_steps})"
-        )
+        self._log_auto_mode_start(task_desc, max_steps, prefix="async ")
+
         await self.init_task(
             task_desc,
             max_steps=max_steps,
@@ -59,19 +59,15 @@ class AsyncShortTask(AsyncTask):
         )
 
         for i in range(max_steps):
-            logger.debug(f"Async auto mode step {i + 1}/{max_steps}")
+            self._log_auto_mode_step(i + 1, max_steps, prefix="async ")
             image = await image_provider()
             step = await self.step(image, temperature=temperature)
             if executor:
-                logger.debug(f"Executing {len(step.actions)} actions asynchronously")
+                self._log_auto_mode_actions(len(step.actions), prefix="async ")
                 await executor(step.actions)
             if step.stop:
-                logger.info(
-                    f"Async auto mode completed successfully after {i + 1} steps"
-                )
+                self._log_auto_mode_completion(i + 1, prefix="async ")
                 return True
 
-        logger.warning(
-            f"Async auto mode reached max steps ({max_steps}) without completion"
-        )
+        self._log_auto_mode_max_steps(max_steps, prefix="async ")
         return False

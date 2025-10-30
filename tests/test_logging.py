@@ -14,9 +14,9 @@ from unittest.mock import Mock, patch
 import pytest
 
 from oagi import ShortTask
+from oagi.client import SyncClient
 from oagi.exceptions import ConfigurationError
 from oagi.logging import get_logger
-from oagi.sync_client import SyncClient
 
 from .conftest import MockImage
 
