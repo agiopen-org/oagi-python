@@ -8,7 +8,6 @@
 
 from pathlib import Path
 
-from .pil_image import PILImage
 from .task import AsyncTask
 from .types import Image, Step
 
@@ -64,12 +63,13 @@ async def async_single_step(
         ...     screenshot=image
         ... )
     """
+    # Lazy import PILImage only when needed
+    from .pil_image import PILImage  # noqa: PLC0415
+
     # Handle different screenshot input types
     if isinstance(screenshot, (str, Path)):
-        # Convert file path to PILImage
         screenshot = PILImage.from_file(str(screenshot))
     elif isinstance(screenshot, bytes):
-        # Convert bytes to PILImage
         screenshot = PILImage.from_bytes(screenshot)
 
     # Create a temporary task instance

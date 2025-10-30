@@ -8,7 +8,6 @@
 
 from pathlib import Path
 
-from .pil_image import PILImage
 from .task import Task
 from .types import Image, Step
 
@@ -62,6 +61,9 @@ def single_step(
         ...     screenshot=image
         ... )
     """
+    # Lazy import PILImage only when needed
+    from .pil_image import PILImage  # noqa: PLC0415
+
     # Convert file paths to bytes using PILImage
     if isinstance(screenshot, (str, Path)):
         path = Path(screenshot) if isinstance(screenshot, str) else screenshot
