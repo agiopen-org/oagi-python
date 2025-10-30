@@ -179,6 +179,29 @@ class TestSyncClient:
             expected_headers,
         )
 
+    def test_create_message_with_temperature(
+        self, mock_httpx_client, test_client, mock_success_response
+    ):
+        mock_httpx_client.post.return_value = mock_success_response
+
+        test_client.create_message(
+            model="vision-model-v1",
+            screenshot="screenshot_data",
+            task_description="Test task",
+            temperature=0.7,
+        )
+
+        self._assert_api_call_made(
+            mock_httpx_client,
+            {
+                "model": "vision-model-v1",
+                "screenshot": "screenshot_data",
+                "task_description": "Test task",
+                "max_actions": 5,
+                "sampling_params": {"temperature": 0.7},
+            },
+        )
+
     @pytest.mark.parametrize(
         "error_setup,expected_exception,error_message",
         [

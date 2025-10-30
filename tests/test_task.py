@@ -431,3 +431,61 @@ class TestTaskHistory:
             assert isinstance(result, Step)
             assert not result.stop
             assert len(result.actions) == 2
+
+
+class TestTaskTemperature:
+    def test_task_with_default_temperature(self, mock_sync_client, sample_llm_response):
+        """Test that task uses default temperature when provided."""
+        task = Task(
+            api_key="test-key",
+            base_url="https://test.example.com",
+            temperature=0.5,
+        )
+        task.task_description = "Test task"
+        task.client.create_message.return_value = sample_llm_response
+
+        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+            mock_encode.return_value = "base64_encoded"
+
+            task.step(b"screenshot_data")
+
+            # Verify temperature is passed to create_message
+            call_args = task.client.create_message.call_args
+            assert call_args[1]["temperature"] == 0.5
+
+    def test_step_temperature_overrides_task_default(
+        self, mock_sync_client, sample_llm_response
+    ):
+        """Test that step temperature overrides task default."""
+        task = Task(
+            api_key="test-key",
+            base_url="https://test.example.com",
+            temperature=0.5,
+        )
+        task.task_description = "Test task"
+        task.client.create_message.return_value = sample_llm_response
+
+        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+            mock_encode.return_value = "base64_encoded"
+
+            # Call step with different temperature
+            task.step(b"screenshot_data", temperature=0.9)
+
+            # Verify step temperature (0.9) is used, not task default (0.5)
+            call_args = task.client.create_message.call_args
+            assert call_args[1]["temperature"] == 0.9
+
+    def test_step_without_any_temperature(self, mock_sync_client, sample_llm_response):
+        """Test that when no temperature is provided, None is passed."""
+        task = Task(api_key="test-key", base_url="https://test.example.com")
+        task.task_description = "Test task"
+        task.client.create_message.return_value = sample_llm_response
+
+        with patch("oagi.task.encode_screenshot_from_bytes") as mock_encode:
+            mock_encode.return_value = "base64_encoded"
+
+            task.step(b"screenshot_data")
+
+            # Verify temperature is None (worker will use its default)
+            call_args = task.client.create_message.call_args
+            assert call_args[1]["temperature"] is None

@@ -93,6 +93,7 @@ class AsyncClient:
         max_actions: int | None = 5,
         last_task_id: str | None = None,
         history_steps: int | None = None,
+        temperature: float | None = None,
         api_version: str | None = None,
     ) -> LLMResponse:
         """
@@ -107,6 +108,7 @@ class AsyncClient:
             max_actions: Maximum number of actions to return (1-20)
             last_task_id: Previous task ID to retrieve history from (only works with task_id)
             history_steps: Number of historical steps to include from last_task_id (default: 1, max: 10)
+            temperature: Sampling temperature (0.0-2.0) for LLM inference
             api_version: API version header
 
         Returns:
@@ -135,6 +137,8 @@ class AsyncClient:
             payload["last_task_id"] = last_task_id
         if history_steps is not None:
             payload["history_steps"] = history_steps
+        if temperature is not None:
+            payload["sampling_params"] = {"temperature": temperature}
 
         logger.info(f"Making async API request to /v1/message with model: {model}")
         logger.debug(

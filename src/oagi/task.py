@@ -21,6 +21,7 @@ class Task:
         api_key: str | None = None,
         base_url: str | None = None,
         model: str = "vision-model-v1",
+        temperature: float | None = None,
     ):
         self.client = SyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
@@ -28,6 +29,7 @@ class Task:
         self.task_id: str | None = None
         self.task_description: str | None = None
         self.model = model
+        self.temperature = temperature
         self.last_task_id: str | None = None
         self.history_steps: int | None = None
 
@@ -62,12 +64,18 @@ class Task:
                 f"Will include {history_steps or 1} steps from previous task: {last_task_id}"
             )
 
-    def step(self, screenshot: Image | bytes, instruction: str | None = None) -> Step:
+    def step(
+        self,
+        screenshot: Image | bytes,
+        instruction: str | None = None,
+        temperature: float | None = None,
+    ) -> Step:
         """Send screenshot to the server and get the next actions.
 
         Args:
             screenshot: Screenshot as Image object or raw bytes
             instruction: Optional additional instruction for this step (only works with existing task_id)
+            temperature: Sampling temperature for this step (overrides task default if provided)
 
         Returns:
             Step: The actions and reasoning for this step
@@ -85,6 +93,9 @@ class Task:
                 screenshot_bytes = screenshot
             screenshot_b64 = encode_screenshot_from_bytes(screenshot_bytes)
 
+            # Use provided temperature or fall back to task default
+            temp = temperature if temperature is not None else self.temperature
+
             # Call API
             response = self.client.create_message(
                 model=self.model,
@@ -94,6 +105,7 @@ class Task:
                 instruction=instruction,
                 last_task_id=self.last_task_id if self.task_id else None,
                 history_steps=self.history_steps if self.task_id else None,
+                temperature=temp,
             )
 
             # Update task_id from response

@@ -19,6 +19,7 @@ async def async_single_step(
     instruction: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    temperature: float | None = None,
 ) -> Step:
     """
     Perform a single-step inference asynchronously without maintaining task state.
@@ -32,6 +33,7 @@ async def async_single_step(
         instruction: Optional additional instruction for the task
         api_key: OAGI API key (uses environment variable if not provided)
         base_url: OAGI base URL (uses environment variable if not provided)
+        temperature: Sampling temperature (0.0-2.0) for LLM inference
 
     Returns:
         Step: Object containing reasoning, actions, and completion status
@@ -71,7 +73,7 @@ async def async_single_step(
         screenshot = PILImage.from_bytes(screenshot)
 
     # Create a temporary task instance
-    task = AsyncTask(api_key=api_key, base_url=base_url)
+    task = AsyncTask(api_key=api_key, base_url=base_url, temperature=temperature)
 
     try:
         # Initialize task and perform single step

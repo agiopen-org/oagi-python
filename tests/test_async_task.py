@@ -215,3 +215,38 @@ class TestAsyncShortTask:
             assert mock_executor.call_count == 3
 
         await task.close()
+
+
+class TestAsyncTaskTemperature:
+    @pytest.mark.asyncio
+    async def test_async_task_temperature_fallback(self, api_env, mock_llm_response):
+        """Test that temperature fallback works: step temp -> task temp -> None."""
+        task = AsyncTask(
+            api_key=api_env["api_key"],
+            base_url=api_env["base_url"],
+            temperature=0.5,
+        )
+        task.task_description = "Test task"
+
+        with patch.object(
+            task.client, "create_message", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_llm_response
+
+            with patch("oagi.async_task.encode_screenshot_from_bytes") as mock_encode:
+                mock_encode.return_value = "base64_encoded"
+
+                # Step with override temperature
+                await task.step(b"screenshot_data", temperature=0.8)
+
+                # Verify step temperature (0.8) is used
+                call_args = mock_create.call_args
+                assert call_args[1]["temperature"] == 0.8
+
+                # Step without temperature - should use task default (0.5)
+                await task.step(b"screenshot_data2")
+
+                call_args = mock_create.call_args
+                assert call_args[1]["temperature"] == 0.5
+
+        await task.close()

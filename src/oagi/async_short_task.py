@@ -21,8 +21,11 @@ class AsyncShortTask(AsyncTask):
         api_key: str | None = None,
         base_url: str | None = None,
         model: str = "vision-model-v1",
+        temperature: float | None = None,
     ):
-        super().__init__(api_key=api_key, base_url=base_url, model=model)
+        super().__init__(
+            api_key=api_key, base_url=base_url, model=model, temperature=temperature
+        )
 
     async def auto_mode(
         self,
@@ -32,6 +35,7 @@ class AsyncShortTask(AsyncTask):
         image_provider: AsyncImageProvider = None,
         last_task_id: str | None = None,
         history_steps: int | None = None,
+        temperature: float | None = None,
     ) -> bool:
         """Run the task in automatic mode with the provided executor and image provider.
 
@@ -42,6 +46,7 @@ class AsyncShortTask(AsyncTask):
             image_provider: Async provider for screenshots
             last_task_id: Previous task ID to retrieve history from
             history_steps: Number of historical steps to include
+            temperature: Sampling temperature for all steps (overrides task default if provided)
         """
         logger.info(
             f"Starting async auto mode for task: '{task_desc}' (max_steps: {max_steps})"
@@ -56,7 +61,7 @@ class AsyncShortTask(AsyncTask):
         for i in range(max_steps):
             logger.debug(f"Async auto mode step {i + 1}/{max_steps}")
             image = await image_provider()
-            step = await self.step(image)
+            step = await self.step(image, temperature=temperature)
             if executor:
                 logger.debug(f"Executing {len(step.actions)} actions asynchronously")
                 await executor(step.actions)

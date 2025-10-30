@@ -19,6 +19,7 @@ def single_step(
     instruction: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    temperature: float | None = None,
 ) -> Step:
     """
     Perform a single-step inference without maintaining task state.
@@ -32,6 +33,7 @@ def single_step(
         instruction: Optional additional instruction for the task
         api_key: OAGI API key (uses environment variable if not provided)
         base_url: OAGI base URL (uses environment variable if not provided)
+        temperature: Sampling temperature (0.0-2.0) for LLM inference
 
     Returns:
         Step: Object containing reasoning, actions, and completion status
@@ -78,6 +80,6 @@ def single_step(
         )
 
     # Use Task to perform single step
-    with Task(api_key=api_key, base_url=base_url) as task:
+    with Task(api_key=api_key, base_url=base_url, temperature=temperature) as task:
         task.init_task(task_description)
         return task.step(screenshot_bytes, instruction=instruction)
