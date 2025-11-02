@@ -9,7 +9,6 @@
 import io
 from typing import Optional
 
-import pyautogui
 from PIL import Image as PILImageLib
 
 from .types.models.image_config import ImageConfig
@@ -39,6 +38,8 @@ class PILImage:
     @classmethod
     def from_screenshot(cls, config: ImageConfig | None = None) -> "PILImage":
         """Create PILImage from screenshot."""
+        import pyautogui  # noqa: PLC0415, avoid no DISPLAY issue in headless environment
+
         screenshot = pyautogui.screenshot()
         return cls(screenshot, config)
 
