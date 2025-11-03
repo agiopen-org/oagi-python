@@ -74,15 +74,6 @@ class TestInitTask:
             task_id=None,
         )
 
-    def test_init_task_resets_task_id(self, task, sample_llm_response):
-        # Set existing task_id
-        task.task_id = "old-task-123"
-        task.client.create_message.return_value = sample_llm_response
-
-        task.init_task("New task")
-
-        assert task.task_id == "task-456"  # New task_id from response
-
 
 class TestStep:
     def test_step_with_image_object(self, task, mock_image, sample_llm_response):

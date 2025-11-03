@@ -6,9 +6,10 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+from uuid import uuid4
+
 from .async_client import AsyncClient
 from .logging import get_logger
-from .sync_client import encode_screenshot_from_bytes
 from .types import Image, Step
 
 logger = get_logger("async_task")
@@ -26,9 +27,11 @@ class AsyncTask:
         self.client = AsyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
         self.base_url = self.client.base_url
-        self.task_id: str | None = None
+        self.task_id = uuid4().hex
         self.task_description: str | None = None
         self.model = model
+        self.max_steps: int = 5
+        self.message_history: list = []
         self.last_task_id: str | None = None
         self.history_steps: int | None = None
 
@@ -48,20 +51,10 @@ class AsyncTask:
             history_steps: Number of historical steps to include (default: 1)
         """
         self.task_description = task_desc
+        self.max_steps = max_steps
         self.last_task_id = last_task_id
         self.history_steps = history_steps
-        response = await self.client.create_message(
-            model=self.model,
-            screenshot="",
-            task_description=self.task_description,
-            task_id=None,
-        )
-        self.task_id = response.task_id  # Reset task_id for new task
         logger.info(f"Async task initialized: '{task_desc}' (max_steps: {max_steps})")
-        if last_task_id:
-            logger.info(
-                f"Will include {history_steps or 1} steps from previous task: {last_task_id}"
-            )
 
     async def step(
         self, screenshot: Image | bytes, instruction: str | None = None
@@ -86,28 +79,25 @@ class AsyncTask:
                 screenshot_bytes = screenshot.read()
             else:
                 screenshot_bytes = screenshot
-            screenshot_b64 = encode_screenshot_from_bytes(screenshot_bytes)
 
             # Call API
             response = await self.client.create_message(
                 model=self.model,
-                screenshot=screenshot_b64,
+                screenshot=screenshot_bytes,
                 task_description=self.task_description,
                 task_id=self.task_id,
                 instruction=instruction,
-                last_task_id=self.last_task_id if self.task_id else None,
-                history_steps=self.history_steps if self.task_id else None,
+                messages_history=self.message_history,
             )
 
-            # Update task_id from response
-            if self.task_id != response.task_id:
-                if self.task_id is None:
-                    logger.debug(f"Task ID assigned: {response.task_id}")
-                else:
-                    logger.debug(
-                        f"Task ID changed: {self.task_id} -> {response.task_id}"
-                    )
-                self.task_id = response.task_id
+            # Append instruction message if provided
+            if response.raw_output:
+                self.message_history.append(
+                    {
+                        "role": "assistant",
+                        "content": [{"type": "text", "text": response.raw_output}],
+                    }
+                )
 
             # Convert API response to Step
             result = Step(
@@ -117,10 +107,10 @@ class AsyncTask:
             )
 
             if response.is_complete:
-                logger.info(f"Async task completed after {response.current_step} steps")
+                logger.info("Async task completed.")
             else:
                 logger.debug(
-                    f"Async step {response.current_step} completed with {len(response.actions)} actions"
+                    f"Async step completed with {len(response.actions)} actions"
                 )
 
             return result

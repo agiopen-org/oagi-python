@@ -38,7 +38,6 @@ def mock_response_data():
         "created": 1234567890,
         "model": "vision-model-v1",
         "task_description": "Test task",
-        "current_step": 1,
         "is_complete": False,
         "actions": [
             {
@@ -110,7 +109,6 @@ class TestAsyncClientCreateMessage:
             )
 
             assert isinstance(result, LLMResponse)
-            assert result.task_id == "task-123"
             assert len(result.actions) == 1
             assert result.actions[0].type == ActionType.CLICK
 

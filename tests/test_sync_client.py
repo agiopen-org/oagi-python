@@ -254,7 +254,6 @@ class TestSyncClient:
         assert response.task_id == "task-456"
         assert response.model == "vision-model-v1"
         assert response.task_description == "Test task"
-        assert response.current_step == 1
         assert not response.is_complete
         assert len(response.actions) == 1
         assert response.actions[0].type == ActionType.CLICK
@@ -318,7 +317,6 @@ class TestSyncClientHistory:
                 "created": 1677652288,
                 "model": "vision-model-v1",
                 "task_description": "Test task",
-                "current_step": 1,
                 "is_complete": False,
                 "actions": [],
                 "usage": {
@@ -528,7 +526,6 @@ class TestDataModels:
             created=1677652288,
             model="vision-model-v1",
             task_description="Test task",
-            current_step=1,
             is_complete=False,
             actions=[action],
             usage=usage,
@@ -540,7 +537,6 @@ class TestDataModels:
         assert response.created == 1677652288
         assert response.model == "vision-model-v1"
         assert response.task_description == "Test task"
-        assert response.current_step == 1
         assert not response.is_complete
         assert len(response.actions) == 1
         assert response.actions[0].type == ActionType.CLICK

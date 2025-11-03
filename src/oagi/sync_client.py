@@ -57,12 +57,20 @@ class LLMResponse(BaseModel):
     created: int
     model: str
     task_description: str
-    current_step: int
     is_complete: bool
     actions: list[Action]
     reason: str | None = None
     usage: Usage
     error: ErrorDetail | None = None
+    raw_output: str | None = None
+
+
+class UploadFileResponse(BaseModel):
+    url: str
+    uuid: str
+    expires_at: int
+    file_expires_at: int
+    download_url: str
 
 
 def _log_trace_id(response: Response):
@@ -108,6 +116,7 @@ class SyncClient:
         self.base_url = self.base_url.rstrip("/")
         self.client = httpx.Client(base_url=self.base_url)
         self.timeout = 60
+        self.upload_client = httpx.Client(timeout=60)  # client for uploading image
 
         logger.info(f"SyncClient initialized with base_url: {self.base_url}")
 
@@ -125,28 +134,26 @@ class SyncClient:
     def create_message(
         self,
         model: str,
-        screenshot: str,  # base64 encoded
+        screenshot: bytes,
         task_description: str | None = None,
         task_id: str | None = None,
         instruction: str | None = None,
         max_actions: int | None = 5,
-        last_task_id: str | None = None,
-        history_steps: int | None = None,
         api_version: str | None = None,
+        messages_history: list = None,
     ) -> LLMResponse:
         """
-        Call the /v1/message endpoint to analyze task and screenshot
+        Call the /v2/message endpoint to analyze task and screenshot
 
         Args:
             model: The model to use for task analysis
-            screenshot: Base64-encoded screenshot image
+            screenshot: screenshot image bytes
             task_description: Description of the task (required for new sessions)
             task_id: Task ID for continuing existing task
             instruction: Additional instruction when continuing a session (only works with task_id)
             max_actions: Maximum number of actions to return (1-20)
-            last_task_id: Previous task ID to retrieve history from (only works with task_id)
-            history_steps: Number of historical steps to include from last_task_id (default: 1, max: 10)
             api_version: API version header
+            message_history: Chat history
 
         Returns:
             LLMResponse: The response from the API
@@ -160,29 +167,37 @@ class SyncClient:
         if self.api_key:
             headers["x-api-key"] = self.api_key
 
-        payload = {"model": model, "screenshot": screenshot}
-
-        if task_description is not None:
-            payload["task_description"] = task_description
-        if task_id is not None:
-            payload["task_id"] = task_id
-        if instruction is not None:
-            payload["instruction"] = instruction
-        if max_actions is not None:
-            payload["max_actions"] = max_actions
-        if last_task_id is not None:
-            payload["last_task_id"] = last_task_id
-        if history_steps is not None:
-            payload["history_steps"] = history_steps
-
-        logger.info(f"Making API request to /v1/message with model: {model}")
+        logger.info(f"Making API request to /v2/message with model: {model}")
         logger.debug(
             f"Request includes task_description: {task_description is not None}, task_id: {task_id is not None}"
         )
 
+        upload_file_response = self.put_s3_presigned_url(screenshot)
+        screenshot_url = upload_file_response.download_url
+
+        # Prepare for chat messages
+        content = [{"type": "image_url", "image_url": {"url": screenshot_url}}]
+        user_message = {
+            "role": "user",
+            "content": content,
+        }
+        if instruction:
+            content.append({"type": "text", "text": instruction})
+        messages_history.append(user_message)
+
+        # Build an openai-compatible request
+        openai_compatible_request = {
+            "model": model,
+            "messages": messages_history,
+            "task_description": task_description,
+            "task_id": task_id,
+        }
         try:
             response = self.client.post(
-                "/v1/message", json=payload, headers=headers, timeout=self.timeout
+                "/v2/message",
+                json=openai_compatible_request,
+                headers=headers,
+                timeout=self.timeout,
             )
         except httpx.TimeoutException as e:
             logger.error(f"Request timed out after {self.timeout} seconds")
@@ -247,9 +262,7 @@ class SyncClient:
                 response=response,
             )
 
-        logger.info(
-            f"API request successful - task_id: {result.task_id}, step: {result.current_step}, complete: {result.is_complete}"
-        )
+        logger.info(f"API request successful, complete: {result.is_complete}")
         logger.debug(f"Response included {len(result.actions)} actions")
         return result
 
@@ -284,6 +297,79 @@ class SyncClient:
         except httpx.HTTPStatusError as e:
             logger.warning(f"Health check failed: {e}")
             raise
+
+    @log_trace_on_failure
+    def put_s3_presigned_url(
+        self,
+        screenshot: bytes,
+        api_version: str | None = None,
+    ) -> UploadFileResponse:
+        """
+        Call the /v1/file/upload endpoint to fetch a s3 presigned url and upload image
+
+        Args:
+            screenshot: screenshot image bytes
+            api_version: API version header
+        Returns:
+            UploadFileResponse: the response of /v1/file/upload with uuid and presigned s3 url for uploading
+        """
+        logger.debug("Making API request to /v1/file/upload")
+        try:
+            headers = {}
+            if api_version:
+                headers["x-api-version"] = api_version
+            if self.api_key:
+                headers["x-api-key"] = self.api_key
+            response = self.client.get(
+                "/v1/file/upload", headers=headers, timeout=self.timeout
+            )
+            response_data = response.json()
+            upload_file_response = UploadFileResponse(**response_data)
+            logger.debug("Calling /v1/upload successful")
+        except httpx.TimeoutException as e:
+            logger.error(f"Request timed out after {self.timeout} seconds")
+            raise RequestTimeoutError(
+                f"Request timed out after {self.timeout} seconds", e
+            )
+        except httpx.NetworkError as e:
+            logger.error(f"Network error: {e}")
+            raise NetworkError(f"Network error: {e}", e)
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Invalid stataus code: {e}")
+            exception_class = self._get_exception_class(response.status_code)
+            raise exception_class(
+                f"API error (status {response.status_code})",
+                status_code=response.status_code,
+                response=response,
+            )
+        except ValueError:
+            # If response is not JSON, raise API error
+            logger.error(f"Non-JSON API response: {response.status_code}")
+            raise APIError(
+                f"Invalid response format (status {response.status_code})",
+                status_code=response.status_code,
+                response=response,
+            )
+        except KeyError:
+            # If not "url" found, raise API error
+            logger.error(f"Invalid response: {response.status_code}")
+            raise APIError(
+                f"Invalid presigned s3 url (result {response_data})",
+                status_code=response.status_code,
+                response=response,
+            )
+        logger.debug("Uploading image to s3")
+        try:
+            response = self.upload_client.put(
+                url=upload_file_response.url, content=screenshot
+            )
+            response.raise_for_status()
+        except Exception as e:
+            logger.error(f"Invalid response: {response.status_code}")
+            raise APIError(
+                message=str(e), status_code=response.status_code, response=response
+            )
+        return upload_file_response
 
 
 def encode_screenshot_from_bytes(image_bytes: bytes) -> str:

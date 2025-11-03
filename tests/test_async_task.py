@@ -30,11 +30,9 @@ async def async_task(api_env):
 @pytest.fixture
 def mock_llm_response():
     response = Mock()
-    response.task_id = "task-123"
     response.reason = "Test reason"
     response.actions = [Action(type=ActionType.CLICK, argument="500, 300", count=1)]
     response.is_complete = False
-    response.current_step = 1
     return response
 
 
@@ -49,7 +47,6 @@ class TestAsyncTaskInitialization:
             await async_task.init_task("Test task description")
 
             assert async_task.task_description == "Test task description"
-            assert async_task.task_id == "task-123"
             mock_create.assert_called_once_with(
                 model="vision-model-v1",
                 screenshot="",
@@ -108,7 +105,6 @@ class TestAsyncTaskStep:
         complete_response.reason = "Task completed"
         complete_response.actions = []
         complete_response.is_complete = True
-        complete_response.current_step = 2
 
         with patch.object(
             async_task.client, "create_message", new_callable=AsyncMock
@@ -147,14 +143,12 @@ class TestAsyncShortTask:
             Action(type=ActionType.CLICK, argument="500, 300", count=1)
         ]
         step_response.is_complete = False
-        step_response.current_step = 1
 
         complete_response = Mock()
         complete_response.task_id = "task-123"
         complete_response.reason = "Task complete"
         complete_response.actions = []
         complete_response.is_complete = True
-        complete_response.current_step = 2
 
         # Mock image provider and executor
         mock_image_provider = AsyncMock()
@@ -192,7 +186,6 @@ class TestAsyncShortTask:
         response.reason = "Still working"
         response.actions = [Action(type=ActionType.WAIT, argument="", count=1)]
         response.is_complete = False
-        response.current_step = 1
 
         mock_image_provider = AsyncMock()
         mock_image_provider.return_value = Mock(read=lambda: b"test-image")

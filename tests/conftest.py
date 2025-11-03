@@ -94,7 +94,6 @@ def api_response_data(sample_action, sample_usage):
         "created": 1677652288,
         "model": "vision-model-v1",
         "task_description": "Test task",
-        "current_step": 1,
         "is_complete": False,
         "actions": [
             {
@@ -117,7 +116,6 @@ def api_response_completed(sample_usage):
         "created": 1677652288,
         "model": "vision-model-v1",
         "task_description": "Test task",
-        "current_step": 2,
         "is_complete": True,
         "actions": [],
         "usage": sample_usage,
@@ -133,7 +131,6 @@ def api_response_init_task(sample_usage):
         "created": 1677652288,
         "model": "vision-model-v1",
         "task_description": "Test task",
-        "current_step": 1,
         "is_complete": False,
         "actions": [],
         "usage": sample_usage,
