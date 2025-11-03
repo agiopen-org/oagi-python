@@ -69,7 +69,7 @@ class AsyncClient:
         self.base_url = self.base_url.rstrip("/")
         self.client = httpx.AsyncClient(base_url=self.base_url)
         self.timeout = 60
-        self.upload_client = httpx.Client(timeout=60)  # client for uploading image
+        self.upload_client = httpx.AsyncClient(timeout=60)  # client for uploading image
 
         logger.info(f"AsyncClient initialized with base_url: {self.base_url}")
 
@@ -146,7 +146,7 @@ class AsyncClient:
             "task_id": task_id,
         }
         try:
-            response = self.client.post(
+            response = await self.client.post(
                 "/v2/message",
                 json=openai_compatible_request,
                 headers=headers,
@@ -252,7 +252,7 @@ class AsyncClient:
             raise
 
     @async_log_trace_on_failure
-    def put_s3_presigned_url(
+    async def put_s3_presigned_url(
         self,
         screenshot: bytes,
         api_version: str | None = None,
@@ -273,7 +273,7 @@ class AsyncClient:
                 headers["x-api-version"] = api_version
             if self.api_key:
                 headers["x-api-key"] = self.api_key
-            response = self.client.get(
+            response = await self.client.get(
                 "/v1/file/upload", headers=headers, timeout=self.timeout
             )
             response_data = response.json()
@@ -313,7 +313,7 @@ class AsyncClient:
             )
         logger.debug("Uploading image to s3")
         try:
-            response = self.upload_client.put(
+            response = await self.upload_client.put(
                 url=upload_file_response.url, content=screenshot
             )
             response.raise_for_status()

@@ -104,7 +104,7 @@ class TestAsyncClientCreateMessage:
 
             result = await async_client.create_message(
                 model="vision-model-v1",
-                screenshot="base64-encoded-data",
+                screenshot=b"image_data",
                 task_description="Test task",
             )
 
@@ -122,7 +122,7 @@ class TestAsyncClientCreateMessage:
             with pytest.raises(RequestTimeoutError):
                 await async_client.create_message(
                     model="vision-model-v1",
-                    screenshot="base64-data",
+                    screenshot=b"image_data",
                     task_description="Test",
                 )
 
@@ -136,7 +136,7 @@ class TestAsyncClientCreateMessage:
             with pytest.raises(NetworkError):
                 await async_client.create_message(
                     model="vision-model-v1",
-                    screenshot="base64-data",
+                    screenshot=b"image-data",
                     task_description="Test",
                 )
 
@@ -155,7 +155,7 @@ class TestAsyncClientCreateMessage:
             with pytest.raises(AuthenticationError) as exc_info:
                 await async_client.create_message(
                     model="vision-model-v1",
-                    screenshot="base64-data",
+                    screenshot=b"image-data",
                     task_description="Test",
                 )
             assert "Invalid API key" in str(exc_info.value)
