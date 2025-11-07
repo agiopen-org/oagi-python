@@ -6,22 +6,13 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-import base64
+from uuid import uuid4
 
 from ..logging import get_logger
 from ..types import Image, Step
 from ..types.models import LLMResponse
 
 logger = get_logger("task.base")
-
-
-def encode_screenshot_from_bytes(image_bytes: bytes) -> str:
-    return base64.b64encode(image_bytes).decode("utf-8")
-
-
-def encode_screenshot_from_file(image_path: str) -> str:
-    with open(image_path, "rb") as f:
-        return encode_screenshot_from_bytes(f.read())
 
 
 class BaseTask:
@@ -34,12 +25,11 @@ class BaseTask:
         model: str,
         temperature: float | None,
     ):
-        self.task_id: str | None = None
+        self.task_id: str = uuid4().hex  # Client-side generated UUID
         self.task_description: str | None = None
         self.model = model
         self.temperature = temperature
-        self.last_task_id: str | None = None
-        self.history_steps: int | None = None
+        self.message_history: list = []  # OpenAI-compatible message history
         # Client will be set by subclasses
         self.api_key: str | None = None
         self.base_url: str | None = None
@@ -47,22 +37,16 @@ class BaseTask:
     def _prepare_init_task(
         self,
         task_desc: str,
-        last_task_id: str | None = None,
-        history_steps: int | None = None,
+        max_steps: int,
     ):
-        self.task_description = task_desc
-        self.last_task_id = last_task_id
-        self.history_steps = history_steps
+        """Prepare task initialization (v2 API does not call server for init).
 
-    def _process_init_response(
-        self, response: LLMResponse, task_desc: str, max_steps: int, prefix: str = ""
-    ):
-        self.task_id = response.task_id  # Reset task_id for new task
-        logger.info(f"{prefix}Task initialized: '{task_desc}' (max_steps: {max_steps})")
-        if self.last_task_id:
-            logger.info(
-                f"Will include {self.history_steps or 1} steps from previous task: {self.last_task_id}"
-            )
+        Args:
+            task_desc: Task description
+            max_steps: Maximum number of steps
+        """
+        self.task_description = task_desc
+        logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
 
     def _validate_step_preconditions(self):
         if not self.task_description:
@@ -76,15 +60,33 @@ class BaseTask:
     def _get_temperature(self, temperature: float | None) -> float | None:
         return temperature if temperature is not None else self.temperature
 
-    def _update_task_id(self, response: LLMResponse):
-        if self.task_id != response.task_id:
-            if self.task_id is None:
-                logger.debug(f"Task ID assigned: {response.task_id}")
-            else:
-                logger.debug(f"Task ID changed: {self.task_id} -> {response.task_id}")
-            self.task_id = response.task_id
+    def _handle_response_message_history(self, response: LLMResponse):
+        """Append assistant message to message history if raw_output exists.
+
+        Args:
+            response: LLM response from API
+        """
+        if response.raw_output:
+            self.message_history.append(
+                {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": response.raw_output}],
+                }
+            )
 
     def _build_step_response(self, response: LLMResponse, prefix: str = "") -> Step:
+        """Build Step response and update message history.
+
+        Args:
+            response: LLM response from API
+            prefix: Optional prefix for logging
+
+        Returns:
+            Step object
+        """
+        # Update message history with assistant response
+        self._handle_response_message_history(response)
+
         result = Step(
             reason=response.reason,
             actions=response.actions,
@@ -92,11 +94,9 @@ class BaseTask:
         )
 
         if response.is_complete:
-            logger.info(f"{prefix}Task completed after {response.current_step} steps")
+            logger.info(f"{prefix}Task completed.")
         else:
-            logger.debug(
-                f"{prefix}Step {response.current_step} completed with {len(response.actions)} actions"
-            )
+            logger.debug(f"{prefix}Step completed with {len(response.actions)} actions")
 
         return result
 

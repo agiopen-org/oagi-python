@@ -37,9 +37,19 @@ class LLMResponse(BaseModel):
     created: int
     model: str
     task_description: str
-    current_step: int
     is_complete: bool
     actions: list[Action]
     reason: str | None = None
     usage: Usage
     error: ErrorDetail | None = None
+    raw_output: str | None = None
+
+
+class UploadFileResponse(BaseModel):
+    """Response from S3 presigned URL upload."""
+
+    url: str
+    uuid: str
+    expires_at: int
+    file_expires_at: int
+    download_url: str

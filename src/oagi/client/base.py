@@ -67,29 +67,32 @@ class BaseClient(Generic[HttpClientT]):
     def _build_payload(
         self,
         model: str,
-        screenshot: str,
+        messages_history: list,
         task_description: str | None = None,
         task_id: str | None = None,
-        instruction: str | None = None,
-        max_actions: int | None = None,
-        last_task_id: str | None = None,
-        history_steps: int | None = None,
         temperature: float | None = None,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"model": model, "screenshot": screenshot}
+        """Build OpenAI-compatible request payload.
+
+        Args:
+            model: Model to use
+            messages_history: OpenAI-compatible message history
+            task_description: Task description
+            task_id: Task ID for continuing session
+            temperature: Sampling temperature
+
+        Returns:
+            OpenAI-compatible request payload
+        """
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages_history,
+        }
 
         if task_description is not None:
             payload["task_description"] = task_description
         if task_id is not None:
             payload["task_id"] = task_id
-        if instruction is not None:
-            payload["instruction"] = instruction
-        if max_actions is not None:
-            payload["max_actions"] = max_actions
-        if last_task_id is not None:
-            payload["last_task_id"] = last_task_id
-        if history_steps is not None:
-            payload["history_steps"] = history_steps
         if temperature is not None:
             payload["sampling_params"] = {"temperature": temperature}
 
@@ -136,7 +139,7 @@ class BaseClient(Generic[HttpClientT]):
         return status_map.get(status_code, APIError)
 
     def _log_request_info(self, model: str, task_description: Any, task_id: Any):
-        logger.info(f"Making API request to /v1/message with model: {model}")
+        logger.info(f"Making API request to /v2/message with model: {model}")
         logger.debug(
             f"Request includes task_description: {task_description is not None}, "
             f"task_id: {task_id is not None}"
@@ -177,7 +180,7 @@ class BaseClient(Generic[HttpClientT]):
 
         logger.info(
             f"API request successful - task_id: {result.task_id}, "
-            f"step: {result.current_step}, complete: {result.is_complete}"
+            f"complete: {result.is_complete}"
         )
         logger.debug(f"Response included {len(result.actions)} actions")
         return result

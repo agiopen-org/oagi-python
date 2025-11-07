@@ -34,8 +34,6 @@ class ShortTask(Task, BaseAutoMode):
         max_steps: int = 5,
         executor: ActionHandler = None,
         image_provider: ImageProvider = None,
-        last_task_id: str | None = None,
-        history_steps: int | None = None,
         temperature: float | None = None,
     ) -> bool:
         """Run the task in automatic mode with the provided executor and image provider.
@@ -45,18 +43,11 @@ class ShortTask(Task, BaseAutoMode):
             max_steps: Maximum number of steps
             executor: Handler to execute actions
             image_provider: Provider for screenshots
-            last_task_id: Previous task ID to retrieve history from
-            history_steps: Number of historical steps to include
             temperature: Sampling temperature for all steps (overrides task default if provided)
         """
         self._log_auto_mode_start(task_desc, max_steps)
 
-        self.init_task(
-            task_desc,
-            max_steps=max_steps,
-            last_task_id=last_task_id,
-            history_steps=history_steps,
-        )
+        self.init_task(task_desc, max_steps=max_steps)
 
         for i in range(max_steps):
             self._log_auto_mode_step(i + 1, max_steps)
