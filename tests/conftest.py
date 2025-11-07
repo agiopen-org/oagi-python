@@ -85,6 +85,36 @@ def sample_usage():
 
 
 @pytest.fixture
+def upload_file_response():
+    """Sample UploadFileResponse for S3 upload."""
+    return {
+        "url": "https://s3.amazonaws.com/presigned-url",
+        "uuid": "test-uuid-123",
+        "expires_at": 1677652888,
+        "file_expires_at": 1677739288,
+        "download_url": "https://cdn.example.com/test-uuid-123",
+    }
+
+
+@pytest.fixture
+def mock_upload_response(upload_file_response):
+    """Mock HTTP response for S3 presigned URL request."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = upload_file_response
+    return mock_response
+
+
+@pytest.fixture
+def mock_s3_upload_response():
+    """Mock HTTP response for S3 upload."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status.return_value = None
+    return mock_response
+
+
+@pytest.fixture
 def api_response_data(sample_action, sample_usage):
     """Standard API response data structure."""
     return {
@@ -102,6 +132,8 @@ def api_response_data(sample_action, sample_usage):
                 "count": sample_action.count,
             }
         ],
+        "reason": "Need to perform the action",
+        "raw_output": "I need to click the button at coordinates 300, 150",
         "usage": sample_usage,
     }
 
@@ -118,21 +150,26 @@ def api_response_completed(sample_usage):
         "task_description": "Test task",
         "is_complete": True,
         "actions": [],
+        "reason": "Task completed successfully",
+        "raw_output": "The task has been completed successfully",
         "usage": sample_usage,
     }
 
 
 @pytest.fixture
 def api_response_init_task(sample_usage):
-    """API response for task initialization."""
+    """API response for task initialization (V2 doesn't use this but kept for compatibility)."""
     return {
         "id": "test-123",
         "task_id": "task-456",
+        "object": "task.completion",
         "created": 1677652288,
         "model": "vision-model-v1",
         "task_description": "Test task",
         "is_complete": False,
         "actions": [],
+        "reason": "Task initialized",
+        "raw_output": "Task has been initialized",
         "usage": sample_usage,
     }
 

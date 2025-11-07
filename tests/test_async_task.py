@@ -38,20 +38,14 @@ def mock_llm_response():
 class TestAsyncTaskInitialization:
     @pytest.mark.asyncio
     async def test_init_task(self, async_task, mock_llm_response):
-        with patch.object(
-            async_task.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            mock_create.return_value = mock_llm_response
+        # V2 API: init_task doesn't make API call, just sets description
+        original_task_id = async_task.task_id
 
-            await async_task.init_task("Test task description")
+        await async_task.init_task("Test task description")
 
-            assert async_task.task_description == "Test task description"
-            mock_create.assert_called_once_with(
-                model="vision-model-v1",
-                screenshot="",
-                task_description="Test task description",
-                task_id=None,
-            )
+        assert async_task.task_description == "Test task description"
+        # V2 API: task_id doesn't change
+        assert async_task.task_id == original_task_id
 
 
 class TestAsyncTaskStep:
@@ -122,7 +116,10 @@ class TestAsyncTaskContextManager:
         async with AsyncTask(
             base_url=api_env["base_url"], api_key=api_env["api_key"]
         ) as task:
-            assert task.task_id is None
+            # V2 API: task_id is generated as UUID on init
+            assert task.task_id is not None
+            assert isinstance(task.task_id, str)
+            assert len(task.task_id) == 32  # UUID hex without dashes
             assert task.task_description is None
 
 
@@ -131,10 +128,7 @@ class TestAsyncShortTask:
     async def test_auto_mode_success(self, api_env):
         task = AsyncShortTask(base_url=api_env["base_url"], api_key=api_env["api_key"])
 
-        # Mock responses for auto mode
-        init_response = Mock()
-        init_response.task_id = "task-123"
-
+        # V2 API: Mock responses for steps only (no init_task call)
         step_response = Mock()
         step_response.task_id = "task-123"
         step_response.reason = "Clicking button"
@@ -142,12 +136,14 @@ class TestAsyncShortTask:
             Action(type=ActionType.CLICK, argument="500, 300", count=1)
         ]
         step_response.is_complete = False
+        step_response.raw_output = "Clicking the button"
 
         complete_response = Mock()
         complete_response.task_id = "task-123"
         complete_response.reason = "Task complete"
         complete_response.actions = []
         complete_response.is_complete = True
+        complete_response.raw_output = "Task is complete"
 
         # Mock image provider and executor
         mock_image_provider = AsyncMock()
@@ -158,7 +154,8 @@ class TestAsyncShortTask:
         with patch.object(
             task.client, "create_message", new_callable=AsyncMock
         ) as mock_create:
-            mock_create.side_effect = [init_response, step_response, complete_response]
+            # V2 API: Only step responses (no init response)
+            mock_create.side_effect = [step_response, complete_response]
 
             result = await task.auto_mode(
                 "Test task",
@@ -185,6 +182,7 @@ class TestAsyncShortTask:
         response.reason = "Still working"
         response.actions = [Action(type=ActionType.WAIT, argument="", count=1)]
         response.is_complete = False
+        response.raw_output = "Still working on it"
 
         mock_image_provider = AsyncMock()
         mock_image_provider.return_value = Mock(read=lambda: b"test-image")
@@ -225,20 +223,17 @@ class TestAsyncTaskTemperature:
         ) as mock_create:
             mock_create.return_value = mock_llm_response
 
-            with patch("oagi.task.async_.encode_screenshot_from_bytes") as mock_encode:
-                mock_encode.return_value = "base64_encoded"
+            # Step with override temperature
+            await task.step(b"screenshot_data", temperature=0.8)
 
-                # Step with override temperature
-                await task.step(b"screenshot_data", temperature=0.8)
+            # Verify step temperature (0.8) is used
+            call_args = mock_create.call_args
+            assert call_args[1]["temperature"] == 0.8
 
-                # Verify step temperature (0.8) is used
-                call_args = mock_create.call_args
-                assert call_args[1]["temperature"] == 0.8
+            # Step without temperature - should use task default (0.5)
+            await task.step(b"screenshot_data2")
 
-                # Step without temperature - should use task default (0.5)
-                await task.step(b"screenshot_data2")
-
-                call_args = mock_create.call_args
-                assert call_args[1]["temperature"] == 0.5
+            call_args = mock_create.call_args
+            assert call_args[1]["temperature"] == 0.5
 
         await task.close()

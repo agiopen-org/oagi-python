@@ -221,7 +221,7 @@ class TestLoggingIntegration:
                 True,
                 [
                     "Executing step for task",
-                    "Making API request to /v1/message",
+                    "Making API request to /v2/message",
                     "Request includes task_description: True",
                 ],
                 [],
@@ -276,8 +276,25 @@ class TestLoggingIntegration:
         self, mock_httpx_client, mock_response, should_have_step, http_status_error
     ):
         """Helper to setup mock client behavior based on test scenario."""
+        # V2 API: Mock S3 upload flow
+        mock_upload_response = Mock()
+        mock_upload_response.status_code = 200
+        mock_upload_response.json.return_value = {
+            "url": "https://s3.amazonaws.com/presigned-url",
+            "uuid": "test-uuid-123",
+            "expires_at": 1677652888,
+            "file_expires_at": 1677739288,
+            "download_url": "https://cdn.example.com/test-uuid-123",
+        }
+        mock_httpx_client.get.return_value = mock_upload_response
+
+        mock_s3_response = Mock()
+        mock_s3_response.status_code = 200
+        mock_s3_response.raise_for_status = Mock()
+
         if should_have_step == "error":
-            mock_httpx_client.post.side_effect = [mock_response, http_status_error]
+            # V2 API: Make the POST call fail immediately
+            mock_httpx_client.post.side_effect = http_status_error
         else:
             mock_httpx_client.post.return_value = mock_response
 
@@ -292,11 +309,21 @@ class TestLoggingIntegration:
 
         if should_have_step == "error":
             try:
-                task.step(MockImage())
+                # V2 API: Mock upload_client for S3 upload
+                with patch.object(task.client, "upload_client") as mock_upload_client:
+                    mock_s3_response = Mock()
+                    mock_s3_response.raise_for_status = Mock()
+                    mock_upload_client.put.return_value = mock_s3_response
+                    task.step(MockImage())
             except Exception:
                 pass  # Expected to fail
         elif should_have_step:
-            task.step(MockImage())
+            # V2 API: Mock upload_client for S3 upload
+            with patch.object(task.client, "upload_client") as mock_upload_client:
+                mock_s3_response = Mock()
+                mock_s3_response.raise_for_status = Mock()
+                mock_upload_client.put.return_value = mock_s3_response
+                task.step(MockImage())
 
         task.close()
 

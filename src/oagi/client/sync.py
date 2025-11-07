@@ -11,7 +11,6 @@ from functools import wraps
 import httpx
 from httpx import Response
 
-from ..exceptions import APIError, NetworkError, RequestTimeoutError
 from ..logging import get_logger
 from ..types.models import LLMResponse, UploadFileResponse
 from .base import BaseClient
@@ -72,7 +71,7 @@ class SyncClient(BaseClient[httpx.Client]):
         messages_history: list | None = None,
         temperature: float | None = None,
         api_version: str | None = None,
-    ) -> "LLMResponse":
+    ) -> LLMResponse | None:
         """
         Call the /v2/message endpoint to analyze task and screenshot
 
@@ -94,45 +93,29 @@ class SyncClient(BaseClient[httpx.Client]):
         """
         self._log_request_info(model, task_description, task_id)
 
-        # Upload screenshot to S3 and get URL
+        # Upload screenshot to S3
         upload_file_response = self.put_s3_presigned_url(screenshot, api_version)
-        screenshot_url = upload_file_response.download_url
 
-        # Build user message with screenshot
-        if messages_history is None:
-            messages_history = []
-
-        content = [{"type": "image_url", "image_url": {"url": screenshot_url}}]
-        if instruction:
-            content.append({"type": "text", "text": instruction})
-
-        user_message = {"role": "user", "content": content}
-        messages_history.append(user_message)
-
-        # Build payload
-        headers = self._build_headers(api_version)
-        payload = self._build_payload(
+        # Prepare message payload
+        headers, payload = self._prepare_message_payload(
             model=model,
-            messages_history=messages_history,
+            upload_file_response=upload_file_response,
             task_description=task_description,
             task_id=task_id,
+            instruction=instruction,
+            messages_history=messages_history,
             temperature=temperature,
+            api_version=api_version,
         )
 
+        # Make request
         try:
             response = self.client.post(
                 "/v2/message", json=payload, headers=headers, timeout=self.timeout
             )
-        except httpx.TimeoutException as e:
-            logger.error(f"Request timed out after {self.timeout} seconds")
-            raise RequestTimeoutError(
-                f"Request timed out after {self.timeout} seconds", e
-            )
-        except httpx.NetworkError as e:
-            logger.error(f"Network error: {e}")
-            raise NetworkError(f"Network error: {e}", e)
-
-        return self._process_response(response)
+            return self._process_response(response)
+        except (httpx.TimeoutException, httpx.NetworkError) as e:
+            self._handle_upload_http_errors(e)
 
     def health_check(self) -> dict:
         """
@@ -152,13 +135,59 @@ class SyncClient(BaseClient[httpx.Client]):
             logger.warning(f"Health check failed: {e}")
             raise
 
+    def get_s3_presigned_url(
+        self,
+        api_version: str | None = None,
+    ) -> UploadFileResponse:
+        """
+        Call the /v1/file/upload endpoint to get a S3 presigned URL
+
+        Args:
+            api_version: API version header
+
+        Returns:
+            UploadFileResponse: The response from /v1/file/upload with uuid and presigned S3 URL
+        """
+        logger.debug("Making API request to /v1/file/upload")
+
+        try:
+            headers = self._build_headers(api_version)
+            response = self.client.get(
+                "/v1/file/upload", headers=headers, timeout=self.timeout
+            )
+            return self._process_upload_response(response)
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as e:
+            self._handle_upload_http_errors(e, getattr(e, "response", None))
+
+    def upload_to_s3(
+        self,
+        url: str,
+        content: bytes,
+    ) -> None:
+        """
+        Upload image bytes to S3 using presigned URL
+
+        Args:
+            url: S3 presigned URL
+            content: Image bytes to upload
+
+        Raises:
+            APIError: If upload fails
+        """
+        logger.debug("Uploading image to S3")
+        try:
+            response = self.upload_client.put(url=url, content=content)
+            response.raise_for_status()
+        except Exception as e:
+            self._handle_s3_upload_error(e, response)
+
     def put_s3_presigned_url(
         self,
         screenshot: bytes,
         api_version: str | None = None,
     ) -> UploadFileResponse:
         """
-        Call the /v1/file/upload endpoint to fetch a S3 presigned URL and upload image
+        Get S3 presigned URL and upload image (convenience method)
 
         Args:
             screenshot: Screenshot image bytes
@@ -167,55 +196,6 @@ class SyncClient(BaseClient[httpx.Client]):
         Returns:
             UploadFileResponse: The response from /v1/file/upload with uuid and presigned S3 URL
         """
-        logger.debug("Making API request to /v1/file/upload")
-        try:
-            headers = self._build_headers(api_version)
-            response = self.client.get(
-                "/v1/file/upload", headers=headers, timeout=self.timeout
-            )
-            response_data = response.json()
-            upload_file_response = UploadFileResponse(**response_data)
-            logger.debug("Calling /v1/file/upload successful")
-        except httpx.TimeoutException as e:
-            logger.error(f"Request timed out after {self.timeout} seconds")
-            raise RequestTimeoutError(
-                f"Request timed out after {self.timeout} seconds", e
-            )
-        except httpx.NetworkError as e:
-            logger.error(f"Network error: {e}")
-            raise NetworkError(f"Network error: {e}", e)
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"Invalid status code: {e}")
-            exception_class = self._get_exception_class(response.status_code)
-            raise exception_class(
-                f"API error (status {response.status_code})",
-                status_code=response.status_code,
-                response=response,
-            )
-        except ValueError:
-            logger.error(f"Non-JSON API response: {response.status_code}")
-            raise APIError(
-                f"Invalid response format (status {response.status_code})",
-                status_code=response.status_code,
-                response=response,
-            )
-        except KeyError:
-            logger.error(f"Invalid response: {response.status_code}")
-            raise APIError(
-                f"Invalid presigned S3 URL (result {response_data})",
-                status_code=response.status_code,
-                response=response,
-            )
-
-        logger.debug("Uploading image to S3")
-        try:
-            response = self.upload_client.put(
-                url=upload_file_response.url, content=screenshot
-            )
-            response.raise_for_status()
-        except Exception as e:
-            logger.error(f"S3 upload failed: {e}")
-            raise APIError(
-                message=str(e), status_code=response.status_code, response=response
-            )
+        upload_file_response = self.get_s3_presigned_url(api_version)
+        self.upload_to_s3(upload_file_response.url, screenshot)
         return upload_file_response
