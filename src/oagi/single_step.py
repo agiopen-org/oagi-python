@@ -8,7 +8,6 @@
 
 from pathlib import Path
 
-from .pil_image import PILImage
 from .task import Task
 from .types import Image, Step
 
@@ -19,6 +18,7 @@ def single_step(
     instruction: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    temperature: float | None = None,
 ) -> Step:
     """
     Perform a single-step inference without maintaining task state.
@@ -32,6 +32,7 @@ def single_step(
         instruction: Optional additional instruction for the task
         api_key: OAGI API key (uses environment variable if not provided)
         base_url: OAGI base URL (uses environment variable if not provided)
+        temperature: Sampling temperature (0.0-2.0) for LLM inference
 
     Returns:
         Step: Object containing reasoning, actions, and completion status
@@ -60,6 +61,9 @@ def single_step(
         ...     screenshot=image
         ... )
     """
+    # Lazy import PILImage only when needed
+    from .pil_image import PILImage  # noqa: PLC0415
+
     # Convert file paths to bytes using PILImage
     if isinstance(screenshot, (str, Path)):
         path = Path(screenshot) if isinstance(screenshot, str) else screenshot
@@ -78,6 +82,6 @@ def single_step(
         )
 
     # Use Task to perform single step
-    with Task(api_key=api_key, base_url=base_url) as task:
+    with Task(api_key=api_key, base_url=base_url, temperature=temperature) as task:
         task.init_task(task_description)
         return task.step(screenshot_bytes, instruction=instruction)

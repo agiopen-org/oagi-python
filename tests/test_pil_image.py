@@ -224,7 +224,7 @@ class TestPILImageFactoryMethods:
         assert isinstance(result, PILImage)
         assert result.image is mock_image
 
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_from_screenshot(self, mock_screenshot):
         mock_image = MagicMock()
         mock_screenshot.return_value = mock_image

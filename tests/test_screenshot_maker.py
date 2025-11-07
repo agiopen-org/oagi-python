@@ -27,7 +27,7 @@ def mock_screenshot_image():
 
 
 class TestScreenshotMaker:
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_screenshot_maker_takes_screenshot(
         self, mock_screenshot, mock_screenshot_image
     ):
@@ -42,7 +42,7 @@ class TestScreenshotMaker:
         assert isinstance(result, PILImage)
         assert result.image is mock_resized_image
 
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_screenshot_maker_stores_last_screenshot(self, mock_screenshot):
         def create_mock_image():
             mock = MagicMock()
@@ -66,7 +66,7 @@ class TestScreenshotMaker:
         assert maker.last_image() is second
         assert maker.last_image() is not first
 
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_screenshot_maker_last_image_creates_if_none(
         self, mock_screenshot, mock_screenshot_image
     ):
@@ -79,7 +79,7 @@ class TestScreenshotMaker:
         mock_screenshot.assert_called_once()
         assert isinstance(result, PILImage)
 
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_screenshot_image_returns_png_bytes(self, mock_screenshot):
         pil_image = PILImageLib.new("RGB", (10, 10), color="red")
         mock_screenshot.return_value = pil_image
@@ -99,7 +99,7 @@ class TestScreenshotMaker:
             (None, 600, (1920, 600)),  # Uses original width
         ],
     )
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_screenshot_maker_resize_dimensions(
         self, mock_screenshot, mock_screenshot_image, width, height, expected_size
     ):
@@ -123,7 +123,7 @@ class TestScreenshotMaker:
             ("PNG", b"\x89PNG\r\n\x1a\n"),
         ],
     )
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_screenshot_maker_format_output(
         self, mock_screenshot, format_name, expected_signature
     ):
@@ -140,7 +140,7 @@ class TestScreenshotMaker:
         result_image = PILImageLib.open(BytesIO(image_bytes))
         assert result_image.format == format_name
 
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_screenshot_maker_default_resize_1260x700(
         self, mock_screenshot, mock_screenshot_image
     ):
@@ -156,7 +156,7 @@ class TestScreenshotMaker:
         assert isinstance(result, PILImage)
         assert result.image is mock_resized_image
 
-    @patch("oagi.pil_image.pyautogui.screenshot")
+    @patch("pyautogui.screenshot")
     def test_resize_happens_before_format_conversion(self, mock_screenshot):
         original_image = PILImageLib.new("RGB", (2000, 1000), color="green")
         mock_screenshot.return_value = original_image

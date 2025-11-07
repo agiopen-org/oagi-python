@@ -6,16 +6,15 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from uuid import uuid4
-
-from .logging import get_logger
-from .sync_client import SyncClient
-from .types import Image, Step
+from ..client import SyncClient
+from ..logging import get_logger
+from ..types import Image, Step
+from .base import BaseTask, encode_screenshot_from_bytes
 
 logger = get_logger("task")
 
 
-class Task:
+class Task(BaseTask):
     """Base class for task automation with the OAGI API."""
 
     def __init__(
@@ -23,16 +22,12 @@ class Task:
         api_key: str | None = None,
         base_url: str | None = None,
         model: str = "vision-model-v1",
+        temperature: float | None = None,
     ):
+        super().__init__(api_key, base_url, model, temperature)
         self.client = SyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
         self.base_url = self.client.base_url
-        self.task_id = uuid4().hex
-        self.task_description: str | None = None
-        self.model = model
-        self.message_history: list = []
-        self.last_task_id: str | None = None
-        self.history_steps: int | None = None
 
     def init_task(
         self,
@@ -49,64 +44,59 @@ class Task:
             last_task_id: Previous task ID to retrieve history from
             history_steps: Number of historical steps to include (default: 1)
         """
-        self.task_description = task_desc
-        self.max_steps = max_steps
-        logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
+        self._prepare_init_task(task_desc, last_task_id, history_steps)
+        response = self.client.create_message(
+            model=self.model,
+            screenshot="",
+            task_description=self.task_description,
+            task_id=None,
+        )
+        self._process_init_response(response, task_desc, max_steps)
 
-    def step(self, screenshot: Image | bytes, instruction: str | None = None) -> Step:
+    def step(
+        self,
+        screenshot: Image | bytes,
+        instruction: str | None = None,
+        temperature: float | None = None,
+    ) -> Step:
         """Send screenshot to the server and get the next actions.
 
         Args:
             screenshot: Screenshot as Image object or raw bytes
             instruction: Optional additional instruction for this step (only works with existing task_id)
+            temperature: Sampling temperature for this step (overrides task default if provided)
 
         Returns:
             Step: The actions and reasoning for this step
         """
-        if not self.task_description:
-            raise ValueError("Task description must be set. Call init_task() first.")
-
-        logger.debug(f"Executing step for task: '{self.task_description}'")
+        self._validate_step_preconditions()
+        self._log_step_execution()
 
         try:
             # Convert Image to bytes using the protocol
-            if isinstance(screenshot, Image):
-                screenshot_bytes = screenshot.read()
-            else:
-                screenshot_bytes = screenshot
+            screenshot_bytes = self._prepare_screenshot(screenshot)
+            screenshot_b64 = encode_screenshot_from_bytes(screenshot_bytes)
+
+            # Use provided temperature or fall back to task default
+            temp = self._get_temperature(temperature)
 
             # Call API
             response = self.client.create_message(
                 model=self.model,
-                screenshot=screenshot_bytes,
+                screenshot=screenshot_b64,
                 task_description=self.task_description,
                 task_id=self.task_id,
                 instruction=instruction,
-                messages_history=self.message_history,
+                last_task_id=self.last_task_id if self.task_id else None,
+                history_steps=self.history_steps if self.task_id else None,
+                temperature=temp,
             )
 
-            # Append instruction message if provided
-            if response.raw_output:
-                self.message_history.append(
-                    {
-                        "role": "assistant",
-                        "content": [{"type": "text", "text": response.raw_output}],
-                    }
-                )
+            # Update task_id from response
+            self._update_task_id(response)
 
             # Convert API response to Step
-            result = Step(
-                reason=response.reason,
-                actions=response.actions,
-                stop=response.is_complete,
-            )
-
-            if response.is_complete:
-                logger.info("Task completed.")
-            else:
-                logger.debug(f"Step completed with {len(response.actions)} actions")
-
-            return result
+            return self._build_step_response(response)
 
         except Exception as e:
             logger.error(f"Error during step execution: {e}")

@@ -5,13 +5,10 @@
 #  This file is part of the official API project.
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
+import importlib
 
-from oagi.async_client import AsyncClient
-from oagi.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
-from oagi.async_screenshot_maker import AsyncScreenshotMaker
-from oagi.async_short_task import AsyncShortTask
 from oagi.async_single_step import async_single_step
-from oagi.async_task import AsyncTask
+from oagi.client import AsyncClient, SyncClient
 from oagi.exceptions import (
     APIError,
     AuthenticationError,
@@ -24,18 +21,35 @@ from oagi.exceptions import (
     ServerError,
     ValidationError,
 )
-from oagi.pil_image import PILImage
-from oagi.pyautogui_action_handler import PyautoguiActionHandler, PyautoguiConfig
-from oagi.screenshot_maker import ScreenshotMaker
-from oagi.short_task import ShortTask
 from oagi.single_step import single_step
-from oagi.sync_client import ErrorDetail, ErrorResponse, LLMResponse, SyncClient
-from oagi.task import Task
+from oagi.task import AsyncShortTask, AsyncTask, ShortTask, Task
 from oagi.types import (
     AsyncActionHandler,
     AsyncImageProvider,
     ImageConfig,
 )
+from oagi.types.models import ErrorDetail, ErrorResponse, LLMResponse
+
+# Lazy imports for pyautogui-dependent modules
+# These will only be imported when actually accessed
+_LAZY_IMPORTS = {
+    "AsyncPyautoguiActionHandler": "oagi.async_pyautogui_action_handler",
+    "AsyncScreenshotMaker": "oagi.async_screenshot_maker",
+    "PILImage": "oagi.pil_image",
+    "PyautoguiActionHandler": "oagi.pyautogui_action_handler",
+    "PyautoguiConfig": "oagi.pyautogui_action_handler",
+    "ScreenshotMaker": "oagi.screenshot_maker",
+}
+
+
+def __getattr__(name: str):
+    """Lazy import for pyautogui-dependent modules."""
+    if name in _LAZY_IMPORTS:
+        module_name = _LAZY_IMPORTS[name]
+        module = importlib.import_module(module_name)
+        return getattr(module, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 __all__ = [
     # Core sync classes
@@ -49,15 +63,6 @@ __all__ = [
     # Functions
     "single_step",
     "async_single_step",
-    # Image classes
-    "PILImage",
-    # Handler classes
-    "PyautoguiActionHandler",
-    "PyautoguiConfig",
-    "ScreenshotMaker",
-    # Async handler classes
-    "AsyncPyautoguiActionHandler",
-    "AsyncScreenshotMaker",
     # Async protocols
     "AsyncActionHandler",
     "AsyncImageProvider",
@@ -78,4 +83,14 @@ __all__ = [
     "ServerError",
     "RequestTimeoutError",
     "ValidationError",
+    # Lazy imports
+    # Image classes
+    "PILImage",
+    # Handler classes
+    "PyautoguiActionHandler",
+    "PyautoguiConfig",
+    "ScreenshotMaker",
+    # Async handler classes
+    "AsyncPyautoguiActionHandler",
+    "AsyncScreenshotMaker",
 ]

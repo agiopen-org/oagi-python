@@ -65,7 +65,7 @@ class TestSingleStep:
 
         # Verify Task was created with correct params
         MockTask.assert_called_once_with(
-            api_key="test-key", base_url="https://api.example.com"
+            api_key="test-key", base_url="https://api.example.com", temperature=None
         )
 
         # Verify init_task and step were called
@@ -75,7 +75,7 @@ class TestSingleStep:
         )
 
     def test_single_step_with_file_path(self, mock_task, tmp_path):
-        mock_instance, MockTask = mock_task
+        mock_instance, _ = mock_task
 
         # Create a valid temporary image file
         image_file = tmp_path / "test.png"
@@ -198,3 +198,19 @@ class TestSingleStep:
         mock_instance.step.assert_called_once_with(
             b"data", instruction="Use specific values"
         )
+
+    def test_single_step_with_temperature(self, mock_task):
+        mock_instance, mocked = mock_task
+
+        single_step(
+            task_description="Test task",
+            screenshot=b"data",
+            temperature=0.7,
+        )
+
+        # Verify Task was created with temperature
+        mocked.assert_called_once_with(api_key=None, base_url=None, temperature=0.7)
+
+        # Verify methods were called
+        mock_instance.init_task.assert_called_once_with("Test task")
+        mock_instance.step.assert_called_once_with(b"data", instruction=None)

@@ -7,7 +7,17 @@
 # -----------------------------------------------------------------------------
 
 from .action import Action, ActionType
+from .client import ErrorDetail, ErrorResponse, LLMResponse, Usage
 from .image_config import ImageConfig
 from .step import Step
 
-__all__ = ["Action", "ActionType", "ImageConfig", "Step"]
+__all__ = [
+    "Action",
+    "ActionType",
+    "ErrorDetail",
+    "ErrorResponse",
+    "ImageConfig",
+    "LLMResponse",
+    "Step",
+    "Usage",
+]

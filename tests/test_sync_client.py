@@ -14,22 +14,16 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
+from oagi.client import SyncClient
 from oagi.exceptions import (
     APIError,
     AuthenticationError,
     ConfigurationError,
     RequestTimeoutError,
 )
-from oagi.sync_client import (
-    ErrorDetail,
-    ErrorResponse,
-    LLMResponse,
-    SyncClient,
-    Usage,
-    encode_screenshot_from_bytes,
-    encode_screenshot_from_file,
-)
+from oagi.task.base import encode_screenshot_from_bytes, encode_screenshot_from_file
 from oagi.types import Action, ActionType
+from oagi.types.models import ErrorDetail, ErrorResponse, LLMResponse, Usage
 
 
 @pytest.fixture
@@ -176,6 +170,29 @@ class TestSyncClient:
                 "max_actions": 10,
             },
             expected_headers,
+        )
+
+    def test_create_message_with_temperature(
+        self, mock_httpx_client, test_client, mock_success_response
+    ):
+        mock_httpx_client.post.return_value = mock_success_response
+
+        test_client.create_message(
+            model="vision-model-v1",
+            screenshot="screenshot_data",
+            task_description="Test task",
+            temperature=0.7,
+        )
+
+        self._assert_api_call_made(
+            mock_httpx_client,
+            {
+                "model": "vision-model-v1",
+                "screenshot": "screenshot_data",
+                "task_description": "Test task",
+                "max_actions": 5,
+                "sampling_params": {"temperature": 0.7},
+            },
         )
 
     @pytest.mark.parametrize(

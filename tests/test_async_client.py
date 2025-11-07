@@ -12,7 +12,7 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from oagi.async_client import AsyncClient, LLMResponse
+from oagi.client import AsyncClient
 from oagi.exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -20,6 +20,7 @@ from oagi.exceptions import (
     RequestTimeoutError,
 )
 from oagi.types import ActionType
+from oagi.types.models import LLMResponse
 
 
 @pytest_asyncio.fixture
@@ -111,6 +112,31 @@ class TestAsyncClientCreateMessage:
             assert isinstance(result, LLMResponse)
             assert len(result.actions) == 1
             assert result.actions[0].type == ActionType.CLICK
+
+    @pytest.mark.asyncio
+    async def test_create_message_with_temperature(
+        self, async_client, mock_response_data
+    ):
+        with patch.object(
+            async_client.client, "post", new_callable=AsyncMock
+        ) as mock_post:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_post.return_value = mock_response
+
+            await async_client.create_message(
+                model="vision-model-v1",
+                screenshot="base64-data",
+                task_description="Test task",
+                temperature=0.5,
+            )
+
+            # Verify temperature is included in payload as sampling_params
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            payload = call_args[1]["json"]
+            assert payload["sampling_params"] == {"temperature": 0.5}
 
     @pytest.mark.asyncio
     async def test_create_message_timeout(self, async_client):
