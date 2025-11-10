@@ -38,6 +38,8 @@ def get_logger(name: str) -> logging.Logger:
         )
         handler.setFormatter(formatter)
         oagi_root.addHandler(handler)
+        # Prevent propagation to root logger to avoid duplicate logs
+        oagi_root.propagate = False
 
     # Always update level in case environment variable changed
     oagi_root.setLevel(level)
