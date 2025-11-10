@@ -23,9 +23,9 @@ build: .uv
 	uv build
 
 .PHONY: test
-test: .uv
+test: .uv install-dev
 	uv run pytest
 
 .PHONY: test-verbose
-test-verbose: .uv
+test-verbose: .uv install-dev
 	uv run pytest -v

@@ -10,14 +10,18 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import uvicorn
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-
+from ..exceptions import check_optional_dependency
 from .config import ServerConfig
 from .models import SessionStatusData
 from .session_store import session_store
 from .socketio_server import socket_app
+
+check_optional_dependency("fastapi", "Server features", "server")
+check_optional_dependency("uvicorn", "Server features", "server")
+
+import uvicorn  # noqa: E402
+from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,

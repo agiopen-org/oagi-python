@@ -7,7 +7,11 @@
 # -----------------------------------------------------------------------------
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+
+from ..exceptions import check_optional_dependency
+
+check_optional_dependency("pydantic_settings", "Server features", "server")
+from pydantic_settings import BaseSettings  # noqa: E402
 
 
 class ServerConfig(BaseSettings):

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oagi"
-version = "0.7.1"
+version = "0.8.0"
 description = "Official API of OpenAGI Foundation"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -16,15 +16,20 @@ requires-python = ">= 3.10"
 
 dependencies = [
     "httpx>=0.28.0",
-    "pillow>=11.3.0",
-    "pyautogui>=0.9.54",
     "pydantic>=2.0.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/agiopen-org/oagi"
 
+[project.scripts]
+oagi = "oagi.cli.main:main"
+
 [project.optional-dependencies]
+desktop = [
+    "pillow>=11.3.0",
+    "pyautogui>=0.9.54",
+]
 server = [
     "fastapi[standard]>=0.115.0",
     "uvicorn[standard]>=0.32.0",

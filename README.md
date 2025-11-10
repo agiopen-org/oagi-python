@@ -5,8 +5,28 @@ Python SDK for the OAGI API - vision-based task automation.
 ## Installation
 
 ```bash
-pip install oagi  # requires Python >= 3.10
+# Core SDK only (API client and task management)
+pip install oagi
+
+# With desktop automation support (includes pyautogui and PIL for screenshots)
+pip install oagi[desktop]
+
+# With server support (FastAPI and Socket.IO for browser integration)
+pip install oagi[server]
+
+# All features
+pip install oagi[desktop,server]
 ```
+
+**Requires Python >= 3.10**
+
+### Installation Options
+
+- **Core**: Basic API client for interacting with OAGI API. Suitable for server deployments or custom automation setups.
+- **Desktop** (`[desktop]`): Includes `pyautogui` and `pillow` for desktop automation features like screenshot capture and GUI control.
+- **Server** (`[server]`): Includes FastAPI and Socket.IO dependencies for running the real-time server for browser extensions.
+
+**Note**: Features requiring desktop dependencies (like `PILImage.from_screenshot()`, `PyautoguiActionHandler`, `ScreenshotMaker`) will show helpful error messages if you try to use them without installing `oagi[desktop]`.
 
 ## Quick Start
 

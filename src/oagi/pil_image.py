@@ -8,9 +8,11 @@
 
 import io
 
-from PIL import Image as PILImageLib
-
+from .exceptions import check_optional_dependency
 from .types.models.image_config import ImageConfig
+
+check_optional_dependency("PIL", "PILImage", "desktop")
+from PIL import Image as PILImageLib  # noqa: E402
 
 
 class PILImage:
@@ -37,7 +39,9 @@ class PILImage:
     @classmethod
     def from_screenshot(cls, config: ImageConfig | None = None) -> "PILImage":
         """Create PILImage from screenshot."""
-        import pyautogui  # noqa: PLC0415, avoid no DISPLAY issue in headless environment
+        # Lazy import to avoid DISPLAY issues in headless environments
+        check_optional_dependency("pyautogui", "PILImage.from_screenshot()", "desktop")
+        import pyautogui  # noqa: PLC0415
 
         screenshot = pyautogui.screenshot()
         return cls(screenshot, config)

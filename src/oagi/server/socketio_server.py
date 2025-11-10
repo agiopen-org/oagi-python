@@ -11,11 +11,11 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import socketio
 from pydantic import ValidationError
 
 from ..agent import AsyncDefaultAgent
 from ..client import AsyncClient
+from ..exceptions import check_optional_dependency
 from ..types.models.action import Action, ActionType
 from .agent_wrappers import SocketIOActionHandler, SocketIOImageProvider
 from .config import ServerConfig
@@ -32,6 +32,9 @@ from .models import (
     WaitEventData,
 )
 from .session_store import Session, session_store
+
+check_optional_dependency("socketio", "Server features", "server")
+import socketio  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
