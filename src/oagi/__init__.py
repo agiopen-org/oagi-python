@@ -39,6 +39,10 @@ _LAZY_IMPORTS = {
     "PyautoguiActionHandler": "oagi.pyautogui_action_handler",
     "PyautoguiConfig": "oagi.pyautogui_action_handler",
     "ScreenshotMaker": "oagi.screenshot_maker",
+    # Server modules (optional - requires server dependencies)
+    "create_app": "oagi.server.main",
+    "ServerConfig": "oagi.server.config",
+    "sio": "oagi.server.socketio_server",
 }
 
 
@@ -93,4 +97,8 @@ __all__ = [
     # Async handler classes
     "AsyncPyautoguiActionHandler",
     "AsyncScreenshotMaker",
+    # Server modules (optional)
+    "create_app",
+    "ServerConfig",
+    "sio",
 ]
