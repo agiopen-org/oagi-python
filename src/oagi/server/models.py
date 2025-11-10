@@ -16,19 +16,18 @@ class InitEventData(BaseModel):
     instruction: str = Field(...)
     mode: str | None = Field(default="actor")
     model: str | None = Field(default="lux-v1")
-    temperature: float | None = Field(default=0.0, ge=0.0, le=2.0)
+    temperature: float | None = Field(default=0.1, ge=0.0, le=2.0)
 
 
 # Server-to-client events
 class BaseActionEventData(BaseModel):
-    action_index: int = Field(..., ge=0)
-    total_actions: int = Field(..., ge=1)
+    index: int = Field(..., ge=0)
+    total: int = Field(..., ge=1)
 
 
 class ClickEventData(BaseActionEventData):
     x: int = Field(..., ge=0, le=1000)
     y: int = Field(..., ge=0, le=1000)
-    click_type: Literal["single", "double", "triple", "right"] = Field(default="single")
 
 
 class DragEventData(BaseActionEventData):
@@ -50,12 +49,12 @@ class TypeEventData(BaseActionEventData):
 class ScrollEventData(BaseActionEventData):
     x: int = Field(..., ge=0, le=1000)
     y: int = Field(..., ge=0, le=1000)
-    direction: Literal["up", "down", "left", "right"] = Field(...)
+    direction: Literal["up", "down"] = Field(...)
     count: int = Field(default=1, ge=1)
 
 
 class WaitEventData(BaseActionEventData):
-    duration_ms: int = Field(..., ge=0)
+    duration_ms: int = Field(default=1000, ge=0)
 
 
 class FinishEventData(BaseActionEventData):

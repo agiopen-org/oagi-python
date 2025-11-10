@@ -20,6 +20,7 @@ from ..types.models.action import Action, ActionType
 from .agent_wrappers import SocketIOActionHandler, SocketIOImageProvider
 from .config import ServerConfig
 from .models import (
+    BaseActionEventData,
     ClickEventData,
     DragEventData,
     ErrorEventData,
@@ -260,33 +261,26 @@ class SessionNamespace(socketio.AsyncNamespace):
         self, session: Session, action: Action, index: int, total: int
     ) -> dict | None:
         arg = action.argument.strip("()")
-        common = {"action_index": index, "total_actions": total}
+        common = BaseActionEventData(index=index, total=total).model_dump()
 
+        logger.info(f"Emitting action {index + 1}/{total}: {action.type.value} {arg}")
         match action.type:
-            case ActionType.CLICK | ActionType.LEFT_DOUBLE | ActionType.RIGHT_SINGLE:
+            case (
+                ActionType.CLICK
+                | ActionType.LEFT_DOUBLE
+                | ActionType.LEFT_TRIPLE
+                | ActionType.RIGHT_SINGLE
+            ):
                 coords = arg.split(",")
-                x, y = (
-                    int(coords[0]),
-                    int(coords[1]) if len(coords) > 1 else (int(coords[0]), 500),
-                )
-
-                event_name = {
-                    ActionType.CLICK: "click",
-                    ActionType.LEFT_DOUBLE: "left_double",
-                    ActionType.RIGHT_SINGLE: "right_single",
-                }[action.type]
-
-                click_type = {
-                    ActionType.CLICK: "single",
-                    ActionType.LEFT_DOUBLE: "double",
-                    ActionType.RIGHT_SINGLE: "right",
-                }[action.type]
+                if len(coords) >= 2:
+                    x, y = int(coords[0]), int(coords[1])
+                else:
+                    logger.warning(f"Invalid action coordinates: {arg}")
+                    return None
 
                 return await self.call(
-                    event_name,
-                    ClickEventData(
-                        **common, x=x, y=y, click_type=click_type
-                    ).model_dump(),
+                    action.type.value,
+                    ClickEventData(**common, x=x, y=y).model_dump(),
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
                 )
@@ -294,14 +288,10 @@ class SessionNamespace(socketio.AsyncNamespace):
             case ActionType.DRAG:
                 coords = arg.split(",")
                 if len(coords) >= 4:
-                    x1, y1, x2, y2 = (
-                        int(coords[0]),
-                        int(coords[1]),
-                        int(coords[2]),
-                        int(coords[3]),
-                    )
+                    x1, y1, x2, y2 = (int(coords[i]) for i in range(4))
                 else:
-                    x1, y1, x2, y2 = 100, 100, 200, 200
+                    logger.warning(f"Invalid drag coordinates: {arg}")
+                    return None
 
                 return await self.call(
                     "drag",
@@ -311,7 +301,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                 )
 
             case ActionType.HOTKEY:
-                combo = arg.strip("\"'")
+                combo = arg.strip()
                 count = action.count or 1
 
                 return await self.call(
@@ -322,7 +312,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                 )
 
             case ActionType.TYPE:
-                text = arg.strip("\"'")
+                text = arg.strip()
 
                 return await self.call(
                     "type",
@@ -336,15 +326,9 @@ class SessionNamespace(socketio.AsyncNamespace):
                 if len(parts) >= 3:
                     x, y = int(parts[0]), int(parts[1])
                     direction = parts[2].strip().lower()
-                elif len(parts) == 1:
-                    x, y = 500, 500
-                    direction = parts[0].strip().lower()
                 else:
-                    x, y = 500, 500
-                    direction = "down"
-
-                if direction not in ["up", "down", "left", "right"]:
-                    direction = "down"
+                    logger.warning(f"Invalid scroll coordinates: {arg}")
+                    return None
 
                 count = action.count or 1
 
@@ -375,7 +359,12 @@ class SessionNamespace(socketio.AsyncNamespace):
                 )
 
             case ActionType.FINISH:
-                return None
+                return await self.call(
+                    "finish",
+                    FinishEventData(**common).model_dump(),
+                    to=session.socket_id,
+                    timeout=self.config.socketio_timeout,
+                )
 
             case _:
                 logger.warning(f"Unknown action type: {action.type}")
