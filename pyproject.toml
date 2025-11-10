@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oagi"
-version = "0.7.0"
+version = "0.7.1"
 description = "Official API of OpenAGI Foundation"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -23,6 +23,14 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/agiopen-org/oagi"
+
+[project.optional-dependencies]
+server = [
+    "fastapi[standard]>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-socketio>=5.11.0",
+    "pydantic-settings>=2.0.0",
+]
 
 [dependency-groups]
 dev = [

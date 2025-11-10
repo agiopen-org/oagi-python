@@ -29,6 +29,7 @@ def clean_logging_state():
         oagi_logger = logging.getLogger("oagi")
         oagi_logger.handlers.clear()
         oagi_logger.setLevel(logging.NOTSET)
+        oagi_logger.propagate = True  # Reset propagate for tests
 
         # Clear child loggers
         for name in list(logging.Logger.manager.loggerDict.keys()):

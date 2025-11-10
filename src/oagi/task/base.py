@@ -9,7 +9,7 @@
 from uuid import uuid4
 
 from ..logging import get_logger
-from ..types import Image, Step
+from ..types import Image, Step, URLImage
 from ..types.models import LLMResponse
 
 logger = get_logger("task.base")
@@ -60,12 +60,12 @@ class BaseTask:
     def _get_temperature(self, temperature: float | None) -> float | None:
         return temperature if temperature is not None else self.temperature
 
-    def _handle_response_message_history(self, response: LLMResponse):
-        """Append assistant message to message history if raw_output exists.
+    def _prepare_screenshot_kwargs(self, screenshot: Image | bytes) -> dict:
+        if isinstance(screenshot, URLImage):
+            return {"screenshot_url": screenshot.get_url()}
+        return {"screenshot": self._prepare_screenshot(screenshot)}
 
-        Args:
-            response: LLM response from API
-        """
+    def _handle_response_message_history(self, response: LLMResponse):
         if response.raw_output:
             self.message_history.append(
                 {
@@ -75,15 +75,6 @@ class BaseTask:
             )
 
     def _build_step_response(self, response: LLMResponse, prefix: str = "") -> Step:
-        """Build Step response and update message history.
-
-        Args:
-            response: LLM response from API
-            prefix: Optional prefix for logging
-
-        Returns:
-            Step object
-        """
         # Update message history with assistant response
         self._handle_response_message_history(response)
 

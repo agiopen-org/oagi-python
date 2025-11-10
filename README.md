@@ -120,6 +120,73 @@ See the [`examples/`](examples/) directory for more usage patterns:
 - `single_step.py` - Basic single-step inference
 - `screenshot_with_config.py` - Image compression and optimization
 - `execute_task_auto.py` - Automated task execution
+- `socketio_server_basic.py` - Socket.IO server example
+- `socketio_client_example.py` - Socket.IO client implementation
+
+## Socket.IO Server (Optional)
+
+The SDK includes an optional Socket.IO server for real-time bidirectional communication with browser extensions or custom clients.
+
+### Installation
+
+```bash
+# Install with server support
+pip install oagi[server]
+```
+
+### Running the Server
+
+```python
+import uvicorn
+from oagi.server import create_app, ServerConfig
+
+# Create FastAPI app with Socket.IO
+app = create_app()
+
+# Run server
+uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+Or use the example script:
+```bash
+export OAGI_API_KEY="your-api-key"
+python examples/socketio_server_basic.py
+```
+
+### Server Features
+
+- **Dynamic namespaces**: Each session gets its own namespace (`/session/{session_id}`)
+- **Simplified events**: Single `init` event from client with instruction
+- **Action execution**: Emit individual actions (click, type, scroll, etc.) to client
+- **S3 integration**: Server sends presigned URLs for direct screenshot uploads
+- **Session management**: In-memory session storage with timeout cleanup
+- **REST API**: Health checks and session management endpoints
+
+### Client Integration
+
+Clients connect to a session namespace and handle action events:
+
+```python
+import socketio
+
+sio = socketio.AsyncClient()
+namespace = "/session/my_session_id"
+
+@sio.on("request_screenshot", namespace=namespace)
+async def on_screenshot(data):
+    # Upload screenshot to S3 using presigned URL
+    return {"success": True}
+
+@sio.on("click", namespace=namespace)
+async def on_click(data):
+    # Execute click at coordinates
+    return {"success": True}
+
+await sio.connect("http://localhost:8000", namespaces=[namespace])
+await sio.emit("init", {"instruction": "Click the button"}, namespace=namespace)
+```
+
+See [`examples/socketio_client_example.py`](examples/socketio_client_example.py) for a complete implementation.
 
 ## Documentation
 

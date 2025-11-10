@@ -167,30 +167,38 @@ class BaseClient(Generic[HttpClientT]):
     def _prepare_message_payload(
         self,
         model: str,
-        upload_file_response: UploadFileResponse,
+        upload_file_response: UploadFileResponse | None,
         task_description: str | None,
         task_id: str | None,
         instruction: str | None,
         messages_history: list | None,
         temperature: float | None,
         api_version: str | None,
+        screenshot_url: str | None = None,
     ) -> tuple[dict[str, str], dict[str, Any]]:
         """Prepare headers and payload for /v2/message request.
 
         Args:
             model: Model to use
-            upload_file_response: Response from S3 upload
+            upload_file_response: Response from S3 upload (if screenshot was uploaded)
             task_description: Task description
             task_id: Task ID
             instruction: Optional instruction
             messages_history: Message history
             temperature: Sampling temperature
             api_version: API version
+            screenshot_url: Direct screenshot URL (alternative to upload_file_response)
 
         Returns:
             Tuple of (headers, payload)
         """
-        screenshot_url = upload_file_response.download_url
+        # Use provided screenshot_url or get from upload_file_response
+        if screenshot_url is None:
+            if upload_file_response is None:
+                raise ValueError(
+                    "Either screenshot_url or upload_file_response must be provided"
+                )
+            screenshot_url = upload_file_response.download_url
 
         # Build user message and append to history
         if messages_history is None:
