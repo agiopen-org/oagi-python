@@ -9,7 +9,7 @@
 from ..client import SyncClient
 from ..logging import get_logger
 from ..types import Image, Step
-from .base import BaseTask, encode_screenshot_from_bytes
+from .base import BaseTask
 
 logger = get_logger("task")
 
@@ -33,25 +33,14 @@ class Task(BaseTask):
         self,
         task_desc: str,
         max_steps: int = 5,
-        last_task_id: str | None = None,
-        history_steps: int | None = None,
     ):
         """Initialize a new task with the given description.
 
         Args:
             task_desc: Task description
             max_steps: Maximum number of steps (for logging)
-            last_task_id: Previous task ID to retrieve history from
-            history_steps: Number of historical steps to include (default: 1)
         """
-        self._prepare_init_task(task_desc, last_task_id, history_steps)
-        response = self.client.create_message(
-            model=self.model,
-            screenshot="",
-            task_description=self.task_description,
-            task_id=None,
-        )
-        self._process_init_response(response, task_desc, max_steps)
+        self._prepare_init_task(task_desc, max_steps)
 
     def step(
         self,
@@ -63,7 +52,7 @@ class Task(BaseTask):
 
         Args:
             screenshot: Screenshot as Image object or raw bytes
-            instruction: Optional additional instruction for this step (only works with existing task_id)
+            instruction: Optional additional instruction for this step
             temperature: Sampling temperature for this step (overrides task default if provided)
 
         Returns:
@@ -75,27 +64,22 @@ class Task(BaseTask):
         try:
             # Convert Image to bytes using the protocol
             screenshot_bytes = self._prepare_screenshot(screenshot)
-            screenshot_b64 = encode_screenshot_from_bytes(screenshot_bytes)
 
             # Use provided temperature or fall back to task default
             temp = self._get_temperature(temperature)
 
-            # Call API
+            # Call API (create_message will upload to S3 and build user message)
             response = self.client.create_message(
                 model=self.model,
-                screenshot=screenshot_b64,
+                screenshot=screenshot_bytes,
                 task_description=self.task_description,
                 task_id=self.task_id,
                 instruction=instruction,
-                last_task_id=self.last_task_id if self.task_id else None,
-                history_steps=self.history_steps if self.task_id else None,
+                messages_history=self.message_history,
                 temperature=temp,
             )
 
-            # Update task_id from response
-            self._update_task_id(response)
-
-            # Convert API response to Step
+            # Convert API response to Step (also updates message_history)
             return self._build_step_response(response)
 
         except Exception as e:

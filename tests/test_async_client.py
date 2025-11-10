@@ -20,7 +20,7 @@ from oagi.exceptions import (
     RequestTimeoutError,
 )
 from oagi.types import ActionType
-from oagi.types.models import LLMResponse
+from oagi.types.models import LLMResponse, UploadFileResponse
 
 
 @pytest_asyncio.fixture
@@ -39,7 +39,6 @@ def mock_response_data():
         "created": 1234567890,
         "model": "vision-model-v1",
         "task_description": "Test task",
-        "current_step": 1,
         "is_complete": False,
         "actions": [
             {
@@ -95,98 +94,174 @@ class TestAsyncClientContextManager:
 
 class TestAsyncClientCreateMessage:
     @pytest.mark.asyncio
-    async def test_create_message_success(self, async_client, mock_response_data):
+    async def test_create_message_success(
+        self,
+        async_client,
+        mock_response_data,
+        mock_upload_response,
+        upload_file_response,
+    ):
+        # Mock S3 upload flow
         with patch.object(
-            async_client.client, "post", new_callable=AsyncMock
-        ) as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_post.return_value = mock_response
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_upload_response
 
-            result = await async_client.create_message(
-                model="vision-model-v1",
-                screenshot="base64-encoded-data",
-                task_description="Test task",
-            )
+            with patch.object(async_client, "upload_client") as mock_upload_client:
+                mock_s3_response = Mock()
+                mock_s3_response.raise_for_status = AsyncMock()
+                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
 
-            assert isinstance(result, LLMResponse)
-            assert result.task_id == "task-123"
-            assert len(result.actions) == 1
-            assert result.actions[0].type == ActionType.CLICK
+                with patch.object(
+                    async_client.client, "post", new_callable=AsyncMock
+                ) as mock_post:
+                    mock_response = Mock()
+                    mock_response.status_code = 200
+                    mock_response.json.return_value = mock_response_data
+                    mock_post.return_value = mock_response
+
+                    result = await async_client.create_message(
+                        model="vision-model-v1",
+                        screenshot=b"image_data",
+                        task_description="Test task",
+                    )
+
+                    assert isinstance(result, LLMResponse)
+                    assert len(result.actions) == 1
+                    assert result.actions[0].type == ActionType.CLICK
+
+                    # Verify S3 upload flow
+                    mock_get.assert_called_once()
+                    mock_upload_client.put.assert_called_once()
+
+                    # Verify /v2/message call with OpenAI format
+                    call_args = mock_post.call_args
+                    assert call_args[0][0] == "/v2/message"
+                    payload = call_args[1]["json"]
+                    assert "messages" in payload
+                    assert payload["messages"][0]["role"] == "user"
 
     @pytest.mark.asyncio
     async def test_create_message_with_temperature(
-        self, async_client, mock_response_data
+        self, async_client, mock_response_data, mock_upload_response
     ):
+        # Mock S3 upload flow
         with patch.object(
-            async_client.client, "post", new_callable=AsyncMock
-        ) as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_post.return_value = mock_response
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_upload_response
 
-            await async_client.create_message(
-                model="vision-model-v1",
-                screenshot="base64-data",
-                task_description="Test task",
-                temperature=0.5,
-            )
+            with patch.object(async_client, "upload_client") as mock_upload_client:
+                mock_s3_response = Mock()
+                mock_s3_response.raise_for_status = AsyncMock()
+                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
 
-            # Verify temperature is included in payload as sampling_params
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            payload = call_args[1]["json"]
-            assert payload["sampling_params"] == {"temperature": 0.5}
+                with patch.object(
+                    async_client.client, "post", new_callable=AsyncMock
+                ) as mock_post:
+                    mock_response = Mock()
+                    mock_response.status_code = 200
+                    mock_response.json.return_value = mock_response_data
+                    mock_post.return_value = mock_response
+
+                    await async_client.create_message(
+                        model="vision-model-v1",
+                        screenshot=b"base64-data",
+                        task_description="Test task",
+                        temperature=0.5,
+                    )
+
+                    # Verify temperature is included in payload
+                    mock_post.assert_called_once()
+                    call_args = mock_post.call_args
+                    payload = call_args[1]["json"]
+                    assert payload["temperature"] == 0.5
 
     @pytest.mark.asyncio
-    async def test_create_message_timeout(self, async_client):
+    async def test_create_message_timeout(self, async_client, mock_upload_response):
+        # Mock S3 upload flow (succeeds)
         with patch.object(
-            async_client.client, "post", new_callable=AsyncMock
-        ) as mock_post:
-            mock_post.side_effect = httpx.TimeoutException("Timeout")
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_upload_response
 
-            with pytest.raises(RequestTimeoutError):
-                await async_client.create_message(
-                    model="vision-model-v1",
-                    screenshot="base64-data",
-                    task_description="Test",
-                )
+            with patch.object(async_client, "upload_client") as mock_upload_client:
+                mock_s3_response = Mock()
+                mock_s3_response.raise_for_status = AsyncMock()
+                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
+
+                # /v2/message call times out
+                with patch.object(
+                    async_client.client, "post", new_callable=AsyncMock
+                ) as mock_post:
+                    mock_post.side_effect = httpx.TimeoutException("Timeout")
+
+                    with pytest.raises(RequestTimeoutError):
+                        await async_client.create_message(
+                            model="vision-model-v1",
+                            screenshot=b"image_data",
+                            task_description="Test",
+                        )
 
     @pytest.mark.asyncio
-    async def test_create_message_network_error(self, async_client):
+    async def test_create_message_network_error(
+        self, async_client, mock_upload_response
+    ):
+        # Mock S3 upload flow (succeeds)
         with patch.object(
-            async_client.client, "post", new_callable=AsyncMock
-        ) as mock_post:
-            mock_post.side_effect = httpx.NetworkError("Network error")
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_upload_response
 
-            with pytest.raises(NetworkError):
-                await async_client.create_message(
-                    model="vision-model-v1",
-                    screenshot="base64-data",
-                    task_description="Test",
-                )
+            with patch.object(async_client, "upload_client") as mock_upload_client:
+                mock_s3_response = Mock()
+                mock_s3_response.raise_for_status = AsyncMock()
+                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
+
+                # /v2/message call has network error
+                with patch.object(
+                    async_client.client, "post", new_callable=AsyncMock
+                ) as mock_post:
+                    mock_post.side_effect = httpx.NetworkError("Network error")
+
+                    with pytest.raises(NetworkError):
+                        await async_client.create_message(
+                            model="vision-model-v1",
+                            screenshot=b"image-data",
+                            task_description="Test",
+                        )
 
     @pytest.mark.asyncio
-    async def test_create_message_api_error(self, async_client):
+    async def test_create_message_api_error(self, async_client, mock_upload_response):
+        # Mock S3 upload flow (succeeds)
         with patch.object(
-            async_client.client, "post", new_callable=AsyncMock
-        ) as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 401
-            mock_response.json.return_value = {
-                "error": {"code": "unauthorized", "message": "Invalid API key"}
-            }
-            mock_post.return_value = mock_response
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_upload_response
 
-            with pytest.raises(AuthenticationError) as exc_info:
-                await async_client.create_message(
-                    model="vision-model-v1",
-                    screenshot="base64-data",
-                    task_description="Test",
-                )
-            assert "Invalid API key" in str(exc_info.value)
+            with patch.object(async_client, "upload_client") as mock_upload_client:
+                mock_s3_response = Mock()
+                mock_s3_response.raise_for_status = AsyncMock()
+                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
+
+                # /v2/message returns error
+                with patch.object(
+                    async_client.client, "post", new_callable=AsyncMock
+                ) as mock_post:
+                    mock_response = Mock()
+                    mock_response.status_code = 401
+                    mock_response.json.return_value = {
+                        "error": {"code": "unauthorized", "message": "Invalid API key"}
+                    }
+                    mock_post.return_value = mock_response
+
+                    with pytest.raises(AuthenticationError) as exc_info:
+                        await async_client.create_message(
+                            model="vision-model-v1",
+                            screenshot=b"image-data",
+                            task_description="Test",
+                        )
+                    assert "Invalid API key" in str(exc_info.value)
 
 
 class TestAsyncClientHealthCheck:
@@ -217,3 +292,68 @@ class TestAsyncClientHealthCheck:
 
             with pytest.raises(httpx.HTTPStatusError):
                 await async_client.health_check()
+
+
+class TestAsyncClientS3Upload:
+    @pytest.mark.asyncio
+    async def test_get_s3_presigned_url_success(
+        self, async_client, mock_upload_response, upload_file_response
+    ):
+        with patch.object(
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_upload_response
+
+            result = await async_client.get_s3_presigned_url(api_version="v1.2")
+
+            assert isinstance(result, UploadFileResponse)
+            assert result.url == upload_file_response["url"]
+            assert result.uuid == upload_file_response["uuid"]
+            mock_get.assert_called_once_with(
+                "/v1/file/upload",
+                headers={"x-api-key": "test-key", "x-api-version": "v1.2"},
+                timeout=60,
+            )
+
+    @pytest.mark.asyncio
+    async def test_upload_to_s3_success(self, async_client):
+        with patch.object(async_client, "upload_client") as mock_upload_client:
+            mock_response = Mock()
+            mock_response.raise_for_status = AsyncMock()
+            mock_upload_client.put = AsyncMock(return_value=mock_response)
+
+            await async_client.upload_to_s3(
+                url="https://s3.amazonaws.com/test", content=b"test content"
+            )
+
+            mock_upload_client.put.assert_called_once_with(
+                url="https://s3.amazonaws.com/test", content=b"test content"
+            )
+            mock_response.raise_for_status.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_put_s3_presigned_url_success(
+        self, async_client, mock_upload_response, upload_file_response
+    ):
+        with patch.object(
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_upload_response
+
+            with patch.object(async_client, "upload_client") as mock_upload_client:
+                mock_s3_response = Mock()
+                mock_s3_response.raise_for_status = AsyncMock()
+                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
+
+                result = await async_client.put_s3_presigned_url(
+                    screenshot=b"test screenshot", api_version="v1.2"
+                )
+
+                assert isinstance(result, UploadFileResponse)
+                assert result.url == upload_file_response["url"]
+                # Verify it called get presigned URL
+                mock_get.assert_called_once()
+                # Verify it uploaded to S3
+                mock_upload_client.put.assert_called_once_with(
+                    url=upload_file_response["url"], content=b"test screenshot"
+                )

@@ -15,13 +15,15 @@ from ..exceptions import (
     APIError,
     AuthenticationError,
     ConfigurationError,
+    NetworkError,
     NotFoundError,
     RateLimitError,
+    RequestTimeoutError,
     ServerError,
     ValidationError,
 )
 from ..logging import get_logger
-from ..types.models import ErrorResponse, LLMResponse
+from ..types.models import ErrorResponse, LLMResponse, UploadFileResponse
 
 logger = get_logger("client.base")
 
@@ -67,31 +69,34 @@ class BaseClient(Generic[HttpClientT]):
     def _build_payload(
         self,
         model: str,
-        screenshot: str,
+        messages_history: list,
         task_description: str | None = None,
         task_id: str | None = None,
-        instruction: str | None = None,
-        max_actions: int | None = None,
-        last_task_id: str | None = None,
-        history_steps: int | None = None,
         temperature: float | None = None,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"model": model, "screenshot": screenshot}
+        """Build OpenAI-compatible request payload.
+
+        Args:
+            model: Model to use
+            messages_history: OpenAI-compatible message history
+            task_description: Task description
+            task_id: Task ID for continuing session
+            temperature: Sampling temperature
+
+        Returns:
+            OpenAI-compatible request payload
+        """
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages_history,
+        }
 
         if task_description is not None:
             payload["task_description"] = task_description
         if task_id is not None:
             payload["task_id"] = task_id
-        if instruction is not None:
-            payload["instruction"] = instruction
-        if max_actions is not None:
-            payload["max_actions"] = max_actions
-        if last_task_id is not None:
-            payload["last_task_id"] = last_task_id
-        if history_steps is not None:
-            payload["history_steps"] = history_steps
         if temperature is not None:
-            payload["sampling_params"] = {"temperature": temperature}
+            payload["temperature"] = temperature
 
         return payload
 
@@ -136,11 +141,74 @@ class BaseClient(Generic[HttpClientT]):
         return status_map.get(status_code, APIError)
 
     def _log_request_info(self, model: str, task_description: Any, task_id: Any):
-        logger.info(f"Making API request to /v1/message with model: {model}")
+        logger.info(f"Making API request to /v2/message with model: {model}")
         logger.debug(
             f"Request includes task_description: {task_description is not None}, "
             f"task_id: {task_id is not None}"
         )
+
+    def _build_user_message(
+        self, screenshot_url: str, instruction: str | None
+    ) -> dict[str, Any]:
+        """Build OpenAI-compatible user message with screenshot and optional instruction.
+
+        Args:
+            screenshot_url: URL of uploaded screenshot
+            instruction: Optional text instruction
+
+        Returns:
+            User message dict
+        """
+        content = [{"type": "image_url", "image_url": {"url": screenshot_url}}]
+        if instruction:
+            content.append({"type": "text", "text": instruction})
+        return {"role": "user", "content": content}
+
+    def _prepare_message_payload(
+        self,
+        model: str,
+        upload_file_response: UploadFileResponse,
+        task_description: str | None,
+        task_id: str | None,
+        instruction: str | None,
+        messages_history: list | None,
+        temperature: float | None,
+        api_version: str | None,
+    ) -> tuple[dict[str, str], dict[str, Any]]:
+        """Prepare headers and payload for /v2/message request.
+
+        Args:
+            model: Model to use
+            upload_file_response: Response from S3 upload
+            task_description: Task description
+            task_id: Task ID
+            instruction: Optional instruction
+            messages_history: Message history
+            temperature: Sampling temperature
+            api_version: API version
+
+        Returns:
+            Tuple of (headers, payload)
+        """
+        screenshot_url = upload_file_response.download_url
+
+        # Build user message and append to history
+        if messages_history is None:
+            messages_history = []
+        user_message = self._build_user_message(screenshot_url, instruction)
+        messages_history.append(user_message)
+
+        # Build payload and headers
+        headers = self._build_headers(api_version)
+        payload = self._build_payload(
+            model=model,
+            messages_history=messages_history,
+            task_description=task_description,
+            task_id=task_id,
+            temperature=temperature,
+        )
+
+        return headers, payload
 
     def _parse_response_json(self, response: httpx.Response) -> dict[str, Any]:
         try:
@@ -153,7 +221,7 @@ class BaseClient(Generic[HttpClientT]):
                 response=response,
             )
 
-    def _process_response(self, response: httpx.Response) -> Any:
+    def _process_response(self, response: httpx.Response) -> "LLMResponse":
         response_data = self._parse_response_json(response)
 
         # Check if it's an error response (non-200 status)
@@ -177,7 +245,90 @@ class BaseClient(Generic[HttpClientT]):
 
         logger.info(
             f"API request successful - task_id: {result.task_id}, "
-            f"step: {result.current_step}, complete: {result.is_complete}"
+            f"complete: {result.is_complete}"
         )
         logger.debug(f"Response included {len(result.actions)} actions")
         return result
+
+    def _process_upload_response(self, response: httpx.Response) -> UploadFileResponse:
+        """Process response from /v1/file/upload endpoint.
+
+        Args:
+            response: HTTP response from upload endpoint
+
+        Returns:
+            UploadFileResponse with presigned URL
+
+        Raises:
+            RequestTimeoutError: If request times out
+            NetworkError: If network error occurs
+            APIError: If API returns error or invalid response
+        """
+        try:
+            response_data = response.json()
+            upload_file_response = UploadFileResponse(**response_data)
+            logger.debug("Calling /v1/file/upload successful")
+            return upload_file_response
+        except ValueError:
+            logger.error(f"Non-JSON API response: {response.status_code}")
+            raise APIError(
+                f"Invalid response format (status {response.status_code})",
+                status_code=response.status_code,
+                response=response,
+            )
+        except KeyError as e:
+            logger.error(f"Invalid response: {response.status_code}")
+            raise APIError(
+                f"Invalid presigned S3 URL response: missing field {e}",
+                status_code=response.status_code,
+                response=response,
+            )
+
+    def _handle_upload_http_errors(
+        self, e: Exception, response: httpx.Response | None = None
+    ):
+        """Handle HTTP errors during upload request.
+
+        Args:
+            e: The exception that occurred
+            response: Optional HTTP response
+
+        Raises:
+            RequestTimeoutError: If request times out
+            NetworkError: If network error occurs
+            APIError: For other HTTP errors
+        """
+        if isinstance(e, httpx.TimeoutException):
+            logger.error(f"Request timed out after {self.timeout} seconds")
+            raise RequestTimeoutError(
+                f"Request timed out after {self.timeout} seconds", e
+            )
+        elif isinstance(e, httpx.NetworkError):
+            logger.error(f"Network error: {e}")
+            raise NetworkError(f"Network error: {e}", e)
+        elif isinstance(e, httpx.HTTPStatusError) and response:
+            logger.warning(f"Invalid status code: {e}")
+            exception_class = self._get_exception_class(response.status_code)
+            raise exception_class(
+                f"API error (status {response.status_code})",
+                status_code=response.status_code,
+                response=response,
+            )
+        else:
+            raise
+
+    def _handle_s3_upload_error(
+        self, e: Exception, response: httpx.Response | None = None
+    ):
+        """Handle S3 upload errors.
+
+        Args:
+            e: The exception that occurred
+            response: Optional HTTP response from S3
+
+        Raises:
+            APIError: Wrapping the S3 upload error
+        """
+        logger.error(f"S3 upload failed: {e}")
+        status_code = response.status_code if response else 500
+        raise APIError(message=str(e), status_code=status_code, response=response)
