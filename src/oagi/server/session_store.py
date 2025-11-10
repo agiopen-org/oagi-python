@@ -1,8 +1,14 @@
-"""In-memory session storage."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import secrets
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import uuid4
 
 
@@ -24,11 +30,11 @@ class Session:
         # OAGI task state
         self.task_id: str = uuid4().hex
         self.message_history: list[dict[str, Any]] = []
-        self.current_screenshot_url: Optional[str] = None
+        self.current_screenshot_url: str | None = None
 
         # Socket state
-        self.socket_id: Optional[str] = None
-        self.namespace: Optional[str] = None
+        self.socket_id: str | None = None
+        self.namespace: str | None = None
         self.last_activity: float = datetime.now().timestamp()
 
         # Status tracking
@@ -37,12 +43,12 @@ class Session:
         self.actions_executed: int = 0
 
         # OAGI client reference
-        self.oagi_client: Optional[Any] = None
+        self.oagi_client: Any | None = None
 
 
 class SessionStore:
     def __init__(self):
-        self.sessions: Dict[str, Session] = {}
+        self.sessions: dict[str, Session] = {}
 
     def create_session(
         self,
@@ -50,7 +56,7 @@ class SessionStore:
         mode: str = "actor",
         model: str = "lux-v1",
         temperature: float = 0.0,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> str:
         if session_id is None:
             session_id = f"ses_{secrets.token_urlsafe(16)}"
@@ -59,10 +65,10 @@ class SessionStore:
         self.sessions[session_id] = session
         return session_id
 
-    def get_session(self, session_id: str) -> Optional[Session]:
+    def get_session(self, session_id: str) -> Session | None:
         return self.sessions.get(session_id)
 
-    def get_session_by_socket_id(self, socket_id: str) -> Optional[Session]:
+    def get_session_by_socket_id(self, socket_id: str) -> Session | None:
         for session in self.sessions.values():
             if session.socket_id == socket_id:
                 return session

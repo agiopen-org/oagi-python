@@ -1,7 +1,12 @@
-"""Default agent implementations using OAGI client."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import logging
-from typing import Optional
 
 from .. import AsyncTask
 from ..types import (
@@ -17,21 +22,12 @@ class AsyncDefaultAgent:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
         model: str = "lux-v1",
         max_steps: int = 30,
-        temperature: Optional[float] = None,
+        temperature: float | None = None,
     ):
-        """Initialize the async default agent.
-
-        Args:
-            api_key: OAGI API key
-            base_url: OAGI API base URL
-            model: Model to use for LLM inference
-            max_steps: Maximum number of steps to execute
-            temperature: Optional temperature for LLM sampling
-        """
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
@@ -44,16 +40,6 @@ class AsyncDefaultAgent:
         action_handler: AsyncActionHandler,
         image_provider: AsyncImageProvider,
     ) -> bool:
-        """Asynchronously execute a task with the given handlers.
-
-        Args:
-            instruction: Task instruction to execute
-            action_handler: Handler for executing actions
-            image_provider: Provider for capturing images
-
-        Returns:
-            True if task completed successfully, False otherwise
-        """
         async with AsyncTask(
             api_key=self.api_key, base_url=self.base_url, model=self.model
         ) as self.task:
@@ -65,7 +51,6 @@ class AsyncDefaultAgent:
 
                 # Capture current state
                 image = await image_provider()
-                print(image.get_url())
 
                 # Get next step from OAGI
                 step = await self.task.step(image, temperature=self.temperature)

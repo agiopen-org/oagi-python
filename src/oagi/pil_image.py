@@ -7,7 +7,6 @@
 # -----------------------------------------------------------------------------
 
 import io
-from typing import Optional
 
 from PIL import Image as PILImageLib
 
@@ -21,7 +20,7 @@ class PILImage:
         """Initialize with a PIL image and optional config."""
         self.image = image
         self.config = config or ImageConfig()
-        self._cached_bytes: Optional[bytes] = None
+        self._cached_bytes: bytes | None = None
 
     @classmethod
     def from_file(cls, path: str, config: ImageConfig | None = None) -> "PILImage":

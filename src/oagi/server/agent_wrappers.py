@@ -1,7 +1,13 @@
-"""Socket.IO wrappers for ActionHandler and ImageProvider protocols."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from ..types import URLImage
 from ..types.models.action import Action
@@ -21,21 +27,10 @@ class SocketIOActionHandler:
     """
 
     def __init__(self, namespace: "SessionNamespace", session: "Session"):
-        """Initialize the SocketIO action handler.
-
-        Args:
-            namespace: The Socket.IO namespace handler
-            session: The session containing connection details
-        """
         self.namespace = namespace
         self.session = session
 
     async def __call__(self, actions: list[Action]) -> None:
-        """Execute actions by emitting them through Socket.IO.
-
-        Args:
-            actions: List of actions to execute
-        """
         if not actions:
             logger.debug("No actions to execute")
             return
@@ -56,27 +51,12 @@ class SocketIOImageProvider:
         session: "Session",
         oagi_client,
     ):
-        """Initialize the SocketIO image provider.
-
-        Args:
-            namespace: The Socket.IO namespace handler
-            session: The session containing connection details
-            oagi_client: OAGI client for getting S3 presigned URLs
-        """
         self.namespace = namespace
         self.session = session
         self.oagi_client = oagi_client
-        self._last_url: Optional[str] = None
+        self._last_url: str | None = None
 
     async def __call__(self) -> URLImage:
-        """Request and capture a new screenshot from the client.
-
-        Returns:
-            URLImage containing the screenshot URL
-
-        Raises:
-            Exception: If screenshot request fails
-        """
         logger.debug("Requesting screenshot via Socket.IO")
 
         # Get S3 presigned URL from OAGI
@@ -110,11 +90,6 @@ class SocketIOImageProvider:
         return URLImage(upload_response.download_url)
 
     async def last_image(self) -> URLImage:
-        """Return the last captured screenshot.
-
-        Returns:
-            URLImage of the last screenshot, or captures a new one if none exists
-        """
         if self._last_url:
             logger.debug("Returning last captured screenshot")
             return URLImage(self._last_url)

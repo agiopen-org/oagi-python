@@ -1,8 +1,14 @@
-"""FastAPI application with Socket.IO server."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -21,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
+def create_app(config: ServerConfig | None = None) -> FastAPI:
     if config is None:
         config = ServerConfig()
 
@@ -46,7 +52,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     )
 
     @app.get("/")
-    async def root() -> Dict[str, str]:
+    async def root() -> dict[str, str]:
         return {
             "name": "OAGI Socket.IO Server",
             "version": "0.1.0",
@@ -54,7 +60,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         }
 
     @app.get("/health")
-    async def health_check() -> Dict[str, Any]:
+    async def health_check() -> dict[str, Any]:
         return {
             "status": "healthy",
             "server": {
@@ -74,7 +80,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         }
 
     @app.get("/sessions")
-    async def list_sessions() -> Dict[str, Any]:
+    async def list_sessions() -> dict[str, Any]:
         return {
             "sessions": session_store.list_sessions(),
             "total": len(session_store.sessions),
@@ -98,7 +104,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         )
 
     @app.delete("/sessions/{session_id}")
-    async def delete_session(session_id: str) -> Dict[str, str]:
+    async def delete_session(session_id: str) -> dict[str, str]:
         session = session_store.get_session(session_id)
         if not session:
             raise HTTPException(
@@ -118,7 +124,7 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
             raise HTTPException(status_code=500, detail="Failed to delete session")
 
     @app.post("/sessions/cleanup")
-    async def cleanup_sessions(timeout_hours: float = 1.0) -> Dict[str, Any]:
+    async def cleanup_sessions(timeout_hours: float = 1.0) -> dict[str, Any]:
         timeout_seconds = timeout_hours * 3600
         cleaned = session_store.cleanup_inactive_sessions(timeout_seconds)
         return {

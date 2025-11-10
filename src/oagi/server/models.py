@@ -1,6 +1,12 @@
-"""Pydantic models for Socket.IO events."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -8,9 +14,9 @@ from pydantic import BaseModel, Field
 # Client-to-server events
 class InitEventData(BaseModel):
     instruction: str = Field(...)
-    mode: Optional[str] = Field(default="actor")
-    model: Optional[str] = Field(default="lux-v1")
-    temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0)
+    mode: str | None = Field(default="actor")
+    model: str | None = Field(default="lux-v1")
+    temperature: float | None = Field(default=0.0, ge=0.0, le=2.0)
 
 
 # Server-to-client events
@@ -65,15 +71,15 @@ class ScreenshotRequestData(BaseModel):
 
 class ScreenshotResponseData(BaseModel):
     success: bool = Field(...)
-    error: Optional[str] = Field(None)
+    error: str | None = Field(None)
 
 
 # Action acknowledgement
 class ActionAckData(BaseModel):
     action_index: int = Field(...)
     success: bool = Field(...)
-    error: Optional[str] = Field(None)
-    execution_time_ms: Optional[int] = Field(None)
+    error: str | None = Field(None)
+    execution_time_ms: int | None = Field(None)
 
 
 # Session status
@@ -89,5 +95,5 @@ class SessionStatusData(BaseModel):
 # Error event
 class ErrorEventData(BaseModel):
     message: str = Field(...)
-    code: Optional[str] = Field(None)
-    details: Optional[dict] = Field(None)
+    code: str | None = Field(None)
+    details: dict | None = Field(None)

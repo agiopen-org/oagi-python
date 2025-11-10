@@ -1,9 +1,15 @@
-"""Socket.IO server implementation."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 import socketio
 from pydantic import ValidationError
@@ -40,9 +46,9 @@ class SessionNamespace(socketio.AsyncNamespace):
     def __init__(self, namespace: str, config: ServerConfig):
         super().__init__(namespace)
         self.config = config
-        self.background_tasks: Dict[str, asyncio.Task] = {}
+        self.background_tasks: dict[str, asyncio.Task] = {}
 
-    async def on_connect(self, sid: str, environ: dict, auth: Optional[dict]) -> bool:
+    async def on_connect(self, sid: str, environ: dict, auth: dict | None) -> bool:
         session_id = self.namespace.split("/")[-1]
         logger.info(f"Client {sid} connected to session {session_id}")
 
@@ -195,15 +201,6 @@ class SessionNamespace(socketio.AsyncNamespace):
         image_provider: SocketIOImageProvider,
         instruction: str,
     ) -> None:
-        """Run the agent task execution.
-
-        Args:
-            agent: The agent to use for execution
-            session: The session
-            action_handler: Handler for executing actions
-            image_provider: Provider for capturing images
-            instruction: Task instruction
-        """
         try:
             # Execute task using agent
             success = await agent.execute(
@@ -261,7 +258,7 @@ class SessionNamespace(socketio.AsyncNamespace):
 
     async def _emit_single_action(
         self, session: Session, action: Action, index: int, total: int
-    ) -> Optional[dict]:
+    ) -> dict | None:
         arg = action.argument.strip("()")
         common = {"action_index": index, "total_actions": total}
 
@@ -386,7 +383,7 @@ class SessionNamespace(socketio.AsyncNamespace):
 
 
 # Dynamic namespace registration
-_registered_namespaces: Dict[str, SessionNamespace] = {}
+_registered_namespaces: dict[str, SessionNamespace] = {}
 
 
 def get_or_create_namespace(namespace: str, config: ServerConfig) -> SessionNamespace:
