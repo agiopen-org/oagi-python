@@ -8,8 +8,10 @@ from typing import Any, Dict, Optional
 import socketio
 from pydantic import ValidationError
 
+from ..agent import AsyncDefaultAgent
 from ..client import AsyncClient
 from ..types.models.action import Action, ActionType
+from .agent_wrappers import SocketIOActionHandler, SocketIOImageProvider
 from .config import ServerConfig
 from .models import (
     ClickEventData,
@@ -18,8 +20,6 @@ from .models import (
     FinishEventData,
     HotkeyEventData,
     InitEventData,
-    ScreenshotRequestData,
-    ScreenshotResponseData,
     ScrollEventData,
     TypeEventData,
     WaitEventData,
@@ -141,8 +141,27 @@ class SessionNamespace(socketio.AsyncNamespace):
                 f"Session {session_id} initialized with: {event_data.instruction}"
             )
 
-            # Start execution in background
-            task = asyncio.create_task(self._run_execution_loop(session))
+            # Create agent and wrappers
+            agent = AsyncDefaultAgent(
+                api_key=self.config.oagi_api_key,
+                base_url=self.config.oagi_base_url,
+                max_steps=self.config.max_steps,
+                temperature=event_data.temperature,
+            )
+
+            action_handler = SocketIOActionHandler(self, session)
+            image_provider = SocketIOImageProvider(self, session, session.oagi_client)
+
+            # Start execution in background using agent
+            task = asyncio.create_task(
+                self._run_agent_task(
+                    agent,
+                    session,
+                    action_handler,
+                    image_provider,
+                    event_data.instruction,
+                )
+            )
             self.background_tasks[sid] = task
 
         except ValidationError as e:
@@ -163,25 +182,56 @@ class SessionNamespace(socketio.AsyncNamespace):
                 room=sid,
             )
 
-    async def _run_execution_loop(self, session: Session) -> None:
+    async def _run_agent_task(
+        self,
+        agent: AsyncDefaultAgent,
+        session: Session,
+        action_handler: SocketIOActionHandler,
+        image_provider: SocketIOImageProvider,
+        instruction: str,
+    ) -> None:
+        """Run the agent task execution.
+
+        Args:
+            agent: The agent to use for execution
+            session: The session
+            action_handler: Handler for executing actions
+            image_provider: Provider for capturing images
+            instruction: Task instruction
+        """
         try:
-            while session.status == "running":
-                success = await self._request_screenshot_and_process(session)
+            # Execute task using agent
+            success = await agent.execute(
+                instruction=instruction,
+                action_handler=action_handler,
+                image_provider=image_provider,
+            )
 
-                if not success:
-                    logger.warning(
-                        f"Screenshot processing failed for session {session.session_id}"
-                    )
-                    break
+            # Update session status
+            if success:
+                session.status = "completed"
+                logger.info(
+                    f"Task completed successfully for session {session.session_id}"
+                )
 
-                if session.status == "completed":
-                    logger.info(f"Session {session.session_id} completed")
-                    break
+                # Emit finish event
+                await self.call(
+                    "finish",
+                    FinishEventData(action_index=0, total_actions=1).model_dump(),
+                    to=session.socket_id,
+                    timeout=self.config.socketio_timeout,
+                )
+            else:
+                session.status = "failed"
+                logger.warning(f"Task failed for session {session.session_id}")
+
+            session_store.update_activity(session.session_id)
 
         except asyncio.CancelledError:
-            logger.info(f"Execution loop cancelled for session {session.session_id}")
+            logger.info(f"Agent task cancelled for session {session.session_id}")
+            session.status = "cancelled"
         except Exception as e:
-            logger.error(f"Error in execution loop: {e}", exc_info=True)
+            logger.error(f"Error in agent task: {e}", exc_info=True)
             session.status = "failed"
             if session.socket_id:
                 await self.emit(
@@ -189,128 +239,6 @@ class SessionNamespace(socketio.AsyncNamespace):
                     ErrorEventData(message=f"Execution failed: {str(e)}").model_dump(),
                     room=session.socket_id,
                 )
-
-    async def _request_screenshot_and_process(self, session: Session) -> bool:
-        try:
-            if not session.oagi_client:
-                logger.error(f"No OAGI client for session {session.session_id}")
-                return False
-
-            # Get S3 presigned URL
-            upload_response = await session.oagi_client.get_s3_presigned_url()
-
-            # Request screenshot from client
-            screenshot_data = await self.call(
-                "request_screenshot",
-                ScreenshotRequestData(
-                    presigned_url=upload_response.url,
-                    uuid=upload_response.uuid,
-                    expires_at=upload_response.expires_at,
-                ).model_dump(),
-                to=session.socket_id,
-                timeout=self.config.socketio_timeout,
-            )
-
-            if not screenshot_data:
-                logger.error("No response from screenshot request")
-                return False
-
-            # Validate response
-            ack = ScreenshotResponseData(**screenshot_data)
-            if not ack.success:
-                logger.error(f"Screenshot upload failed: {ack.error}")
-                await self.emit(
-                    "error",
-                    ErrorEventData(
-                        message=f"Screenshot upload failed: {ack.error}"
-                    ).model_dump(),
-                    room=session.socket_id,
-                )
-                return False
-
-            # Store screenshot URL
-            session.current_screenshot_url = upload_response.download_url
-
-            # Build message history with screenshot
-            messages = session.message_history.copy()
-            messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": upload_response.download_url},
-                        }
-                    ],
-                }
-            )
-
-            # Call OAGI API
-            response = await session.oagi_client.create_message(
-                model=session.model,
-                screenshot=b"",  # Empty bytes since already uploaded to S3
-                task_description=session.instruction
-                if not session.message_history
-                else None,
-                task_id=session.task_id,
-                messages_history=messages,
-                temperature=session.temperature,
-            )
-
-            # Update message history
-            if response.raw_output:
-                session.message_history.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": upload_response.download_url},
-                            }
-                        ],
-                    }
-                )
-                session.message_history.append(
-                    {
-                        "role": "assistant",
-                        "content": [{"type": "text", "text": response.raw_output}],
-                    }
-                )
-
-            # Process and emit actions
-            if response.actions:
-                await self._emit_actions(session, response.actions)
-
-            # Check if complete
-            if response.is_complete:
-                session.status = "completed"
-                logger.info(f"Task completed for session {session.session_id}")
-                await self.call(
-                    "finish",
-                    FinishEventData(action_index=0, total_actions=1).model_dump(),
-                    to=session.socket_id,
-                    timeout=self.config.socketio_timeout,
-                )
-
-            session_store.update_activity(session.session_id)
-            return True
-
-        except TimeoutError:
-            logger.error(f"Screenshot timeout for session {session.session_id}")
-            await self.emit(
-                "error",
-                ErrorEventData(message="Screenshot request timed out").model_dump(),
-                room=session.socket_id,
-            )
-            return False
-        except Exception as e:
-            logger.error(f"Error processing screenshot: {e}", exc_info=True)
-            await self.emit(
-                "error",
-                ErrorEventData(message=f"Processing error: {str(e)}").model_dump(),
-                room=session.socket_id,
-            )
-            return False
 
     async def _emit_actions(self, session: Session, actions: list[Action]) -> None:
         total = len(actions)

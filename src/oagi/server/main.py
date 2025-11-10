@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -136,8 +137,6 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     config = ServerConfig()
     app = create_app(config)
     uvicorn.run(
