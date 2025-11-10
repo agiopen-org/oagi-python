@@ -18,7 +18,7 @@ class ServerConfig(BaseSettings):
     session_timeout_seconds: float = Field(default=10.0)
 
     # Model settings
-    default_model: str = Field(default="vision-model-v1", alias="OAGI_DEFAULT_MODEL")
+    default_model: str = Field(default="lux-v1", alias="OAGI_DEFAULT_MODEL")
     default_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
 
     # Agent settings

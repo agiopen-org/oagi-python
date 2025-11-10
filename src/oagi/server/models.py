@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 # Client-to-server events
 class InitEventData(BaseModel):
     instruction: str = Field(...)
-    model: Optional[str] = Field(default="vision-model-v1")
+    mode: Optional[str] = Field(default="actor")
+    model: Optional[str] = Field(default="lux-v1")
     temperature: Optional[float] = Field(default=0.0, ge=0.0, le=2.0)
 
 

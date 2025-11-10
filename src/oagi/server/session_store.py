@@ -11,11 +11,13 @@ class Session:
         self,
         session_id: str,
         instruction: str,
-        model: str = "vision-model-v1",
+        mode: str = "actor",
+        model: str = "lux-v1",
         temperature: float = 0.0,
     ):
         self.session_id: str = session_id
         self.instruction: str = instruction
+        self.mode: str = mode
         self.model: str = model
         self.temperature: float = temperature
 
@@ -45,14 +47,15 @@ class SessionStore:
     def create_session(
         self,
         instruction: str,
-        model: str = "vision-model-v1",
+        mode: str = "actor",
+        model: str = "lux-v1",
         temperature: float = 0.0,
         session_id: Optional[str] = None,
     ) -> str:
         if session_id is None:
             session_id = f"ses_{secrets.token_urlsafe(16)}"
 
-        session = Session(session_id, instruction, model, temperature)
+        session = Session(session_id, instruction, mode, model, temperature)
         self.sessions[session_id] = session
         return session_id
 

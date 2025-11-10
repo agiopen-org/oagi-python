@@ -16,7 +16,8 @@ def session():
     return Session(
         session_id="test_session",
         instruction="Test task",
-        model="vision-model-v1",
+        mode="actor",
+        model="lux-v1",
         temperature=0.5,
     )
 
@@ -24,7 +25,8 @@ def session():
 def test_session_creation(session):
     assert session.session_id == "test_session"
     assert session.instruction == "Test task"
-    assert session.model == "vision-model-v1"
+    assert session.mode == "actor"
+    assert session.model == "lux-v1"
     assert session.temperature == 0.5
     assert session.status == "initialized"
     assert len(session.task_id) == 32
@@ -33,6 +35,7 @@ def test_session_creation(session):
 def test_create_session(store):
     session_id = store.create_session(
         instruction="Test task",
+        mode="planner",
         model="test-model",
         temperature=0.7,
     )
@@ -40,6 +43,7 @@ def test_create_session(store):
     assert session_id.startswith("ses_")
     session = store.get_session(session_id)
     assert session.instruction == "Test task"
+    assert session.mode == "planner"
     assert session.model == "test-model"
 
 
@@ -51,6 +55,15 @@ def test_create_session_with_custom_id(store):
 
     assert custom_id == "custom_123"
     assert store.get_session(custom_id) is not None
+
+
+def test_create_session_with_defaults(store):
+    session_id = store.create_session(instruction="Test with defaults")
+    session = store.get_session(session_id)
+
+    assert session.mode == "actor"  # Default mode
+    assert session.model == "lux-v1"  # Default model
+    assert session.temperature == 0.0  # Default temperature
 
 
 def test_get_session_by_socket_id(store):

@@ -64,6 +64,7 @@ class SessionNamespace(socketio.AsyncNamespace):
             session = Session(
                 session_id=session_id,
                 instruction="",
+                mode="actor",  # Default mode
                 model=self.config.default_model,
                 temperature=self.config.default_temperature,
             )
@@ -130,6 +131,8 @@ class SessionNamespace(socketio.AsyncNamespace):
 
             # Update session with init data
             session.instruction = event_data.instruction
+            if event_data.mode:
+                session.mode = event_data.mode
             if event_data.model:
                 session.model = event_data.model
             if event_data.temperature is not None:
@@ -138,7 +141,8 @@ class SessionNamespace(socketio.AsyncNamespace):
             session_store.update_activity(session_id)
 
             logger.info(
-                f"Session {session_id} initialized with: {event_data.instruction}"
+                f"Session {session_id} initialized with: {event_data.instruction} "
+                f"(mode={event_data.mode}, model={event_data.model})"
             )
 
             # Create agent and wrappers
