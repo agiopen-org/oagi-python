@@ -150,6 +150,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                 api_key=self.config.oagi_api_key,
                 base_url=self.config.oagi_base_url,
                 max_steps=self.config.max_steps,
+                model=event_data.model,
                 temperature=event_data.temperature,
             )
 
