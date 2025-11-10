@@ -64,7 +64,8 @@ class SyncClient(BaseClient[httpx.Client]):
     def create_message(
         self,
         model: str,
-        screenshot: bytes,
+        screenshot: bytes | None = None,
+        screenshot_url: str | None = None,
         task_description: str | None = None,
         task_id: str | None = None,
         instruction: str | None = None,
@@ -77,7 +78,8 @@ class SyncClient(BaseClient[httpx.Client]):
 
         Args:
             model: The model to use for task analysis
-            screenshot: Screenshot image bytes
+            screenshot: Screenshot image bytes (mutually exclusive with screenshot_url)
+            screenshot_url: Direct URL to screenshot (mutually exclusive with screenshot)
             task_description: Description of the task (required for new sessions)
             task_id: Task ID for continuing existing task
             instruction: Additional instruction when continuing a session
@@ -89,12 +91,21 @@ class SyncClient(BaseClient[httpx.Client]):
             LLMResponse: The response from the API
 
         Raises:
+            ValueError: If both or neither screenshot and screenshot_url are provided
             httpx.HTTPStatusError: For HTTP error responses
         """
+        # Validate that exactly one is provided
+        if (screenshot is None) == (screenshot_url is None):
+            raise ValueError(
+                "Exactly one of 'screenshot' or 'screenshot_url' must be provided"
+            )
+
         self._log_request_info(model, task_description, task_id)
 
-        # Upload screenshot to S3
-        upload_file_response = self.put_s3_presigned_url(screenshot, api_version)
+        # Upload screenshot to S3 if bytes provided, otherwise use URL directly
+        upload_file_response = None
+        if screenshot is not None:
+            upload_file_response = self.put_s3_presigned_url(screenshot, api_version)
 
         # Prepare message payload
         headers, payload = self._prepare_message_payload(
@@ -106,6 +117,7 @@ class SyncClient(BaseClient[httpx.Client]):
             messages_history=messages_history,
             temperature=temperature,
             api_version=api_version,
+            screenshot_url=screenshot_url,
         )
 
         # Make request

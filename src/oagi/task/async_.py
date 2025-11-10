@@ -62,21 +62,21 @@ class AsyncTask(BaseTask):
         self._log_step_execution(prefix="async ")
 
         try:
-            # Convert Image to bytes using the protocol
-            screenshot_bytes = self._prepare_screenshot(screenshot)
-
             # Use provided temperature or fall back to task default
             temp = self._get_temperature(temperature)
 
-            # Call API (create_message will upload to S3 and build user message)
+            # Prepare screenshot kwargs (handles URLImage vs bytes/Image)
+            screenshot_kwargs = self._prepare_screenshot_kwargs(screenshot)
+
+            # Call API with dynamically determined screenshot argument
             response = await self.client.create_message(
                 model=self.model,
-                screenshot=screenshot_bytes,
                 task_description=self.task_description,
                 task_id=self.task_id,
                 instruction=instruction,
                 messages_history=self.message_history,
                 temperature=temp,
+                **screenshot_kwargs,
             )
 
             # Convert API response to Step (also updates message_history)
