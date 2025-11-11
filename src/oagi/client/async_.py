@@ -11,6 +11,7 @@ from functools import wraps
 import httpx
 
 from ..logging import get_logger
+from ..types import Image
 from ..types.models import GenerateResponse, LLMResponse, UploadFileResponse
 from .base import BaseClient
 
@@ -122,10 +123,9 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             response = await self.client.post(
                 "/v2/message", json=payload, headers=headers, timeout=self.timeout
             )
+            return self._process_response(response)
         except (httpx.TimeoutException, httpx.NetworkError) as e:
             self._handle_upload_http_errors(e)
-
-        return self._process_response(response)
 
     async def health_check(self) -> dict:
         """
@@ -172,19 +172,25 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
     async def upload_to_s3(
         self,
         url: str,
-        content: bytes,
+        content: bytes | Image,
     ) -> None:
         """
         Upload image bytes to S3 using presigned URL
 
         Args:
             url: S3 presigned URL
-            content: Image bytes to upload
+            content: Image bytes or Image object to upload
 
         Raises:
             APIError: If upload fails
         """
         logger.debug("Async uploading image to S3")
+
+        # Convert Image to bytes if needed
+        if isinstance(content, Image):
+            content = content.read()
+
+        response = None
         try:
             response = await self.upload_client.put(url=url, content=content)
             response.raise_for_status()
@@ -193,14 +199,14 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
 
     async def put_s3_presigned_url(
         self,
-        screenshot: bytes,
+        screenshot: bytes | Image,
         api_version: str | None = None,
     ) -> UploadFileResponse:
         """
         Get S3 presigned URL and upload image (convenience method)
 
         Args:
-            screenshot: Screenshot image bytes
+            screenshot: Screenshot image bytes or Image object
             api_version: API version header
 
         Returns:
@@ -280,7 +286,6 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             response = await self.client.post(
                 "/v2/generate", json=payload, headers=headers, timeout=self.timeout
             )
+            return self._process_generate_response(response)
         except (httpx.TimeoutException, httpx.NetworkError) as e:
             self._handle_upload_http_errors(e)
-
-        return self._process_generate_response(response)

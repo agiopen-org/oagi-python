@@ -12,6 +12,7 @@ import httpx
 from httpx import Response
 
 from ..logging import get_logger
+from ..types import Image
 from ..types.models import GenerateResponse, LLMResponse, UploadFileResponse
 from .base import BaseClient
 
@@ -174,19 +175,25 @@ class SyncClient(BaseClient[httpx.Client]):
     def upload_to_s3(
         self,
         url: str,
-        content: bytes,
+        content: bytes | Image,
     ) -> None:
         """
         Upload image bytes to S3 using presigned URL
 
         Args:
             url: S3 presigned URL
-            content: Image bytes to upload
+            content: Image bytes or Image object to upload
 
         Raises:
             APIError: If upload fails
         """
         logger.debug("Uploading image to S3")
+
+        # Convert Image to bytes if needed
+        if isinstance(content, Image):
+            content = content.read()
+
+        response = None
         try:
             response = self.upload_client.put(url=url, content=content)
             response.raise_for_status()
@@ -195,14 +202,14 @@ class SyncClient(BaseClient[httpx.Client]):
 
     def put_s3_presigned_url(
         self,
-        screenshot: bytes,
+        screenshot: bytes | Image,
         api_version: str | None = None,
     ) -> UploadFileResponse:
         """
         Get S3 presigned URL and upload image (convenience method)
 
         Args:
-            screenshot: Screenshot image bytes
+            screenshot: Screenshot image bytes or Image object
             api_version: API version header
 
         Returns:
