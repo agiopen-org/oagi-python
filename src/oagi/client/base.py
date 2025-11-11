@@ -346,7 +346,7 @@ class BaseClient(Generic[HttpClientT]):
         status_code = response.status_code if response else 500
         raise APIError(message=str(e), status_code=status_code, response=response)
 
-    def _build_worker_payload(
+    def _prepare_worker_request(
         self,
         worker_id: str,
         overall_todo: str,
@@ -359,25 +359,40 @@ class BaseClient(Generic[HttpClientT]):
         result_screenshot: str | None = None,
         prior_notes: str | None = None,
         latest_todo_summary: str | None = None,
-    ) -> dict[str, Any]:
-        """Build payload for /v2/generate endpoint.
+        api_version: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, str]]:
+        """Prepare worker request with validation, payload, and headers.
 
         Args:
             worker_id: One of "oagi_first", "oagi_follow", "oagi_task_summary"
             overall_todo: Current todo description
             internal_context: Current TODO and execution contexts (markdown)
             external_context: Overall agent context (markdown or None)
-            current_screenshot: S3 URL for screenshot (oagi_first)
+            current_screenshot: Uploaded file UUID for screenshot (oagi_first)
             current_subtask_instruction: Subtask instruction (oagi_follow)
             window_steps: Action steps list (oagi_follow)
-            window_screenshots: Screenshot URLs list (oagi_follow)
-            result_screenshot: Result screenshot URL (oagi_follow)
+            window_screenshots: Uploaded file UUIDs list (oagi_follow)
+            result_screenshot: Uploaded file UUID for result screenshot (oagi_follow)
             prior_notes: Execution notes (oagi_follow)
             latest_todo_summary: Latest summary (oagi_task_summary)
+            api_version: API version header
 
         Returns:
-            Request payload dict
+            Tuple of (payload dict, headers dict)
+
+        Raises:
+            ValueError: If worker_id is invalid
         """
+        # Validate worker_id
+        valid_workers = {"oagi_first", "oagi_follow", "oagi_task_summary"}
+        if worker_id not in valid_workers:
+            raise ValueError(
+                f"Invalid worker_id '{worker_id}'. Must be one of: {valid_workers}"
+            )
+
+        logger.info(f"Calling /v1/generate with worker_id: {worker_id}")
+
+        # Build payload
         oagi_data = {
             "overall_todo": overall_todo,
             "internal_context": internal_context,
@@ -400,13 +415,18 @@ class BaseClient(Generic[HttpClientT]):
         if latest_todo_summary is not None:
             oagi_data["latest_todo_summary"] = latest_todo_summary
 
-        return {
+        payload = {
             "external_worker_id": worker_id,
             "oagi_data": oagi_data,
         }
 
+        # Build headers
+        headers = self._build_headers(api_version)
+
+        return payload, headers
+
     def _process_generate_response(self, response: httpx.Response) -> GenerateResponse:
-        """Process response from /v2/generate endpoint.
+        """Process response from /v1/generate endpoint.
 
         Args:
             response: HTTP response from generate endpoint

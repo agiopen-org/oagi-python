@@ -9,7 +9,7 @@ from oagi.agent.planner.memory import PlannerMemory
 from oagi.agent.planner.todo_agent import TodoAgent
 from oagi.types.models import Action as OAGIAction
 from oagi.types.models import ActionType, Step
-from oagi.types.models.client import GenerateResponse
+from oagi.types.models.client import GenerateResponse, UploadFileResponse
 
 
 class MockLLMPlanner(LLMPlanner):
@@ -49,7 +49,13 @@ class MockLLMPlanner(LLMPlanner):
 
         mock_client.call_worker = AsyncMock(side_effect=call_worker_side_effect)
         mock_client.put_s3_presigned_url = AsyncMock(
-            return_value=AsyncMock(download_url="https://mock-s3.example.com/image.jpg")
+            return_value=UploadFileResponse(
+                url="https://mock-s3.example.com/upload",
+                uuid="mock-uuid-123",
+                expires_at=1234567890,
+                file_expires_at=1234567890,
+                download_url="https://mock-s3.example.com/image.jpg",
+            )
         )
         super().__init__(client=mock_client)
 
@@ -228,8 +234,12 @@ class TestTodoAgent:
                     )
                 )
                 mock_client.put_s3_presigned_url = AsyncMock(
-                    return_value=AsyncMock(
-                        download_url="https://mock-s3.example.com/image.jpg"
+                    return_value=UploadFileResponse(
+                        url="https://mock-s3.example.com/upload",
+                        uuid="mock-uuid-test",
+                        expires_at=1234567890,
+                        file_expires_at=1234567890,
+                        download_url="https://mock-s3.example.com/image.jpg",
                     )
                 )
                 super().__init__(client=mock_client)
@@ -268,8 +278,12 @@ class TestTodoAgent:
                     )
                 )
                 mock_client.put_s3_presigned_url = AsyncMock(
-                    return_value=AsyncMock(
-                        download_url="https://mock-s3.example.com/image.jpg"
+                    return_value=UploadFileResponse(
+                        url="https://mock-s3.example.com/upload",
+                        uuid="mock-uuid-test",
+                        expires_at=1234567890,
+                        file_expires_at=1234567890,
+                        download_url="https://mock-s3.example.com/image.jpg",
                     )
                 )
                 super().__init__(client=mock_client)

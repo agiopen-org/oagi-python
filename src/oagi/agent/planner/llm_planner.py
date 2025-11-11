@@ -65,10 +65,10 @@ class LLMPlanner:
         client = self._ensure_client()
 
         # Upload screenshot if provided
-        screenshot_url = None
+        screenshot_uuid = None
         if screenshot:
             upload_response = await client.put_s3_presigned_url(screenshot)
-            screenshot_url = upload_response.download_url
+            screenshot_uuid = upload_response.uuid
 
         # Format contexts using memory if provided
         if memory and todo_index is not None:
@@ -85,7 +85,7 @@ class LLMPlanner:
             overall_todo=todo,
             internal_context=internal_context,
             external_context=external_context,
-            current_screenshot=screenshot_url,
+            current_screenshot=screenshot_uuid,
         )
 
         # Parse response
@@ -117,10 +117,10 @@ class LLMPlanner:
         client = self._ensure_client()
 
         # Upload screenshot if provided
-        result_screenshot_url = None
+        result_screenshot_uuid = None
         if screenshot:
             upload_response = await client.put_s3_presigned_url(screenshot)
-            result_screenshot_url = upload_response.download_url
+            result_screenshot_uuid = upload_response.uuid
 
         # Format contexts using memory if provided
         if memory and todo_index is not None:
@@ -156,7 +156,7 @@ class LLMPlanner:
             current_subtask_instruction=current_instruction or "",
             window_steps=window_steps,
             window_screenshots=[],  # Could be populated if we track screenshot history
-            result_screenshot=result_screenshot_url,
+            result_screenshot=result_screenshot_uuid,
             prior_notes=prior_notes,
         )
 

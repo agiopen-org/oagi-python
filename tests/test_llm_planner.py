@@ -11,7 +11,7 @@ from oagi.agent.planner.models import (
     PlannerOutput,
     ReflectionOutput,
 )
-from oagi.types.models.client import GenerateResponse
+from oagi.types.models.client import GenerateResponse, UploadFileResponse
 
 
 class TestLLMPlanner:
@@ -37,8 +37,12 @@ class TestLLMPlanner:
     @pytest.mark.asyncio
     async def test_initial_plan_with_screenshot(self, planner, mock_client, memory):
         # Mock the client responses
-        mock_client.put_s3_presigned_url.return_value = AsyncMock(
-            download_url="https://s3.example.com/image.jpg"
+        mock_client.put_s3_presigned_url.return_value = UploadFileResponse(
+            url="https://s3.example.com/upload",
+            uuid="test-uuid-123",
+            expires_at=1234567890,
+            file_expires_at=1234567890,
+            download_url="https://s3.example.com/image.jpg",
         )
         mock_client.call_worker.return_value = GenerateResponse(
             response='{"reasoning": "Start with clicking", "subtask": "Click on button"}',
@@ -96,8 +100,12 @@ class TestLLMPlanner:
             ),
         ]
 
-        mock_client.put_s3_presigned_url.return_value = AsyncMock(
-            download_url="https://s3.example.com/image2.jpg"
+        mock_client.put_s3_presigned_url.return_value = UploadFileResponse(
+            url="https://s3.example.com/upload2",
+            uuid="test-uuid-456",
+            expires_at=1234567890,
+            file_expires_at=1234567890,
+            download_url="https://s3.example.com/image2.jpg",
         )
         mock_client.call_worker.return_value = GenerateResponse(
             response='{"assessment": "Good progress", "success": "yes", "reflection": "Task completed", "subtask_instruction": ""}',

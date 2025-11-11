@@ -232,18 +232,18 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         latest_todo_summary: str | None = None,
         api_version: str | None = None,
     ) -> GenerateResponse:
-        """Call the /v2/generate endpoint for OAGI worker processing.
+        """Call the /v1/generate endpoint for OAGI worker processing.
 
         Args:
             worker_id: One of "oagi_first", "oagi_follow", "oagi_task_summary"
             overall_todo: Current todo description
             internal_context: Current TODO and execution contexts (markdown)
             external_context: Overall agent context (markdown or None)
-            current_screenshot: S3 URL for screenshot (oagi_first)
+            current_screenshot: Uploaded file UUID for screenshot (oagi_first)
             current_subtask_instruction: Subtask instruction (oagi_follow)
             window_steps: Action steps list (oagi_follow)
-            window_screenshots: Screenshot URLs list (oagi_follow)
-            result_screenshot: Result screenshot URL (oagi_follow)
+            window_screenshots: Uploaded file UUIDs list (oagi_follow)
+            result_screenshot: Uploaded file UUID for result screenshot (oagi_follow)
             prior_notes: Execution notes (oagi_follow)
             latest_todo_summary: Latest summary (oagi_task_summary)
             api_version: API version header
@@ -255,16 +255,8 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             ValueError: If worker_id is invalid
             APIError: If API returns error
         """
-        valid_workers = {"oagi_first", "oagi_follow", "oagi_task_summary"}
-        if worker_id not in valid_workers:
-            raise ValueError(
-                f"Invalid worker_id '{worker_id}'. Must be one of: {valid_workers}"
-            )
-
-        logger.info(f"Calling /v2/generate with worker_id: {worker_id}")
-
-        # Build payload
-        payload = self._build_worker_payload(
+        # Prepare request (validation, payload, headers)
+        payload, headers = self._prepare_worker_request(
             worker_id=worker_id,
             overall_todo=overall_todo,
             internal_context=internal_context,
@@ -276,15 +268,13 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             result_screenshot=result_screenshot,
             prior_notes=prior_notes,
             latest_todo_summary=latest_todo_summary,
+            api_version=api_version,
         )
-
-        # Build headers
-        headers = self._build_headers(api_version)
 
         # Make request
         try:
             response = await self.client.post(
-                "/v2/generate", json=payload, headers=headers, timeout=self.timeout
+                "/v1/generate", json=payload, headers=headers, timeout=self.timeout
             )
             return self._process_generate_response(response)
         except (httpx.TimeoutException, httpx.NetworkError) as e:
