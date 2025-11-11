@@ -11,7 +11,7 @@ from functools import wraps
 import httpx
 
 from ..logging import get_logger
-from ..types.models import LLMResponse, UploadFileResponse
+from ..types.models import GenerateResponse, LLMResponse, UploadFileResponse
 from .base import BaseClient
 
 logger = get_logger("async_client")
@@ -209,3 +209,78 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         upload_file_response = await self.get_s3_presigned_url(api_version)
         await self.upload_to_s3(upload_file_response.url, screenshot)
         return upload_file_response
+
+    @async_log_trace_on_failure
+    async def call_worker(
+        self,
+        worker_id: str,
+        overall_todo: str,
+        internal_context: str,
+        external_context: str | None = None,
+        current_screenshot: str | None = None,
+        current_subtask_instruction: str | None = None,
+        window_steps: list[dict] | None = None,
+        window_screenshots: list[str] | None = None,
+        result_screenshot: str | None = None,
+        prior_notes: str | None = None,
+        latest_todo_summary: str | None = None,
+        api_version: str | None = None,
+    ) -> GenerateResponse:
+        """Call the /v2/generate endpoint for OAGI worker processing.
+
+        Args:
+            worker_id: One of "oagi_first", "oagi_follow", "oagi_task_summary"
+            overall_todo: Current todo description
+            internal_context: Current TODO and execution contexts (markdown)
+            external_context: Overall agent context (markdown or None)
+            current_screenshot: S3 URL for screenshot (oagi_first)
+            current_subtask_instruction: Subtask instruction (oagi_follow)
+            window_steps: Action steps list (oagi_follow)
+            window_screenshots: Screenshot URLs list (oagi_follow)
+            result_screenshot: Result screenshot URL (oagi_follow)
+            prior_notes: Execution notes (oagi_follow)
+            latest_todo_summary: Latest summary (oagi_task_summary)
+            api_version: API version header
+
+        Returns:
+            GenerateResponse with LLM output and usage stats
+
+        Raises:
+            ValueError: If worker_id is invalid
+            APIError: If API returns error
+        """
+        valid_workers = {"oagi_first", "oagi_follow", "oagi_task_summary"}
+        if worker_id not in valid_workers:
+            raise ValueError(
+                f"Invalid worker_id '{worker_id}'. Must be one of: {valid_workers}"
+            )
+
+        logger.info(f"Calling /v2/generate with worker_id: {worker_id}")
+
+        # Build payload
+        payload = self._build_worker_payload(
+            worker_id=worker_id,
+            overall_todo=overall_todo,
+            internal_context=internal_context,
+            external_context=external_context,
+            current_screenshot=current_screenshot,
+            current_subtask_instruction=current_subtask_instruction,
+            window_steps=window_steps,
+            window_screenshots=window_screenshots,
+            result_screenshot=result_screenshot,
+            prior_notes=prior_notes,
+            latest_todo_summary=latest_todo_summary,
+        )
+
+        # Build headers
+        headers = self._build_headers(api_version)
+
+        # Make request
+        try:
+            response = await self.client.post(
+                "/v2/generate", json=payload, headers=headers, timeout=self.timeout
+            )
+        except (httpx.TimeoutException, httpx.NetworkError) as e:
+            self._handle_upload_http_errors(e)
+
+        return self._process_generate_response(response)

@@ -53,3 +53,12 @@ class UploadFileResponse(BaseModel):
     expires_at: int
     file_expires_at: int
     download_url: str
+
+
+class GenerateResponse(BaseModel):
+    """Response from /v2/generate endpoint."""
+
+    response: str
+    prompt_tokens: int
+    completion_tokens: int
+    cost: float  # in USD

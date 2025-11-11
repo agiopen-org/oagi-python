@@ -7,6 +7,7 @@
 # -----------------------------------------------------------------------------
 
 from .default import AsyncDefaultAgent
+from .planner import PlannerAgent, TodoAgent
 from .protocol import Agent, AsyncAgent
 
-__all__ = ["Agent", "AsyncAgent", "AsyncDefaultAgent"]
+__all__ = ["Agent", "AsyncAgent", "AsyncDefaultAgent", "PlannerAgent", "TodoAgent"]

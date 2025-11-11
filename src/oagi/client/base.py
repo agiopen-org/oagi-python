@@ -23,7 +23,12 @@ from ..exceptions import (
     ValidationError,
 )
 from ..logging import get_logger
-from ..types.models import ErrorResponse, LLMResponse, UploadFileResponse
+from ..types.models import (
+    ErrorResponse,
+    GenerateResponse,
+    LLMResponse,
+    UploadFileResponse,
+)
 
 logger = get_logger("client.base")
 
@@ -340,3 +345,89 @@ class BaseClient(Generic[HttpClientT]):
         logger.error(f"S3 upload failed: {e}")
         status_code = response.status_code if response else 500
         raise APIError(message=str(e), status_code=status_code, response=response)
+
+    def _build_worker_payload(
+        self,
+        worker_id: str,
+        overall_todo: str,
+        internal_context: str,
+        external_context: str | None = None,
+        current_screenshot: str | None = None,
+        current_subtask_instruction: str | None = None,
+        window_steps: list[dict] | None = None,
+        window_screenshots: list[str] | None = None,
+        result_screenshot: str | None = None,
+        prior_notes: str | None = None,
+        latest_todo_summary: str | None = None,
+    ) -> dict[str, Any]:
+        """Build payload for /v2/generate endpoint.
+
+        Args:
+            worker_id: One of "oagi_first", "oagi_follow", "oagi_task_summary"
+            overall_todo: Current todo description
+            internal_context: Current TODO and execution contexts (markdown)
+            external_context: Overall agent context (markdown or None)
+            current_screenshot: S3 URL for screenshot (oagi_first)
+            current_subtask_instruction: Subtask instruction (oagi_follow)
+            window_steps: Action steps list (oagi_follow)
+            window_screenshots: Screenshot URLs list (oagi_follow)
+            result_screenshot: Result screenshot URL (oagi_follow)
+            prior_notes: Execution notes (oagi_follow)
+            latest_todo_summary: Latest summary (oagi_task_summary)
+
+        Returns:
+            Request payload dict
+        """
+        oagi_data = {
+            "overall_todo": overall_todo,
+            "internal_context": internal_context,
+        }
+
+        if external_context is not None:
+            oagi_data["external_context"] = external_context
+        if current_screenshot is not None:
+            oagi_data["current_screenshot"] = current_screenshot
+        if current_subtask_instruction is not None:
+            oagi_data["current_subtask_instruction"] = current_subtask_instruction
+        if window_steps is not None:
+            oagi_data["window_steps"] = window_steps
+        if window_screenshots is not None:
+            oagi_data["window_screenshots"] = window_screenshots
+        if result_screenshot is not None:
+            oagi_data["result_screenshot"] = result_screenshot
+        if prior_notes is not None:
+            oagi_data["prior_notes"] = prior_notes
+        if latest_todo_summary is not None:
+            oagi_data["latest_todo_summary"] = latest_todo_summary
+
+        return {
+            "external_worker_id": worker_id,
+            "oagi_data": oagi_data,
+        }
+
+    def _process_generate_response(self, response: httpx.Response) -> GenerateResponse:
+        """Process response from /v2/generate endpoint.
+
+        Args:
+            response: HTTP response from generate endpoint
+
+        Returns:
+            GenerateResponse with LLM output
+
+        Raises:
+            APIError: If API returns error or invalid response
+        """
+        response_data = self._parse_response_json(response)
+
+        # Check if it's an error response (non-200 status)
+        if response.status_code != 200:
+            self._handle_response_error(response, response_data)
+
+        # Parse successful response
+        result = GenerateResponse(**response_data)
+
+        logger.info(
+            f"Generate request successful - tokens: {result.prompt_tokens}+{result.completion_tokens}, "
+            f"cost: ${result.cost:.6f}"
+        )
+        return result
