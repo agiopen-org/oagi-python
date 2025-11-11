@@ -33,6 +33,12 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         "--temperature", type=float, help="Sampling temperature (default: 0.0)"
     )
     run_parser.add_argument(
+        "--mode",
+        type=str,
+        default="actor",
+        help="Agent mode to use (default: actor). Available modes: actor, planner",
+    )
+    run_parser.add_argument(
         "--oagi-api-key", type=str, help="OAGI API key (default: OAGI_API_KEY env var)"
     )
     run_parser.add_argument(
@@ -53,7 +59,7 @@ def run_agent(args: argparse.Namespace) -> None:
     check_optional_dependency("PIL", "Agent execution", "desktop")
 
     from oagi import AsyncPyautoguiActionHandler, AsyncScreenshotMaker  # noqa: PLC0415
-    from oagi.agent import AsyncDefaultAgent  # noqa: PLC0415
+    from oagi.agent import create_agent  # noqa: PLC0415
 
     # Get configuration
     api_key = args.oagi_api_key or os.getenv("OAGI_API_KEY")
@@ -71,9 +77,11 @@ def run_agent(args: argparse.Namespace) -> None:
     model = args.model or "lux-v1"
     max_steps = args.max_steps or 30
     temperature = args.temperature if args.temperature is not None else 0.0
+    mode = args.mode or "actor"
 
     # Create agent
-    agent = AsyncDefaultAgent(
+    agent = create_agent(
+        mode=mode,
         api_key=api_key,
         base_url=base_url,
         model=model,
@@ -86,7 +94,9 @@ def run_agent(args: argparse.Namespace) -> None:
     image_provider = AsyncScreenshotMaker()
 
     print(f"Starting agent with instruction: {args.instruction}")
-    print(f"Model: {model}, Max steps: {max_steps}, Temperature: {temperature}")
+    print(
+        f"Mode: {mode}, Model: {model}, Max steps: {max_steps}, Temperature: {temperature}"
+    )
     print("-" * 60)
 
     # Run agent
