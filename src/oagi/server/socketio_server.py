@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from ..agent import AsyncDefaultAgent
+from ..agent import AsyncDefaultAgent, create_agent
 from ..client import AsyncClient
 from ..exceptions import check_optional_dependency
 from ..types.models.action import Action, ActionType
@@ -156,7 +156,8 @@ class SessionNamespace(socketio.AsyncNamespace):
             )
 
             # Create agent and wrappers
-            agent = AsyncDefaultAgent(
+            agent = create_agent(
+                mode=session.mode,
                 api_key=self.config.oagi_api_key,
                 base_url=self.config.oagi_base_url,
                 max_steps=self.config.max_steps,

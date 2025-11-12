@@ -39,6 +39,8 @@ _LAZY_IMPORTS = {
     "PyautoguiActionHandler": "oagi.pyautogui_action_handler",
     "PyautoguiConfig": "oagi.pyautogui_action_handler",
     "ScreenshotMaker": "oagi.screenshot_maker",
+    # Agent modules (to avoid circular imports)
+    "TaskerAgent": "oagi.agent.tasker",
     # Server modules (optional - requires server dependencies)
     "create_app": "oagi.server.main",
     "ServerConfig": "oagi.server.config",
@@ -64,6 +66,8 @@ __all__ = [
     "AsyncTask",
     "AsyncShortTask",
     "AsyncClient",
+    # Agent classes
+    "TaskerAgent",
     # Functions
     "single_step",
     "async_single_step",
