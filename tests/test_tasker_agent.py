@@ -1,20 +1,20 @@
-"""Tests for the PlannerAgent."""
+"""Tests for the TaskerAgent."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from oagi.agent.planner import PlannerAgent
-from oagi.agent.planner.llm_planner import LLMPlanner
-from oagi.agent.planner.models import (
+from oagi.agent.tasker import TaskerAgent
+from oagi.agent.tasker.models import (
     Action,
     ExecutionResult,
     TodoStatus,
 )
+from oagi.agent.tasker.planner import Planner
 
 
-class MockLLMPlanner(LLMPlanner):
-    """Mock LLM planner for testing."""
+class MockPlanner(Planner):
+    """Mock planner for testing."""
 
     async def _call_external_llm(self, prompt: str, image: bytes | None = None) -> str:
         """Mock LLM call that returns canned responses."""
@@ -27,12 +27,12 @@ class MockLLMPlanner(LLMPlanner):
 
 
 @pytest.mark.asyncio
-class TestPlannerAgent:
-    """Test suite for PlannerAgent."""
+class TestTaskerAgent:
+    """Test suite for TaskerAgent."""
 
     async def test_init(self):
-        """Test PlannerAgent initialization."""
-        agent = PlannerAgent(
+        """Test TaskerAgent initialization."""
+        agent = TaskerAgent(
             api_key="test-key",
             base_url="https://api.test.com",
             model="test-model",
@@ -46,12 +46,12 @@ class TestPlannerAgent:
         assert agent.max_steps == 50
         assert agent.temperature == 0.5
         assert agent.memory is not None
-        assert agent.current_todo_agent is None
+        assert agent.current_taskee_agent is None
         assert agent.current_todo_index == -1
 
     async def test_set_task(self):
         """Test setting task with todos and deliverables."""
-        agent = PlannerAgent()
+        agent = TaskerAgent()
         todos = ["Todo 1", "Todo 2", "Todo 3"]
         deliverables = ["Deliverable 1", "Deliverable 2"]
 
@@ -64,7 +64,7 @@ class TestPlannerAgent:
 
     async def test_prepare_with_no_todos(self):
         """Test prepare when no todos remain."""
-        agent = PlannerAgent()
+        agent = TaskerAgent()
         agent.set_task("Test task", [], [])
 
         result = agent._prepare()
@@ -72,7 +72,7 @@ class TestPlannerAgent:
 
     async def test_prepare_with_pending_todo(self):
         """Test prepare with pending todo."""
-        agent = PlannerAgent(planner=MockLLMPlanner())
+        agent = TaskerAgent(planner=MockPlanner())
         agent.set_task("Test task", ["Todo 1"], [])
 
         result = agent._prepare()
@@ -81,12 +81,12 @@ class TestPlannerAgent:
         todo, index = result
         assert todo.description == "Todo 1"
         assert index == 0
-        assert agent.current_todo_agent is not None
+        assert agent.current_taskee_agent is not None
         assert agent.current_todo_index == 0
         assert agent.memory.todos[0].status == TodoStatus.IN_PROGRESS
 
-    @patch("oagi.agent.planner.todo_agent.TodoAgent.execute")
-    @patch("oagi.agent.planner.todo_agent.TodoAgent.return_execution_results")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent.execute")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent.return_execution_results")
     async def test_execute_single_todo(self, mock_return_results, mock_execute):
         """Test executing a single todo."""
         # Setup mocks
@@ -105,7 +105,7 @@ class TestPlannerAgent:
         )
 
         # Create agent and set task
-        agent = PlannerAgent(planner=MockLLMPlanner())
+        agent = TaskerAgent(planner=MockPlanner())
         agent.set_task("Test task", ["Todo 1"], [])
 
         # Create mock handlers
@@ -121,8 +121,8 @@ class TestPlannerAgent:
         assert len(agent.memory.history) == 1
         assert agent.memory.history[0].completed is True
 
-    @patch("oagi.agent.planner.todo_agent.TodoAgent.execute")
-    @patch("oagi.agent.planner.todo_agent.TodoAgent.return_execution_results")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent.execute")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent.return_execution_results")
     async def test_execute_multiple_todos(self, mock_return_results, mock_execute):
         """Test executing multiple todos."""
         # Setup mocks to return success for all todos
@@ -135,7 +135,7 @@ class TestPlannerAgent:
         )
 
         # Create agent and set task
-        agent = PlannerAgent(planner=MockLLMPlanner())
+        agent = TaskerAgent(planner=MockPlanner())
         agent.set_task("Test task", ["Todo 1", "Todo 2", "Todo 3"], [])
 
         # Create mock handlers
@@ -150,14 +150,14 @@ class TestPlannerAgent:
         assert all(t.status == TodoStatus.COMPLETED for t in agent.memory.todos)
         assert len(agent.memory.history) == 3
 
-    @patch("oagi.agent.planner.todo_agent.TodoAgent.execute")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent.execute")
     async def test_execute_with_failure(self, mock_execute):
         """Test execution when a todo fails."""
         # Setup mock to fail
         mock_execute.side_effect = Exception("Test error")
 
         # Create agent and set task
-        agent = PlannerAgent(planner=MockLLMPlanner())
+        agent = TaskerAgent(planner=MockPlanner())
         agent.set_task("Test task", ["Todo 1"], [])
 
         # Create mock handlers
@@ -174,7 +174,7 @@ class TestPlannerAgent:
 
     async def test_append_todo(self):
         """Test dynamically appending a todo."""
-        agent = PlannerAgent()
+        agent = TaskerAgent()
         agent.set_task("Test task", ["Todo 1"], [])
 
         agent.append_todo("Todo 2")
@@ -185,7 +185,7 @@ class TestPlannerAgent:
 
     async def test_append_deliverable(self):
         """Test dynamically appending a deliverable."""
-        agent = PlannerAgent()
+        agent = TaskerAgent()
         agent.set_task("Test task", ["Todo 1"], ["Deliverable 1"])
 
         agent.append_deliverable("Deliverable 2")
@@ -196,7 +196,7 @@ class TestPlannerAgent:
 
     async def test_get_memory(self):
         """Test getting memory state."""
-        agent = PlannerAgent()
+        agent = TaskerAgent()
         agent.set_task("Test task", ["Todo 1"], [])
 
         memory = agent.get_memory()
@@ -207,7 +207,7 @@ class TestPlannerAgent:
 
     async def test_update_task_summary(self):
         """Test updating task execution summary."""
-        agent = PlannerAgent()
+        agent = TaskerAgent()
         agent.set_task("Test task", ["Todo 1", "Todo 2"], [])
 
         # Mark first todo as completed

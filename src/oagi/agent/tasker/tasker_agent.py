@@ -1,4 +1,10 @@
-"""Hierarchical planner agent for multi-todo workflow management."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import logging
 from typing import Any
@@ -6,20 +12,20 @@ from typing import Any
 from oagi.types import AsyncActionHandler, AsyncImageProvider
 
 from ..protocol import AsyncAgent
-from .llm_planner import LLMPlanner
 from .memory import PlannerMemory
 from .models import TodoStatus
-from .todo_agent import TodoAgent
+from .planner import Planner
+from .taskee_agent import TaskeeAgent
 
 logger = logging.getLogger(__name__)
 
 
-class PlannerAgent(AsyncAgent):
+class TaskerAgent(AsyncAgent):
     """Hierarchical agent that manages multi-todo workflows.
 
     This agent orchestrates the execution of multiple todos by:
     1. Managing a workflow with todos and deliverables
-    2. Executing todos sequentially using TodoAgent
+    2. Executing todos sequentially using TaskeeAgent
     3. Tracking progress and updating memory
     4. Sharing context between todos for informed execution
     """
@@ -32,9 +38,9 @@ class PlannerAgent(AsyncAgent):
         max_steps: int = 30,
         temperature: float = 0.0,
         reflection_interval: int = 20,
-        planner: LLMPlanner | None = None,
+        planner: Planner | None = None,
     ):
-        """Initialize the planner agent.
+        """Initialize the tasker agent.
 
         Args:
             api_key: OAGI API key
@@ -43,7 +49,7 @@ class PlannerAgent(AsyncAgent):
             max_steps: Maximum steps per todo
             temperature: Sampling temperature
             reflection_interval: Actions before reflection
-            planner: LLM planner for planning and reflection
+            planner: Planner for planning and reflection
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -51,13 +57,13 @@ class PlannerAgent(AsyncAgent):
         self.max_steps = max_steps
         self.temperature = temperature
         self.reflection_interval = reflection_interval
-        self.planner = planner or LLMPlanner()
+        self.planner = planner or Planner()
 
         # Memory for tracking workflow
         self.memory = PlannerMemory()
 
         # Current execution state
-        self.current_todo_agent: TodoAgent | None = None
+        self.current_taskee_agent: TaskeeAgent | None = None
         self.current_todo_index: int = -1
 
     def set_task(
@@ -157,8 +163,8 @@ class PlannerAgent(AsyncAgent):
         if todo is None:
             return None
 
-        # Create todo agent with external memory
-        self.current_todo_agent = TodoAgent(
+        # Create taskee agent with external memory
+        self.current_taskee_agent = TaskeeAgent(
             api_key=self.api_key,
             base_url=self.base_url,
             model=self.model,
@@ -176,7 +182,7 @@ class PlannerAgent(AsyncAgent):
         if todo.status == TodoStatus.PENDING:
             self.memory.update_todo(todo_index, TodoStatus.IN_PROGRESS)
 
-        logger.info(f"Prepared todo agent for todo {todo_index}")
+        logger.info(f"Prepared taskee agent for todo {todo_index}")
 
         return todo, todo_index
 
@@ -196,22 +202,22 @@ class PlannerAgent(AsyncAgent):
         Returns:
             True if successful, False otherwise
         """
-        if not self.current_todo_agent or todo_index < 0:
-            logger.error("No todo agent prepared")
+        if not self.current_taskee_agent or todo_index < 0:
+            logger.error("No taskee agent prepared")
             return False
 
         todo = self.memory.todos[todo_index]
 
         try:
-            # Execute using todo agent
-            success = await self.current_todo_agent.execute(
+            # Execute using taskee agent
+            success = await self.current_taskee_agent.execute(
                 todo.description,
                 action_handler,
                 image_provider,
             )
 
             # Get execution results
-            results = self.current_todo_agent.return_execution_results()
+            results = self.current_taskee_agent.return_execution_results()
 
             # Update memory with results
             self._update_memory_from_execution(todo_index, results, success)

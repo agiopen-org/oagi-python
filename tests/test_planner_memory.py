@@ -2,8 +2,8 @@
 
 import pytest
 
-from oagi.agent.planner.memory import PlannerMemory
-from oagi.agent.planner.models import (
+from oagi.agent.tasker.memory import PlannerMemory
+from oagi.agent.tasker.models import (
     Action,
     Deliverable,
     Todo,

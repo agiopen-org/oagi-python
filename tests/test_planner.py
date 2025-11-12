@@ -1,20 +1,20 @@
-"""Tests for LLMPlanner class."""
+"""Tests for Planner class."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from oagi.agent.planner.llm_planner import LLMPlanner
-from oagi.agent.planner.memory import PlannerMemory
-from oagi.agent.planner.models import (
+from oagi.agent.tasker.memory import PlannerMemory
+from oagi.agent.tasker.models import (
     Action,
     PlannerOutput,
     ReflectionOutput,
 )
+from oagi.agent.tasker.planner import Planner
 from oagi.types.models.client import GenerateResponse, UploadFileResponse
 
 
-class TestLLMPlanner:
+class TestPlanner:
     @pytest.fixture
     def mock_client(self):
         client = AsyncMock()
@@ -22,7 +22,7 @@ class TestLLMPlanner:
 
     @pytest.fixture
     def planner(self, mock_client):
-        return LLMPlanner(client=mock_client)
+        return Planner(client=mock_client)
 
     @pytest.fixture
     def memory(self):
@@ -198,10 +198,10 @@ class TestLLMPlanner:
 
     @pytest.mark.asyncio
     async def test_ensure_client_creates_when_needed(self):
-        planner = LLMPlanner(client=None)
+        planner = Planner(client=None)
         assert planner.client is None
 
-        with patch("oagi.agent.planner.llm_planner.AsyncClient") as MockClient:
+        with patch("oagi.agent.tasker.planner.AsyncClient") as MockClient:
             mock_instance = AsyncMock()
             MockClient.return_value = mock_instance
 
@@ -211,7 +211,7 @@ class TestLLMPlanner:
 
     @pytest.mark.asyncio
     async def test_close_owned_client(self):
-        planner = LLMPlanner(client=None)
+        planner = Planner(client=None)
         mock_client = AsyncMock()
         planner.client = mock_client
         planner._owns_client = True
@@ -221,7 +221,7 @@ class TestLLMPlanner:
 
     @pytest.mark.asyncio
     async def test_close_not_owned_client(self, mock_client):
-        planner = LLMPlanner(client=mock_client)
+        planner = Planner(client=mock_client)
         planner._owns_client = False
 
         await planner.close()
@@ -229,5 +229,5 @@ class TestLLMPlanner:
 
     @pytest.mark.asyncio
     async def test_context_manager(self):
-        async with LLMPlanner() as planner:
-            assert isinstance(planner, LLMPlanner)
+        async with Planner() as planner:
+            assert isinstance(planner, Planner)

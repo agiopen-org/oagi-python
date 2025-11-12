@@ -1,19 +1,19 @@
-"""Tests for the TodoAgent."""
+"""Tests for the TaskeeAgent."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from oagi.agent.planner.llm_planner import LLMPlanner
-from oagi.agent.planner.memory import PlannerMemory
-from oagi.agent.planner.todo_agent import TodoAgent
+from oagi.agent.tasker.memory import PlannerMemory
+from oagi.agent.tasker.planner import Planner
+from oagi.agent.tasker.taskee_agent import TaskeeAgent
 from oagi.types.models import Action as OAGIAction
 from oagi.types.models import ActionType, Step
 from oagi.types.models.client import GenerateResponse, UploadFileResponse
 
 
-class MockLLMPlanner(LLMPlanner):
-    """Mock LLM planner for testing."""
+class MockPlanner(Planner):
+    """Mock planner for testing."""
 
     def __init__(self):
         # Create a mock client instead of a real one
@@ -70,15 +70,15 @@ class MockLLMPlanner(LLMPlanner):
 
 
 @pytest.mark.asyncio
-class TestTodoAgent:
-    """Test suite for TodoAgent."""
+class TestTaskeeAgent:
+    """Test suite for TaskeeAgent."""
 
     async def test_init(self):
-        """Test TodoAgent initialization."""
+        """Test TaskeeAgent initialization."""
         external_memory = PlannerMemory()
-        planner = MockLLMPlanner()
+        planner = MockPlanner()
 
-        agent = TodoAgent(
+        agent = TaskeeAgent(
             api_key="test-key",
             base_url="https://api.test.com",
             model="test-model",
@@ -100,10 +100,10 @@ class TestTodoAgent:
         assert agent.task is None
         assert agent.actions == []
 
-    @patch("oagi.agent.planner.todo_agent.AsyncTask")
+    @patch("oagi.agent.tasker.taskee_agent.AsyncTask")
     async def test_initial_plan(self, mock_async_task):
         """Test initial planning phase."""
-        agent = TodoAgent(planner=MockLLMPlanner())
+        agent = TaskeeAgent(planner=MockPlanner())
 
         # Mock image provider
         image_provider = AsyncMock()
@@ -118,7 +118,7 @@ class TestTodoAgent:
         assert agent.actions[0].action_type == "plan"
         assert agent.actions[0].target == "initial"
 
-    @patch("oagi.agent.planner.todo_agent.AsyncTask")
+    @patch("oagi.agent.tasker.taskee_agent.AsyncTask")
     async def test_execute_subtask_success(self, mock_async_task_class):
         """Test executing a subtask successfully."""
         # Setup mock task
@@ -139,7 +139,7 @@ class TestTodoAgent:
         )
         mock_task.step.return_value = mock_step
 
-        agent = TodoAgent(planner=MockLLMPlanner())
+        agent = TaskeeAgent(planner=MockPlanner())
         agent.current_instruction = "Click submit"
 
         # Mock handlers
@@ -162,7 +162,7 @@ class TestTodoAgent:
         # close() is now handled automatically by async with context manager
         action_handler.assert_called_once()
 
-    @patch("oagi.agent.planner.todo_agent.AsyncTask")
+    @patch("oagi.agent.tasker.taskee_agent.AsyncTask")
     async def test_execute_subtask_with_reflection_trigger(self, mock_async_task_class):
         """Test that reflection is triggered at interval."""
         # Setup mock task
@@ -178,7 +178,7 @@ class TestTodoAgent:
         )
         mock_task.step.return_value = mock_step
 
-        agent = TodoAgent(planner=MockLLMPlanner(), reflection_interval=3)
+        agent = TaskeeAgent(planner=MockPlanner(), reflection_interval=3)
         agent.current_instruction = "Test instruction"
 
         # Mock handlers
@@ -199,7 +199,7 @@ class TestTodoAgent:
 
     async def test_reflect_and_decide_continue(self):
         """Test reflection that decides to continue."""
-        agent = TodoAgent(planner=MockLLMPlanner())
+        agent = TaskeeAgent(planner=MockPlanner())
         agent.current_todo = "Test todo"
         agent.since_reflection = 5
         agent.actions = [
@@ -222,7 +222,7 @@ class TestTodoAgent:
     async def test_reflect_and_decide_pivot(self):
         """Test reflection that decides to pivot with new instruction."""
 
-        class PivotPlanner(LLMPlanner):
+        class PivotPlanner(Planner):
             def __init__(self):
                 mock_client = AsyncMock()
                 mock_client.call_worker = AsyncMock(
@@ -249,7 +249,7 @@ class TestTodoAgent:
             ) -> str:
                 return '{"continue_current": false, "new_instruction": "Try different approach", "reasoning": "Not working", "success_assessment": false}'
 
-        agent = TodoAgent(planner=PivotPlanner())
+        agent = TaskeeAgent(planner=PivotPlanner())
         agent.current_todo = "Test todo"
         agent.current_instruction = "Original instruction"
 
@@ -266,7 +266,7 @@ class TestTodoAgent:
     async def test_reflect_success_assessment(self):
         """Test reflection that assesses success."""
 
-        class SuccessPlanner(LLMPlanner):
+        class SuccessPlanner(Planner):
             def __init__(self):
                 mock_client = AsyncMock()
                 mock_client.call_worker = AsyncMock(
@@ -293,7 +293,7 @@ class TestTodoAgent:
             ) -> str:
                 return '{"continue_current": false, "new_instruction": null, "reasoning": "Task completed", "success_assessment": true}'
 
-        agent = TodoAgent(planner=SuccessPlanner())
+        agent = TaskeeAgent(planner=SuccessPlanner())
         agent.current_todo = "Test todo"
 
         # Mock image provider
@@ -306,10 +306,10 @@ class TestTodoAgent:
         assert should_continue is False
         assert agent.success is True
 
-    @patch("oagi.agent.planner.todo_agent.TodoAgent._initial_plan")
-    @patch("oagi.agent.planner.todo_agent.TodoAgent._execute_subtask")
-    @patch("oagi.agent.planner.todo_agent.TodoAgent._reflect_and_decide")
-    @patch("oagi.agent.planner.todo_agent.TodoAgent._generate_summary")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent._initial_plan")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent._execute_subtask")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent._reflect_and_decide")
+    @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent._generate_summary")
     async def test_execute_full_flow(
         self,
         mock_generate_summary,
@@ -322,7 +322,7 @@ class TestTodoAgent:
         mock_execute_subtask.side_effect = [5, 5]  # Two subtask executions
         mock_reflect.side_effect = [True, False]  # Continue once, then stop
 
-        agent = TodoAgent(planner=MockLLMPlanner())
+        agent = TaskeeAgent(planner=MockPlanner())
 
         # Mock handlers
         action_handler = AsyncMock()
@@ -339,7 +339,7 @@ class TestTodoAgent:
 
     async def test_execute_with_error(self):
         """Test execution with error handling."""
-        agent = TodoAgent(planner=MockLLMPlanner())
+        agent = TaskeeAgent(planner=MockPlanner())
 
         # Mock handlers that raise error
         action_handler = AsyncMock()
@@ -357,7 +357,7 @@ class TestTodoAgent:
 
     async def test_return_execution_results(self):
         """Test returning execution results."""
-        agent = TodoAgent()
+        agent = TaskeeAgent()
         agent.success = True
         agent.total_actions = 10
 
@@ -378,7 +378,7 @@ class TestTodoAgent:
         memory = PlannerMemory()
         memory.set_task("Main task", ["Todo 1", "Todo 2"])
 
-        agent = TodoAgent(external_memory=memory)
+        agent = TaskeeAgent(external_memory=memory)
 
         context = agent._get_context()
 
@@ -387,7 +387,7 @@ class TestTodoAgent:
 
     async def test_get_context_without_external_memory(self):
         """Test getting context without external memory."""
-        agent = TodoAgent()
+        agent = TaskeeAgent()
 
         context = agent._get_context()
 

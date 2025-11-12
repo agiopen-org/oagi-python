@@ -1,4 +1,10 @@
-"""Single todo executor with planning and reflection capabilities."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import logging
 from datetime import datetime
@@ -8,17 +14,17 @@ from oagi import AsyncTask
 from oagi.types import AsyncActionHandler, AsyncImageProvider
 
 from ..protocol import AsyncAgent
-from .llm_planner import LLMPlanner
 from .memory import PlannerMemory
 from .models import Action, ExecutionResult
+from .planner import Planner
 
 logger = logging.getLogger(__name__)
 
 
-class TodoAgent(AsyncAgent):
+class TaskeeAgent(AsyncAgent):
     """Executes a single todo with planning and reflection capabilities.
 
-    This agent uses an LLM planner to:
+    This agent uses a Planner to:
     1. Convert a todo into a clear actionable instruction
     2. Execute the instruction using OAGI API
     3. Periodically reflect on progress and adjust approach
@@ -33,11 +39,11 @@ class TodoAgent(AsyncAgent):
         max_steps_per_subtask: int = 10,
         reflection_interval: int = 20,
         temperature: float = 0.0,
-        planner: LLMPlanner | None = None,
+        planner: Planner | None = None,
         external_memory: PlannerMemory | None = None,
         todo_index: int | None = None,
     ):
-        """Initialize the todo agent.
+        """Initialize the taskee agent.
 
         Args:
             api_key: OAGI API key
@@ -46,7 +52,7 @@ class TodoAgent(AsyncAgent):
             max_steps_per_subtask: Maximum steps before reinitializing task
             reflection_interval: Number of actions before triggering reflection
             temperature: Sampling temperature
-            planner: LLM planner for planning and reflection
+            planner: Planner for planning and reflection
             external_memory: External memory from parent agent
             todo_index: Index of the todo being executed
         """
@@ -56,7 +62,7 @@ class TodoAgent(AsyncAgent):
         self.max_steps_per_subtask = max_steps_per_subtask
         self.reflection_interval = reflection_interval
         self.temperature = temperature
-        self.planner = planner or LLMPlanner()
+        self.planner = planner or Planner()
         self.external_memory = external_memory
         self.todo_index = todo_index
 

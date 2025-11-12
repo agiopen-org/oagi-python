@@ -96,7 +96,7 @@ class TestAgentRegistry:
             get_agent_factory("nonexistent_mode")
 
     def test_list_agent_modes(self):
-        # Get current modes (should include 'actor' and 'planner' from factories)
+        # Get current modes (should include 'actor' and 'tasker' from factories)
         modes_before = set(list_agent_modes())
 
         # Register a test mode
@@ -152,7 +152,7 @@ class TestAgentRegistry:
     def test_built_in_modes_registered(self):
         modes = list_agent_modes()
         assert "actor" in modes
-        assert "planner" in modes
+        assert "tasker" in modes or "tasker:cat" in modes
 
     def test_create_built_in_actor_agent(self):
         agent = create_agent(
@@ -170,9 +170,9 @@ class TestAgentRegistry:
         assert agent.model == "lux-v1"
         assert agent.max_steps == 20
 
-    def test_create_built_in_planner_agent(self):
+    def test_create_built_in_tasker_agent(self):
         agent = create_agent(
-            mode="planner",
+            mode="tasker",
             api_key="test-key",
             base_url="test-url",
             model="lux-v1",
@@ -180,7 +180,7 @@ class TestAgentRegistry:
             temperature=0.2,
             reflection_interval=15,
         )
-        # Should create PlannerAgent
+        # Should create TaskerAgent
         assert hasattr(agent, "execute")
         assert hasattr(agent, "api_key")
         assert agent.api_key == "test-key"

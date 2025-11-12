@@ -1,4 +1,10 @@
-"""LLM-based planner for task decomposition and reflection."""
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
 
 import json
 from typing import Any
@@ -8,14 +14,14 @@ from .memory import PlannerMemory
 from .models import Action, PlannerOutput, ReflectionOutput
 
 
-class LLMPlanner:
-    """LLM-based planner for task decomposition and reflection.
+class Planner:
+    """Planner for task decomposition and reflection.
 
     This class provides planning and reflection capabilities using OAGI workers.
     """
 
     def __init__(self, client: AsyncClient | None = None):
-        """Initialize the LLM planner.
+        """Initialize the planner.
 
         Args:
             client: AsyncClient for OAGI API calls. If None, one will be created when needed.

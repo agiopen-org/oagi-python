@@ -1,5 +1,3 @@
-"""Agent registry for dynamic agent mode selection."""
-
 # -----------------------------------------------------------------------------
 #  Copyright (c) OpenAGI Foundation
 #  All rights reserved.
