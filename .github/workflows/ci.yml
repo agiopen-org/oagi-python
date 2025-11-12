@@ -28,6 +28,9 @@ jobs:
       - run: make install
       - run: make build
 
+      - name: Build metapackage
+        run: cd metapackage && uv build
+
   test:
     runs-on: ubuntu-latest
     steps:

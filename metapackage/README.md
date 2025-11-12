@@ -14,6 +14,7 @@ pip install oagi-core
 # Or install with specific features
 pip install oagi-core[desktop]  # Desktop automation support
 pip install oagi-core[server]   # Server support
+pip install oagi-core[desktop,server]  # All features (same as 'pip install oagi')
 ```
 
 **Requires Python >= 3.10**

@@ -23,13 +23,25 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
       
-      - name: Build package
+      - name: Build oagi-core package
         run: uv build
-      
-      - name: Publish to PyPI
+
+      - name: Build oagi metapackage
+        run: cd metapackage && uv build
+
+      - name: Publish oagi-core to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: dist/
+          # Another option: Use Trusted Publishing (recommended, no token needed)
+          # Configure at: https://pypi.org/manage/project/oagi-core/settings/publishing/
+
+      - name: Publish oagi metapackage to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: metapackage/dist/
           # Another option: Use Trusted Publishing (recommended, no token needed)
           # Configure at: https://pypi.org/manage/project/oagi/settings/publishing/
 
@@ -45,4 +57,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           body: ${{ steps.commit_message.outputs.message }}
-          files: dist/*
+          files: |
+            dist/*
+            metapackage/dist/*
