@@ -350,8 +350,12 @@ class BaseClient(Generic[HttpClientT]):
         self,
         worker_id: str,
         overall_todo: str,
-        internal_context: str,
-        external_context: str | None = None,
+        task_description: str,
+        todos: list[dict],
+        deliverables: list[dict],
+        history: list[dict] | None = None,
+        current_todo_index: int | None = None,
+        task_execution_summary: str | None = None,
         current_screenshot: str | None = None,
         current_subtask_instruction: str | None = None,
         window_steps: list[dict] | None = None,
@@ -366,8 +370,12 @@ class BaseClient(Generic[HttpClientT]):
         Args:
             worker_id: One of "oagi_first", "oagi_follow", "oagi_task_summary"
             overall_todo: Current todo description
-            internal_context: Current TODO and execution contexts (markdown)
-            external_context: Overall agent context (markdown or None)
+            task_description: Overall task description
+            todos: List of todo dicts with index, description, status, execution_summary
+            deliverables: List of deliverable dicts with description, achieved
+            history: List of history dicts with todo_index, todo_description, action_count, summary, completed
+            current_todo_index: Index of current todo being executed
+            task_execution_summary: Summary of overall task execution
             current_screenshot: Uploaded file UUID for screenshot (oagi_first)
             current_subtask_instruction: Subtask instruction (oagi_follow)
             window_steps: Action steps list (oagi_follow)
@@ -392,33 +400,37 @@ class BaseClient(Generic[HttpClientT]):
 
         logger.info(f"Calling /v1/generate with worker_id: {worker_id}")
 
-        # Build payload
-        oagi_data = {
-            "overall_todo": overall_todo,
-            "internal_context": internal_context,
-        }
-
-        if external_context is not None:
-            oagi_data["external_context"] = external_context
-        if current_screenshot is not None:
-            oagi_data["current_screenshot"] = current_screenshot
-        if current_subtask_instruction is not None:
-            oagi_data["current_subtask_instruction"] = current_subtask_instruction
-        if window_steps is not None:
-            oagi_data["window_steps"] = window_steps
-        if window_screenshots is not None:
-            oagi_data["window_screenshots"] = window_screenshots
-        if result_screenshot is not None:
-            oagi_data["result_screenshot"] = result_screenshot
-        if prior_notes is not None:
-            oagi_data["prior_notes"] = prior_notes
-        if latest_todo_summary is not None:
-            oagi_data["latest_todo_summary"] = latest_todo_summary
-
-        payload = {
+        # Build flattened payload (no oagi_data wrapper)
+        payload: dict[str, Any] = {
             "external_worker_id": worker_id,
-            "oagi_data": oagi_data,
+            "overall_todo": overall_todo,
+            "task_description": task_description,
+            "todos": todos,
+            "deliverables": deliverables,
+            "history": history or [],
         }
+
+        # Add optional memory fields
+        if current_todo_index is not None:
+            payload["current_todo_index"] = current_todo_index
+        if task_execution_summary is not None:
+            payload["task_execution_summary"] = task_execution_summary
+
+        # Add optional screenshot/worker-specific fields
+        if current_screenshot is not None:
+            payload["current_screenshot"] = current_screenshot
+        if current_subtask_instruction is not None:
+            payload["current_subtask_instruction"] = current_subtask_instruction
+        if window_steps is not None:
+            payload["window_steps"] = window_steps
+        if window_screenshots is not None:
+            payload["window_screenshots"] = window_screenshots
+        if result_screenshot is not None:
+            payload["result_screenshot"] = result_screenshot
+        if prior_notes is not None:
+            payload["prior_notes"] = prior_notes
+        if latest_todo_summary is not None:
+            payload["latest_todo_summary"] = latest_todo_summary
 
         # Build headers
         headers = self._build_headers(api_version)

@@ -47,6 +47,66 @@ class Planner:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
+    def _extract_memory_data(
+        self,
+        memory: PlannerMemory | None,
+        context: dict[str, Any],
+        todo_index: int | None = None,
+    ) -> tuple[str, list, list, list, str | None, str]:
+        """Extract memory data for API calls.
+
+        Args:
+            memory: Optional PlannerMemory instance
+            context: Fallback context dictionary
+            todo_index: Optional todo index for extracting overall_todo
+
+        Returns:
+            Tuple of (task_description, todos, deliverables, history,
+                     task_execution_summary, overall_todo)
+        """
+        if memory and todo_index is not None:
+            # Use memory data
+            task_description = memory.task_description
+            todos = [
+                {
+                    "index": i,
+                    "description": t.description,
+                    "status": t.status.value,
+                    "execution_summary": memory.todo_execution_summaries.get(i),
+                }
+                for i, t in enumerate(memory.todos)
+            ]
+            deliverables = [d.model_dump() for d in memory.deliverables]
+            history = [
+                {
+                    "todo_index": h.todo_index,
+                    "todo_description": h.todo,
+                    "action_count": len(h.actions),
+                    "summary": h.summary,
+                    "completed": h.completed,
+                }
+                for h in memory.history
+            ]
+            task_execution_summary = memory.task_execution_summary or None
+            overall_todo = memory.todos[todo_index].description if memory.todos else ""
+        else:
+            # Fallback to basic context
+            task_description = context.get("task_description", "")
+            todos = context.get("todos", [])
+            deliverables = context.get("deliverables", [])
+            history = context.get("history", [])
+            task_execution_summary = None
+            overall_todo = context.get("current_todo", "")
+
+        return (
+            task_description,
+            todos,
+            deliverables,
+            history,
+            task_execution_summary,
+            overall_todo,
+        )
+
     async def initial_plan(
         self,
         todo: str,
@@ -76,21 +136,26 @@ class Planner:
             upload_response = await client.put_s3_presigned_url(screenshot)
             screenshot_uuid = upload_response.uuid
 
-        # Format contexts using memory if provided
-        if memory and todo_index is not None:
-            internal_context = memory.format_internal_context(todo_index)
-            external_context = memory.format_external_context()
-        else:
-            # Fallback to basic formatting
-            internal_context = f"## Current Todo\n{todo}"
-            external_context = self._format_external_context_from_dict(context)
+        # Extract memory data if provided
+        (
+            task_description,
+            todos,
+            deliverables,
+            history,
+            task_execution_summary,
+            _,  # overall_todo not needed here, we use the `todo` parameter
+        ) = self._extract_memory_data(memory, context, todo_index)
 
         # Call OAGI worker
         response = await client.call_worker(
             worker_id="oagi_first",
             overall_todo=todo,
-            internal_context=internal_context,
-            external_context=external_context,
+            task_description=task_description,
+            todos=todos,
+            deliverables=deliverables,
+            history=history,
+            current_todo_index=todo_index,
+            task_execution_summary=task_execution_summary,
             current_screenshot=screenshot_uuid,
         )
 
@@ -128,16 +193,15 @@ class Planner:
             upload_response = await client.put_s3_presigned_url(screenshot)
             result_screenshot_uuid = upload_response.uuid
 
-        # Format contexts using memory if provided
-        if memory and todo_index is not None:
-            internal_context = memory.format_internal_context(todo_index)
-            external_context = memory.format_external_context()
-            overall_todo = memory.todos[todo_index].description if memory.todos else ""
-        else:
-            # Fallback to basic formatting
-            internal_context = self._format_internal_context_from_dict(context)
-            external_context = self._format_external_context_from_dict(context)
-            overall_todo = context.get("current_todo", "")
+        # Extract memory data if provided
+        (
+            task_description,
+            todos,
+            deliverables,
+            history,
+            task_execution_summary,
+            overall_todo,
+        ) = self._extract_memory_data(memory, context, todo_index)
 
         # Convert actions to window_steps format
         window_steps = [
@@ -150,15 +214,19 @@ class Planner:
             for i, action in enumerate(actions[-10:])  # Last 10 actions
         ]
 
-        # Format prior notes from context
+        # Format prior notes from context (still needed as a simple string summary)
         prior_notes = self._format_execution_notes(context)
 
         # Call OAGI worker
         response = await client.call_worker(
             worker_id="oagi_follow",
             overall_todo=overall_todo,
-            internal_context=internal_context,
-            external_context=external_context,
+            task_description=task_description,
+            todos=todos,
+            deliverables=deliverables,
+            history=history,
+            current_todo_index=todo_index,
+            task_execution_summary=task_execution_summary,
             current_subtask_instruction=current_instruction or "",
             window_steps=window_steps,
             window_screenshots=[],  # Could be populated if we track screenshot history
@@ -190,25 +258,32 @@ class Planner:
         # Ensure we have a client
         client = self._ensure_client()
 
-        # Format contexts using memory if provided
+        # Extract memory data if provided
+        (
+            task_description,
+            todos,
+            deliverables,
+            history,
+            task_execution_summary,
+            overall_todo,
+        ) = self._extract_memory_data(memory, context, todo_index)
+
+        # Extract latest_todo_summary (specific to summarize method)
         if memory and todo_index is not None:
-            internal_context = memory.format_internal_context(todo_index)
-            external_context = memory.format_external_context()
-            overall_todo = memory.todos[todo_index].description if memory.todos else ""
             latest_todo_summary = memory.todo_execution_summaries.get(todo_index, "")
         else:
-            # Fallback to basic formatting
-            internal_context = self._format_internal_context_from_dict(context)
-            external_context = self._format_external_context_from_dict(context)
-            overall_todo = context.get("current_todo", "")
             latest_todo_summary = ""
 
         # Call OAGI worker
         response = await client.call_worker(
             worker_id="oagi_task_summary",
             overall_todo=overall_todo,
-            internal_context=internal_context,
-            external_context=external_context,
+            task_description=task_description,
+            todos=todos,
+            deliverables=deliverables,
+            history=history,
+            current_todo_index=todo_index,
+            task_execution_summary=task_execution_summary,
             latest_todo_summary=latest_todo_summary,
         )
 
@@ -218,55 +293,6 @@ class Planner:
             return result.get("task_summary", response.response)
         except json.JSONDecodeError:
             return response.response
-
-    def _format_internal_context_from_dict(self, context: dict[str, Any]) -> str:
-        """Format internal context from dictionary (fallback).
-
-        Args:
-            context: Context dictionary
-
-        Returns:
-            Markdown-formatted internal context
-        """
-        parts = ["## Current TODO"]
-
-        # Add current todo
-        if "current_todo" in context:
-            parts.append(f"Working on: {context['current_todo']}")
-
-        # Add todos with status
-        if "todos" in context:
-            parts.append("\n## All Todos")
-            for todo_item in context["todos"]:
-                parts.append(
-                    f"{todo_item['index']}. {todo_item['description']} ({todo_item['status']})"
-                )
-
-        return "\n".join(parts)
-
-    def _format_external_context_from_dict(self, context: dict[str, Any]) -> str | None:
-        """Format external context from dictionary (fallback).
-
-        Args:
-            context: Context dictionary
-
-        Returns:
-            Markdown-formatted external context or None
-        """
-        if not context.get("task_description"):
-            return None
-
-        parts = ["## Overall Context"]
-        parts.append(context["task_description"])
-
-        # Add deliverables
-        if "deliverables" in context:
-            parts.append("\n## Deliverables")
-            for deliverable in context["deliverables"]:
-                status = "✅" if deliverable["achieved"] else "❌"
-                parts.append(f"{status} {deliverable['description']}")
-
-        return "\n".join(parts)
 
     def _format_execution_notes(self, context: dict[str, Any]) -> str:
         """Format execution history notes.
@@ -290,172 +316,6 @@ class Planner:
                 parts.append(f"Summary: {hist['summary']}")
 
         return "\n".join(parts)
-
-    def _build_initial_plan_prompt(
-        self,
-        todo: str,
-        context: dict[str, Any],
-    ) -> str:
-        """Build prompt for initial planning.
-
-        Args:
-            todo: The todo to plan for
-            context: Full execution context
-
-        Returns:
-            Formatted prompt string
-        """
-        prompt_parts = [
-            "You are a task planning assistant. Your goal is to convert a high-level todo into a clear, actionable instruction.",
-            "",
-            f"Overall Task: {context.get('task_description', 'Not specified')}",
-            "",
-            "All Todos:",
-        ]
-
-        # Add todos with status
-        for todo_item in context.get("todos", []):
-            status_emoji = {
-                "pending": "⏳",
-                "in_progress": "🔄",
-                "completed": "✅",
-                "skipped": "⏭️",
-            }.get(todo_item["status"], "❓")
-            prompt_parts.append(
-                f"{status_emoji} [{todo_item['index']}] {todo_item['description']} ({todo_item['status']})"
-            )
-
-        prompt_parts.extend(
-            [
-                "",
-                f"Current Todo to Execute: {todo}",
-                "",
-                "Deliverables to achieve:",
-            ]
-        )
-
-        # Add deliverables
-        for deliverable in context.get("deliverables", []):
-            achieved_emoji = "✅" if deliverable["achieved"] else "❌"
-            prompt_parts.append(f"{achieved_emoji} {deliverable['description']}")
-
-        # Add execution history if exists
-        if context.get("history"):
-            prompt_parts.extend(["", "Previous Execution History:"])
-            for hist in context["history"]:
-                prompt_parts.append(
-                    f"- Todo {hist['todo_index']}: {hist['todo']} "
-                    f"({hist['action_count']} actions, completed: {hist['completed']})"
-                )
-                if hist.get("summary"):
-                    prompt_parts.append(f"  Summary: {hist['summary']}")
-
-        prompt_parts.extend(
-            [
-                "",
-                "Please provide:",
-                "1. A clear, specific instruction for executing this todo",
-                "2. Your reasoning for this approach",
-                "3. Any subtasks if the todo needs to be broken down (optional)",
-                "",
-                "Respond in JSON format:",
-                '{"instruction": "...", "reasoning": "...", "subtodos": [...]}',
-            ]
-        )
-
-        return "\n".join(prompt_parts)
-
-    def _build_reflection_prompt(
-        self,
-        actions: list[Action],
-        context: dict[str, Any],
-    ) -> str:
-        """Build prompt for reflection.
-
-        Args:
-            actions: Recent actions to reflect on
-            context: Full execution context
-
-        Returns:
-            Formatted prompt string
-        """
-        prompt_parts = [
-            "You are reflecting on the progress of a task execution.",
-            "",
-            f"Overall Task: {context.get('task_description', 'Not specified')}",
-            f"Current Todo: {context.get('current_todo', 'Not specified')}",
-            "",
-            f"Recent {len(actions)} actions:",
-        ]
-
-        # Add recent actions
-        for action in actions[-10:]:  # Show last 10 actions
-            prompt_parts.append(f"- {action.action_type}: {action.target or 'N/A'}")
-            if action.reasoning:
-                prompt_parts.append(f"  Reasoning: {action.reasoning}")
-
-        prompt_parts.extend(
-            [
-                "",
-                "Please assess:",
-                "1. Is the current approach working?",
-                "2. Should we continue with the current instruction or pivot?",
-                "3. If pivoting, what should the new instruction be?",
-                "4. Overall assessment of progress",
-                "",
-                "Respond in JSON format:",
-                '{"continue_current": true/false, "new_instruction": "..." or null, '
-                '"reasoning": "...", "success_assessment": true/false}',
-            ]
-        )
-
-        return "\n".join(prompt_parts)
-
-    def _build_summary_prompt(
-        self,
-        execution_history: list[Action],
-        context: dict[str, Any],
-    ) -> str:
-        """Build prompt for execution summary.
-
-        Args:
-            execution_history: Complete execution history
-            context: Full execution context
-
-        Returns:
-            Formatted prompt string
-        """
-        prompt_parts = [
-            "Please provide a concise summary of the task execution.",
-            "",
-            f"Task: {context.get('task_description', 'Not specified')}",
-            f"Todo: {context.get('current_todo', 'Not specified')}",
-            f"Total Actions: {len(execution_history)}",
-            "",
-            "Action Types Summary:",
-        ]
-
-        # Count action types
-        action_counts: dict[str, int] = {}
-        for action in execution_history:
-            action_counts[action.action_type] = (
-                action_counts.get(action.action_type, 0) + 1
-            )
-
-        for action_type, count in action_counts.items():
-            prompt_parts.append(f"- {action_type}: {count}")
-
-        prompt_parts.extend(
-            [
-                "",
-                "Please provide a 2-3 sentence summary describing:",
-                "1. What was accomplished",
-                "2. Key actions taken",
-                "3. Overall outcome",
-            ]
-        )
-
-        return "\n".join(prompt_parts)
 
     def _parse_planner_output(self, response: str) -> PlannerOutput:
         """Parse OAGI worker response into structured planner output.

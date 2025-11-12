@@ -118,40 +118,6 @@ class TestPlannerMemory:
         assert len(memory.deliverables) == 1
         assert memory.deliverables[0].description == "New deliverable"
 
-    def test_format_task_overview(self, populated_memory):
-        overview = populated_memory.format_task_overview()
-        assert "## Task Instruction" in overview
-        assert "Complete a test task" in overview
-        assert "## Deliverables" in overview
-        assert "Working system" in overview
-        assert "## Todos" in overview
-        assert "First todo (pending)" in overview
-
-    def test_format_execution_summary(self, populated_memory):
-        populated_memory.task_execution_summary = "Task is progressing well"
-        populated_memory.todo_execution_summaries[0] = "First todo completed"
-
-        summary = populated_memory.format_execution_summary(include_last_todo=False)
-        assert "Task is progressing well" in summary
-        assert "First todo completed" not in summary
-
-        summary = populated_memory.format_execution_summary(include_last_todo=True)
-        assert "Task is progressing well" in summary
-        assert "First todo completed" in summary
-
-    def test_format_internal_context(self, populated_memory):
-        context = populated_memory.format_internal_context(0)
-        assert "## Current Todo (pending)" in context
-        assert "First todo" in context
-        assert "## All Todos" in context
-        assert "→ 1. First todo" in context
-
-    def test_format_external_context(self, populated_memory):
-        context = populated_memory.format_external_context()
-        assert "## Overall Task" in context
-        assert "Complete a test task" in context
-        assert "## Deliverables" in context
-
     def test_get_context(self, populated_memory):
         context = populated_memory.get_context()
         assert context["task_description"] == "Complete a test task"

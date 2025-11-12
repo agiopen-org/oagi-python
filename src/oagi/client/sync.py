@@ -224,8 +224,12 @@ class SyncClient(BaseClient[httpx.Client]):
         self,
         worker_id: str,
         overall_todo: str,
-        internal_context: str,
-        external_context: str | None = None,
+        task_description: str,
+        todos: list[dict],
+        deliverables: list[dict],
+        history: list[dict] | None = None,
+        current_todo_index: int | None = None,
+        task_execution_summary: str | None = None,
         current_screenshot: str | None = None,
         current_subtask_instruction: str | None = None,
         window_steps: list[dict] | None = None,
@@ -240,8 +244,12 @@ class SyncClient(BaseClient[httpx.Client]):
         Args:
             worker_id: One of "oagi_first", "oagi_follow", "oagi_task_summary"
             overall_todo: Current todo description
-            internal_context: Current TODO and execution contexts (markdown)
-            external_context: Overall agent context (markdown or None)
+            task_description: Overall task description
+            todos: List of todo dicts with index, description, status, execution_summary
+            deliverables: List of deliverable dicts with description, achieved
+            history: List of history dicts with todo_index, todo_description, action_count, summary, completed
+            current_todo_index: Index of current todo being executed
+            task_execution_summary: Summary of overall task execution
             current_screenshot: Uploaded file UUID for screenshot (oagi_first)
             current_subtask_instruction: Subtask instruction (oagi_follow)
             window_steps: Action steps list (oagi_follow)
@@ -262,8 +270,12 @@ class SyncClient(BaseClient[httpx.Client]):
         payload, headers = self._prepare_worker_request(
             worker_id=worker_id,
             overall_todo=overall_todo,
-            internal_context=internal_context,
-            external_context=external_context,
+            task_description=task_description,
+            todos=todos,
+            deliverables=deliverables,
+            history=history,
+            current_todo_index=current_todo_index,
+            task_execution_summary=task_execution_summary,
             current_screenshot=current_screenshot,
             current_subtask_instruction=current_subtask_instruction,
             window_steps=window_steps,
