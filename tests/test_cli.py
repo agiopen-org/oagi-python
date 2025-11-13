@@ -122,8 +122,10 @@ class TestAgentRun:
             ),
             patch("oagi.cli.agent.check_optional_dependency"),
             patch("oagi.agent.default.AsyncDefaultAgent"),
-            patch("oagi.async_pyautogui_action_handler.AsyncPyautoguiActionHandler"),
-            patch("oagi.async_screenshot_maker.AsyncScreenshotMaker"),
+            patch(
+                "oagi.handler.async_pyautogui_action_handler.AsyncPyautoguiActionHandler"
+            ),
+            patch("oagi.handler.async_screenshot_maker.AsyncScreenshotMaker"),
             patch("asyncio.run", return_value=True),
         ):
             main()

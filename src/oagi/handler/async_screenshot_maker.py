@@ -8,8 +8,8 @@
 
 import asyncio
 
+from ..types import Image, ImageConfig
 from .screenshot_maker import ScreenshotMaker
-from .types import Image, ImageConfig
 
 
 class AsyncScreenshotMaker:

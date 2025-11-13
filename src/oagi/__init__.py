@@ -31,12 +31,12 @@ from oagi.types.models import ErrorDetail, ErrorResponse, LLMResponse
 # Lazy imports for pyautogui-dependent modules
 # These will only be imported when actually accessed
 _LAZY_IMPORTS = {
-    "AsyncPyautoguiActionHandler": "oagi.async_pyautogui_action_handler",
-    "AsyncScreenshotMaker": "oagi.async_screenshot_maker",
-    "PILImage": "oagi.pil_image",
-    "PyautoguiActionHandler": "oagi.pyautogui_action_handler",
-    "PyautoguiConfig": "oagi.pyautogui_action_handler",
-    "ScreenshotMaker": "oagi.screenshot_maker",
+    "AsyncPyautoguiActionHandler": "oagi.handler.async_pyautogui_action_handler",
+    "AsyncScreenshotMaker": "oagi.handler.async_screenshot_maker",
+    "PILImage": "oagi.handler.pil_image",
+    "PyautoguiActionHandler": "oagi.handler.pyautogui_action_handler",
+    "PyautoguiConfig": "oagi.handler.pyautogui_action_handler",
+    "ScreenshotMaker": "oagi.handler.screenshot_maker",
     # Agent modules (to avoid circular imports)
     "TaskerAgent": "oagi.agent.tasker",
     # Server modules (optional - requires server dependencies)

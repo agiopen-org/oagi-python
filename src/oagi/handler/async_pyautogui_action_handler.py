@@ -8,8 +8,8 @@
 
 import asyncio
 
+from ..types import Action
 from .pyautogui_action_handler import PyautoguiActionHandler, PyautoguiConfig
-from .types import Action
 
 
 class AsyncPyautoguiActionHandler:

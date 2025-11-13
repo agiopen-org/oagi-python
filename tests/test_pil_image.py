@@ -68,7 +68,7 @@ class TestPILImageBasics:
         config = ImageConfig(format="JPEG")
         pil_image = PILImage(mock_rgba_image, config)
 
-        with patch("oagi.pil_image.PILImageLib.new") as mock_new:
+        with patch("oagi.handler.pil_image.PILImageLib.new") as mock_new:
             mock_rgb_image = MagicMock()
             mock_new.return_value = mock_rgb_image
 
@@ -201,7 +201,7 @@ class TestPILImageTransform:
 
 
 class TestPILImageFactoryMethods:
-    @patch("oagi.pil_image.PILImageLib.open")
+    @patch("oagi.handler.pil_image.PILImageLib.open")
     def test_from_file(self, mock_open):
         mock_image = MagicMock()
         mock_open.return_value = mock_image
@@ -212,7 +212,7 @@ class TestPILImageFactoryMethods:
         assert isinstance(result, PILImage)
         assert result.image is mock_image
 
-    @patch("oagi.pil_image.PILImageLib.open")
+    @patch("oagi.handler.pil_image.PILImageLib.open")
     def test_from_bytes(self, mock_open):
         mock_image = MagicMock()
         mock_open.return_value = mock_image

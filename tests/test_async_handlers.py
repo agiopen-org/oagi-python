@@ -12,9 +12,9 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from oagi import ImageConfig, PyautoguiConfig
-from oagi.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
-from oagi.async_screenshot_maker import AsyncScreenshotMaker
-from oagi.pil_image import PILImage
+from oagi.handler.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
+from oagi.handler.async_screenshot_maker import AsyncScreenshotMaker
+from oagi.handler.pil_image import PILImage
 from oagi.types import Action, ActionType
 
 

@@ -11,8 +11,8 @@ import time
 
 from pydantic import BaseModel, Field
 
-from .exceptions import check_optional_dependency
-from .types import Action, ActionType
+from ..exceptions import check_optional_dependency
+from ..types import Action, ActionType
 
 check_optional_dependency("pyautogui", "PyautoguiActionHandler", "desktop")
 import pyautogui  # noqa: E402

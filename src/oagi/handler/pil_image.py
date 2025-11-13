@@ -8,8 +8,8 @@
 
 import io
 
-from .exceptions import check_optional_dependency
-from .types.models.image_config import ImageConfig
+from ..exceptions import check_optional_dependency
+from ..types.models.image_config import ImageConfig
 
 check_optional_dependency("PIL", "PILImage", "desktop")
 from PIL import Image as PILImageLib  # noqa: E402
