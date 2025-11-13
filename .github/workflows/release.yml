@@ -23,11 +23,8 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
       
-      - name: Build oagi-core package
-        run: uv build
-
-      - name: Build oagi metapackage
-        run: cd metapackage && uv build
+      - name: Build both packages
+        run: make build-all
 
       - name: Publish oagi-core to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

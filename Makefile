@@ -23,8 +23,14 @@ lint: .uv
 build: .uv
 	uv build
 
+.PHONY: sync-metapackage-files
+sync-metapackage-files:
+	@echo "Syncing README.md and LICENSE to metapackage..."
+	@cp README.md metapackage/README.md
+	@cp LICENSE metapackage/LICENSE
+
 .PHONY: build-metapackage
-build-metapackage: .uv
+build-metapackage: .uv sync-metapackage-files
 	cd metapackage && uv build
 
 .PHONY: build-all
@@ -49,12 +55,3 @@ version:
 	@sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' pyproject.toml
 	@sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' metapackage/pyproject.toml
 	@sed -i '' 's/oagi-core\[desktop,server\]==.*/oagi-core[desktop,server]==$(VERSION)",/' metapackage/pyproject.toml
-	@echo "✓ Updated root pyproject.toml"
-	@echo "✓ Updated metapackage/pyproject.toml"
-	@echo "✓ Updated metapackage dependency to oagi-core==$(VERSION)"
-	@echo ""
-	@echo "Don't forget to:"
-	@echo "  1. git add pyproject.toml metapackage/pyproject.toml"
-	@echo "  2. git commit -m 'release: $(VERSION)'"
-	@echo "  3. git tag v$(VERSION)"
-	@echo "  4. git push && git push --tags"
