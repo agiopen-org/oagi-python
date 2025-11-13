@@ -17,6 +17,7 @@ requires-python = ">= 3.10"
 dependencies = [
     "httpx>=0.28.0",
     "pydantic>=2.0.0",
+    "rich>=13.0.0",
 ]
 
 [project.urls]

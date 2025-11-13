@@ -419,6 +419,7 @@ source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
+    { name = "rich" },
 ]
 
 [package.optional-dependencies]
@@ -450,6 +451,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", marker = "extra == 'server'", specifier = ">=2.0.0" },
     { name = "python-socketio", marker = "extra == 'server'", specifier = ">=5.11.0" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'server'", specifier = ">=0.32.0" },
 ]
 provides-extras = ["desktop", "server"]
