@@ -12,6 +12,7 @@ from .. import AsyncActor
 from ..types import (
     AsyncActionHandler,
     AsyncImageProvider,
+    AsyncStepObserver,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,12 +28,14 @@ class AsyncDefaultAgent:
         model: str = "lux-v1",
         max_steps: int = 30,
         temperature: float | None = None,
+        step_observer: AsyncStepObserver | None = None,
     ):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
         self.max_steps = max_steps
         self.temperature = temperature
+        self.step_observer = step_observer
 
     async def execute(
         self,
@@ -58,6 +61,10 @@ class AsyncDefaultAgent:
                 # Log reasoning
                 if step.reason:
                     logger.debug(f"Step {i + 1} reasoning: {step.reason}")
+
+                # Notify observer if present
+                if self.step_observer and step.actions:
+                    await self.step_observer.on_step(i + 1, step.reason, step.actions)
 
                 # Execute actions if any
                 if step.actions:

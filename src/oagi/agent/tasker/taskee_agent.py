@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from oagi import AsyncActor
-from oagi.types import AsyncActionHandler, AsyncImageProvider
+from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncStepObserver
 
 from ..protocol import AsyncAgent
 from .memory import PlannerMemory
@@ -42,6 +42,7 @@ class TaskeeAgent(AsyncAgent):
         planner: Planner | None = None,
         external_memory: PlannerMemory | None = None,
         todo_index: int | None = None,
+        step_observer: AsyncStepObserver | None = None,
     ):
         """Initialize the taskee agent.
 
@@ -55,6 +56,7 @@ class TaskeeAgent(AsyncAgent):
             planner: Planner for planning and reflection
             external_memory: External memory from parent agent
             todo_index: Index of the todo being executed
+            step_observer: Optional observer for step tracking
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -65,6 +67,7 @@ class TaskeeAgent(AsyncAgent):
         self.planner = planner or Planner()
         self.external_memory = external_memory
         self.todo_index = todo_index
+        self.step_observer = step_observer
 
         # Internal state
         self.actor: AsyncActor | None = None
@@ -235,6 +238,12 @@ class TaskeeAgent(AsyncAgent):
                             action_type=action.type.lower(),
                             target=action.argument,
                             reasoning=step.reason,
+                        )
+
+                    # Notify observer if present
+                    if self.step_observer:
+                        await self.step_observer.on_step(
+                            self.total_actions + 1, step.reason, step.actions
                         )
 
                     # Execute actions
