@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from oagi import AsyncTask
+from oagi import AsyncActor
 from oagi.types import AsyncActionHandler, AsyncImageProvider
 
 from ..protocol import AsyncAgent
@@ -67,7 +67,7 @@ class TaskeeAgent(AsyncAgent):
         self.todo_index = todo_index
 
         # Internal state
-        self.task: AsyncTask | None = None
+        self.actor: AsyncActor | None = None
         self.current_todo: str = ""
         self.current_instruction: str = ""
         self.actions: list[Action] = []
@@ -135,10 +135,10 @@ class TaskeeAgent(AsyncAgent):
             )
             return False
         finally:
-            # Clean up task
-            if self.task:
-                await self.task.close()
-                self.task = None
+            # Clean up actor
+            if self.actor:
+                await self.actor.close()
+                self.actor = None
 
     async def _initial_plan(self, image_provider: AsyncImageProvider) -> None:
         """Generate initial plan for the todo.
@@ -199,17 +199,17 @@ class TaskeeAgent(AsyncAgent):
         logger.info(f"Executing subtask with max {max_steps} steps")
 
         # Use async with for automatic resource management
-        async with AsyncTask(
+        async with AsyncActor(
             api_key=self.api_key,
             base_url=self.base_url,
             model=self.model,
             temperature=self.temperature,
-        ) as task:
+        ) as actor:
             # Store reference for potential cleanup in execute's finally block
-            self.task = task
+            self.actor = actor
 
-            # Initialize task with current instruction
-            await task.init_task(self.current_instruction)
+            # Initialize actor with current instruction
+            await actor.init_task(self.current_instruction)
 
             steps_taken = 0
             for step_num in range(max_steps):
@@ -218,7 +218,7 @@ class TaskeeAgent(AsyncAgent):
 
                 # Get next step from OAGI
                 try:
-                    step = await task.step(screenshot, instruction=None)
+                    step = await actor.step(screenshot, instruction=None)
                 except Exception as e:
                     logger.error(f"Error getting step from OAGI: {e}")
                     self._record_action(
@@ -255,9 +255,9 @@ class TaskeeAgent(AsyncAgent):
                     logger.info("Reflection interval reached")
                     break
 
-            # Task will be automatically closed by async with context manager
+            # Actor will be automatically closed by async with context manager
             # Clear reference after context manager closes it
-            self.task = None
+            self.actor = None
             return steps_taken
 
     async def _reflect_and_decide(self, image_provider: AsyncImageProvider) -> bool:

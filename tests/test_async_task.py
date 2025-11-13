@@ -11,19 +11,19 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 import pytest_asyncio
 
-from oagi.task import AsyncShortTask, AsyncTask
+from oagi.task import AsyncActor, AsyncShortTask
 from oagi.types import Action, ActionType, Step
 
 
 @pytest_asyncio.fixture
-async def async_task(api_env):
-    task = AsyncTask(
+async def async_actor(api_env):
+    actor = AsyncActor(
         base_url=api_env["base_url"],
         api_key=api_env["api_key"],
         model="vision-model-v1",
     )
-    yield task
-    await task.close()
+    yield actor
+    await actor.close()
 
 
 @pytest.fixture
@@ -35,32 +35,32 @@ def mock_llm_response():
     return response
 
 
-class TestAsyncTaskInitialization:
+class TestAsyncActorInitialization:
     @pytest.mark.asyncio
-    async def test_init_task(self, async_task, mock_llm_response):
+    async def test_init_task(self, async_actor, mock_llm_response):
         # V2 API: init_task doesn't make API call, just sets description
-        original_task_id = async_task.task_id
+        original_task_id = async_actor.task_id
 
-        await async_task.init_task("Test task description")
+        await async_actor.init_task("Test task description")
 
-        assert async_task.task_description == "Test task description"
+        assert async_actor.task_description == "Test task description"
         # V2 API: task_id doesn't change
-        assert async_task.task_id == original_task_id
+        assert async_actor.task_id == original_task_id
 
 
-class TestAsyncTaskStep:
+class TestAsyncActorStep:
     @pytest.mark.asyncio
-    async def test_step_with_bytes(self, async_task, mock_llm_response):
-        async_task.task_description = "Test task"
-        async_task.task_id = "task-123"
+    async def test_step_with_bytes(self, async_actor, mock_llm_response):
+        async_actor.task_description = "Test task"
+        async_actor.task_id = "task-123"
 
         with patch.object(
-            async_task.client, "create_message", new_callable=AsyncMock
+            async_actor.client, "create_message", new_callable=AsyncMock
         ) as mock_create:
             mock_create.return_value = mock_llm_response
 
             screenshot_bytes = b"test-image-data"
-            result = await async_task.step(screenshot_bytes)
+            result = await async_actor.step(screenshot_bytes)
 
             assert isinstance(result, Step)
             assert result.reason == "Test reason"
@@ -68,30 +68,30 @@ class TestAsyncTaskStep:
             assert result.stop is False
 
     @pytest.mark.asyncio
-    async def test_step_without_init(self, async_task):
+    async def test_step_without_init(self, async_actor):
         with pytest.raises(ValueError) as exc_info:
-            await async_task.step(b"test-image")
+            await async_actor.step(b"test-image")
         assert "Call init_task() first" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_step_with_instruction(self, async_task, mock_llm_response):
-        async_task.task_description = "Test task"
-        async_task.task_id = "task-123"
+    async def test_step_with_instruction(self, async_actor, mock_llm_response):
+        async_actor.task_description = "Test task"
+        async_actor.task_id = "task-123"
 
         with patch.object(
-            async_task.client, "create_message", new_callable=AsyncMock
+            async_actor.client, "create_message", new_callable=AsyncMock
         ) as mock_create:
             mock_create.return_value = mock_llm_response
 
-            await async_task.step(b"test-image", instruction="Click the button")
+            await async_actor.step(b"test-image", instruction="Click the button")
 
             # Verify instruction was passed
             call_kwargs = mock_create.call_args.kwargs
             assert call_kwargs["instruction"] == "Click the button"
 
     @pytest.mark.asyncio
-    async def test_step_task_complete(self, async_task):
-        async_task.task_description = "Test task"
+    async def test_step_task_complete(self, async_actor):
+        async_actor.task_description = "Test task"
 
         complete_response = Mock()
         complete_response.task_id = "task-123"
@@ -100,27 +100,27 @@ class TestAsyncTaskStep:
         complete_response.is_complete = True
 
         with patch.object(
-            async_task.client, "create_message", new_callable=AsyncMock
+            async_actor.client, "create_message", new_callable=AsyncMock
         ) as mock_create:
             mock_create.return_value = complete_response
 
-            result = await async_task.step(b"test-image")
+            result = await async_actor.step(b"test-image")
 
             assert result.stop is True
             assert result.reason == "Task completed"
 
 
-class TestAsyncTaskContextManager:
+class TestAsyncActorContextManager:
     @pytest.mark.asyncio
     async def test_context_manager(self, api_env):
-        async with AsyncTask(
+        async with AsyncActor(
             base_url=api_env["base_url"], api_key=api_env["api_key"]
-        ) as task:
+        ) as actor:
             # V2 API: task_id is generated as UUID on init
-            assert task.task_id is not None
-            assert isinstance(task.task_id, str)
-            assert len(task.task_id) == 32  # UUID hex without dashes
-            assert task.task_description is None
+            assert actor.task_id is not None
+            assert isinstance(actor.task_id, str)
+            assert len(actor.task_id) == 32  # UUID hex without dashes
+            assert actor.task_description is None
 
 
 class TestAsyncShortTask:
@@ -207,33 +207,33 @@ class TestAsyncShortTask:
         await task.close()
 
 
-class TestAsyncTaskTemperature:
+class TestAsyncActorTemperature:
     @pytest.mark.asyncio
     async def test_async_task_temperature_fallback(self, api_env, mock_llm_response):
-        """Test that temperature fallback works: step temp -> task temp -> None."""
-        task = AsyncTask(
+        """Test that temperature fallback works: step temp -> actor temp -> None."""
+        actor = AsyncActor(
             api_key=api_env["api_key"],
             base_url=api_env["base_url"],
             temperature=0.5,
         )
-        task.task_description = "Test task"
+        actor.task_description = "Test task"
 
         with patch.object(
-            task.client, "create_message", new_callable=AsyncMock
+            actor.client, "create_message", new_callable=AsyncMock
         ) as mock_create:
             mock_create.return_value = mock_llm_response
 
             # Step with override temperature
-            await task.step(b"screenshot_data", temperature=0.8)
+            await actor.step(b"screenshot_data", temperature=0.8)
 
             # Verify step temperature (0.8) is used
             call_args = mock_create.call_args
             assert call_args[1]["temperature"] == 0.8
 
-            # Step without temperature - should use task default (0.5)
-            await task.step(b"screenshot_data2")
+            # Step without temperature - should use actor default (0.5)
+            await actor.step(b"screenshot_data2")
 
             call_args = mock_create.call_args
             assert call_args[1]["temperature"] == 0.5
 
-        await task.close()
+        await actor.close()

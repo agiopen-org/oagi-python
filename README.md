@@ -35,22 +35,6 @@ export OAGI_API_KEY="your-api-key"
 export OAGI_BASE_URL="https://api.oagi.com"  # or your server URL
 ```
 
-### Single-Step Analysis
-
-Analyze a screenshot and get recommended actions:
-
-```python
-from oagi import single_step
-
-step = single_step(
-    task_description="Click the submit button",
-    screenshot="screenshot.png"  # or bytes, or Image object
-)
-
-print(f"Actions: {step.actions}")
-print(f"Complete: {step.is_complete}")
-```
-
 ### Automated Task Execution
 
 Run tasks automatically with screenshot capture and action execution:
@@ -102,9 +86,6 @@ config = ImageConfig(
     height=700
 )
 compressed = image.transform(config)
-
-# Use with single_step
-step = single_step("Click button", screenshot=compressed)
 ```
 
 ### Async Support
@@ -113,16 +94,9 @@ Use async client for non-blocking operations and better concurrency:
 
 ```python
 import asyncio
-from oagi import async_single_step, AsyncShortTask
+from oagi import AsyncShortTask
 
 async def main():
-    # Single-step async analysis
-    step = await async_single_step(
-        "Find the search bar",
-        screenshot="screenshot.png"
-    )
-    print(f"Found {len(step.actions)} actions")
-    
     # Async task automation
     task = AsyncShortTask()
     async with task:
@@ -136,7 +110,6 @@ asyncio.run(main())
 
 See the [`examples/`](examples/) directory for more usage patterns:
 - `google_weather.py` - Basic task execution with `ShortTask`
-- `single_step.py` - Basic single-step inference
 - `screenshot_with_config.py` - Image compression and optimization
 - `execute_task_auto.py` - Automated task execution
 - `socketio_server_basic.py` - Socket.IO server example

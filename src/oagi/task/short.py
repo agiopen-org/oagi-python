@@ -6,16 +6,22 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import warnings
+
 from ..logging import get_logger
 from ..types import ActionHandler, ImageProvider
 from .base import BaseAutoMode
-from .sync import Task
+from .sync import Actor
 
 logger = get_logger("short_task")
 
 
-class ShortTask(Task, BaseAutoMode):
-    """Task implementation with automatic mode for short-duration tasks."""
+class ShortTask(Actor, BaseAutoMode):
+    """Deprecated: This class is deprecated and will be removed in a future version.
+
+    Task implementation with automatic mode for short-duration tasks.
+    Please use Actor directly with custom automation logic instead.
+    """
 
     def __init__(
         self,
@@ -24,6 +30,12 @@ class ShortTask(Task, BaseAutoMode):
         model: str = "vision-model-v1",
         temperature: float | None = None,
     ):
+        warnings.warn(
+            "ShortTask is deprecated and will be removed in a future version. "
+            "Please use Actor with custom automation logic instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             api_key=api_key, base_url=base_url, model=model, temperature=temperature
         )

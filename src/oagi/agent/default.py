@@ -8,7 +8,7 @@
 
 import logging
 
-from .. import AsyncTask
+from .. import AsyncActor
 from ..types import (
     AsyncActionHandler,
     AsyncImageProvider,
@@ -40,11 +40,11 @@ class AsyncDefaultAgent:
         action_handler: AsyncActionHandler,
         image_provider: AsyncImageProvider,
     ) -> bool:
-        async with AsyncTask(
+        async with AsyncActor(
             api_key=self.api_key, base_url=self.base_url, model=self.model
-        ) as self.task:
+        ) as self.actor:
             logger.info(f"Starting async task execution: {instruction}")
-            await self.task.init_task(instruction, max_steps=self.max_steps)
+            await self.actor.init_task(instruction, max_steps=self.max_steps)
 
             for i in range(self.max_steps):
                 logger.debug(f"Executing step {i + 1}/{self.max_steps}")
@@ -53,7 +53,7 @@ class AsyncDefaultAgent:
                 image = await image_provider()
 
                 # Get next step from OAGI
-                step = await self.task.step(image, temperature=self.temperature)
+                step = await self.actor.step(image, temperature=self.temperature)
 
                 # Log reasoning
                 if step.reason:

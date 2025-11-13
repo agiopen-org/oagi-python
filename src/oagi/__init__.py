@@ -7,7 +7,6 @@
 # -----------------------------------------------------------------------------
 import importlib
 
-from oagi.async_single_step import async_single_step
 from oagi.client import AsyncClient, SyncClient
 from oagi.exceptions import (
     APIError,
@@ -21,8 +20,7 @@ from oagi.exceptions import (
     ServerError,
     ValidationError,
 )
-from oagi.single_step import single_step
-from oagi.task import AsyncShortTask, AsyncTask, ShortTask, Task
+from oagi.task import Actor, AsyncActor, AsyncShortTask, AsyncTask, ShortTask, Task
 from oagi.types import (
     AsyncActionHandler,
     AsyncImageProvider,
@@ -59,18 +57,17 @@ def __getattr__(name: str):
 
 __all__ = [
     # Core sync classes
-    "Task",
-    "ShortTask",
+    "Actor",
+    "AsyncActor",
+    "Task",  # Deprecated: Use Actor instead
+    "ShortTask",  # Deprecated
     "SyncClient",
     # Core async classes
-    "AsyncTask",
-    "AsyncShortTask",
+    "AsyncTask",  # Deprecated: Use AsyncActor instead
+    "AsyncShortTask",  # Deprecated
     "AsyncClient",
     # Agent classes
     "TaskerAgent",
-    # Functions
-    "single_step",
-    "async_single_step",
     # Async protocols
     "AsyncActionHandler",
     "AsyncImageProvider",
