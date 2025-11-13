@@ -60,7 +60,7 @@ class AsyncDefaultAgent:
 
                 # Log reasoning
                 if step.reason:
-                    logger.debug(f"Step {i + 1} reasoning: {step.reason}")
+                    logger.info(f"Step {i + 1}: {step.reason}")
 
                 # Notify observer if present
                 if self.step_observer and step.actions:
@@ -68,7 +68,16 @@ class AsyncDefaultAgent:
 
                 # Execute actions if any
                 if step.actions:
-                    logger.debug(f"Executing {len(step.actions)} actions")
+                    logger.info(f"Actions ({len(step.actions)}):")
+                    for action in step.actions:
+                        count_suffix = (
+                            f" x{action.count}"
+                            if action.count and action.count > 1
+                            else ""
+                        )
+                        logger.info(
+                            f"  [{action.type.value}] {action.argument}{count_suffix}"
+                        )
                     await action_handler(step.actions)
 
                 # Check if task is complete

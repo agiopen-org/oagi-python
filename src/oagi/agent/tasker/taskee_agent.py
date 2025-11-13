@@ -231,8 +231,24 @@ class TaskeeAgent(AsyncAgent):
                     )
                     break
 
+                # Log reasoning
+                if step.reason:
+                    logger.info(f"Step {self.total_actions + 1}: {step.reason}")
+
                 # Record OAGI actions
                 if step.actions:
+                    # Log actions with details
+                    logger.info(f"Actions ({len(step.actions)}):")
+                    for action in step.actions:
+                        count_suffix = (
+                            f" x{action.count}"
+                            if action.count and action.count > 1
+                            else ""
+                        )
+                        logger.info(
+                            f"  [{action.type.value}] {action.argument}{count_suffix}"
+                        )
+
                     for action in step.actions:
                         self._record_action(
                             action_type=action.type.lower(),
