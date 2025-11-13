@@ -73,8 +73,10 @@ class TestActorInitTask:
         actor.init_task("Test task description", max_steps=10)
 
         assert actor.task_description == "Test task description"
-        # V2 API: task_id doesn't change after init_task
-        assert actor.task_id == original_task_id
+        # V2 API: task_id is regenerated on init_task to create a fresh task
+        assert actor.task_id != original_task_id
+        assert isinstance(actor.task_id, str)
+        assert len(actor.task_id) == 32  # UUID hex without dashes
 
         # V2 API: No API call in init_task
         actor.client.create_message.assert_not_called()
@@ -226,7 +228,7 @@ class TestActorIntegrationScenarios:
         """Test a complete workflow from init to completion."""
         # Initialize task - V2 doesn't make API call
         actor.init_task("Complete workflow test")
-        original_task_id = actor.task_id
+        task_id_after_init = actor.task_id
 
         assert actor.task_description == "Complete workflow test"
 
@@ -235,15 +237,15 @@ class TestActorIntegrationScenarios:
         step1 = actor.step(b"screenshot1")
         assert not step1.stop
         assert len(step1.actions) == 2
-        # V2: task_id stays the same
-        assert actor.task_id == original_task_id
+        # V2: task_id stays the same across steps (doesn't change unless init_task called again)
+        assert actor.task_id == task_id_after_init
 
         # Second step - completed
         actor.client.create_message.return_value = completed_llm_response
         step2 = actor.step(b"screenshot2")
         assert step2.stop
         assert len(step2.actions) == 0
-        assert actor.task_id == original_task_id
+        assert actor.task_id == task_id_after_init
 
     def test_task_id_persistence_across_steps(self, actor, sample_llm_response):
         """Test that task_id is maintained across multiple steps (V2 uses UUID)."""

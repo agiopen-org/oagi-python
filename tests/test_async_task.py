@@ -44,8 +44,10 @@ class TestAsyncActorInitialization:
         await async_actor.init_task("Test task description")
 
         assert async_actor.task_description == "Test task description"
-        # V2 API: task_id doesn't change
-        assert async_actor.task_id == original_task_id
+        # V2 API: task_id is regenerated on init_task to create a fresh task
+        assert async_actor.task_id != original_task_id
+        assert isinstance(async_actor.task_id, str)
+        assert len(async_actor.task_id) == 32  # UUID hex without dashes
 
 
 class TestAsyncActorStep:
