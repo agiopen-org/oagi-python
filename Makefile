@@ -55,3 +55,4 @@ version:
 	@sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' pyproject.toml
 	@sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' metapackage/pyproject.toml
 	@sed -i '' 's/oagi-core\[desktop,server\]==.*/oagi-core[desktop,server]==$(VERSION)",/' metapackage/pyproject.toml
+	make build-all
