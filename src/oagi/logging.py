@@ -44,4 +44,12 @@ def get_logger(name: str) -> logging.Logger:
     # Always update level in case environment variable changed
     oagi_root.setLevel(level)
 
+    # Suppress verbose httpx logs unless DEBUG level is enabled
+    # httpx logs every HTTP request at INFO level by default
+    httpx_logger = logging.getLogger("httpx")
+    if level == logging.DEBUG:
+        httpx_logger.setLevel(logging.DEBUG)
+    else:
+        httpx_logger.setLevel(logging.WARNING)
+
     return logger

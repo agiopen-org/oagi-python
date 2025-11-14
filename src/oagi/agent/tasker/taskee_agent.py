@@ -10,8 +10,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from oagi import AsyncTask
-from oagi.types import AsyncActionHandler, AsyncImageProvider
+from oagi import AsyncActor
+from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncStepObserver
 
 from ..protocol import AsyncAgent
 from .memory import PlannerMemory
@@ -35,13 +35,14 @@ class TaskeeAgent(AsyncAgent):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-v1",
-        max_steps_per_subtask: int = 10,
-        reflection_interval: int = 20,
-        temperature: float = 0.0,
+        model: str = "lux-actor-1",
+        max_steps_per_subtask: int = 20,
+        reflection_interval: int = 4,
+        temperature: float = 0.5,
         planner: Planner | None = None,
         external_memory: PlannerMemory | None = None,
         todo_index: int | None = None,
+        step_observer: AsyncStepObserver | None = None,
     ):
         """Initialize the taskee agent.
 
@@ -55,6 +56,7 @@ class TaskeeAgent(AsyncAgent):
             planner: Planner for planning and reflection
             external_memory: External memory from parent agent
             todo_index: Index of the todo being executed
+            step_observer: Optional observer for step tracking
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -65,9 +67,10 @@ class TaskeeAgent(AsyncAgent):
         self.planner = planner or Planner()
         self.external_memory = external_memory
         self.todo_index = todo_index
+        self.step_observer = step_observer
 
         # Internal state
-        self.task: AsyncTask | None = None
+        self.actor: AsyncActor | None = None
         self.current_todo: str = ""
         self.current_instruction: str = ""
         self.actions: list[Action] = []
@@ -135,10 +138,10 @@ class TaskeeAgent(AsyncAgent):
             )
             return False
         finally:
-            # Clean up task
-            if self.task:
-                await self.task.close()
-                self.task = None
+            # Clean up actor
+            if self.actor:
+                await self.actor.close()
+                self.actor = None
 
     async def _initial_plan(self, image_provider: AsyncImageProvider) -> None:
         """Generate initial plan for the todo.
@@ -199,17 +202,17 @@ class TaskeeAgent(AsyncAgent):
         logger.info(f"Executing subtask with max {max_steps} steps")
 
         # Use async with for automatic resource management
-        async with AsyncTask(
+        async with AsyncActor(
             api_key=self.api_key,
             base_url=self.base_url,
             model=self.model,
             temperature=self.temperature,
-        ) as task:
+        ) as actor:
             # Store reference for potential cleanup in execute's finally block
-            self.task = task
+            self.actor = actor
 
-            # Initialize task with current instruction
-            await task.init_task(self.current_instruction)
+            # Initialize actor with current instruction
+            await actor.init_task(self.current_instruction)
 
             steps_taken = 0
             for step_num in range(max_steps):
@@ -218,7 +221,7 @@ class TaskeeAgent(AsyncAgent):
 
                 # Get next step from OAGI
                 try:
-                    step = await task.step(screenshot, instruction=None)
+                    step = await actor.step(screenshot, instruction=None)
                 except Exception as e:
                     logger.error(f"Error getting step from OAGI: {e}")
                     self._record_action(
@@ -228,13 +231,35 @@ class TaskeeAgent(AsyncAgent):
                     )
                     break
 
+                # Log reasoning
+                if step.reason:
+                    logger.info(f"Step {self.total_actions + 1}: {step.reason}")
+
                 # Record OAGI actions
                 if step.actions:
+                    # Log actions with details
+                    logger.info(f"Actions ({len(step.actions)}):")
+                    for action in step.actions:
+                        count_suffix = (
+                            f" x{action.count}"
+                            if action.count and action.count > 1
+                            else ""
+                        )
+                        logger.info(
+                            f"  [{action.type.value}] {action.argument}{count_suffix}"
+                        )
+
                     for action in step.actions:
                         self._record_action(
                             action_type=action.type.lower(),
                             target=action.argument,
                             reasoning=step.reason,
+                        )
+
+                    # Notify observer if present
+                    if self.step_observer:
+                        await self.step_observer.on_step(
+                            self.total_actions + 1, step.reason, step.actions
                         )
 
                     # Execute actions
@@ -255,9 +280,9 @@ class TaskeeAgent(AsyncAgent):
                     logger.info("Reflection interval reached")
                     break
 
-            # Task will be automatically closed by async with context manager
+            # Actor will be automatically closed by async with context manager
             # Clear reference after context manager closes it
-            self.task = None
+            self.actor = None
             return steps_taken
 
     async def _reflect_and_decide(self, image_provider: AsyncImageProvider) -> bool:

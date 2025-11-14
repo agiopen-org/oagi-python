@@ -45,7 +45,9 @@ class BaseTask:
             task_desc: Task description
             max_steps: Maximum number of steps
         """
+        self.task_id = uuid4().hex
         self.task_description = task_desc
+        self.message_history = []
         logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
 
     def _validate_step_preconditions(self):

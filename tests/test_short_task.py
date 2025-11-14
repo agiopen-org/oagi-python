@@ -21,7 +21,7 @@ def short_task(mock_sync_client):
 class TestShortTaskInit:
     def test_init_with_default_model(self, mock_sync_client):
         task = ShortTask(api_key="test-key", base_url="https://test.example.com")
-        assert task.model == "vision-model-v1"
+        assert task.model == "lux-actor-1"
 
     def test_init_with_custom_model(self, mock_sync_client):
         task = ShortTask(

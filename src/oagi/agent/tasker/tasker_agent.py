@@ -9,7 +9,7 @@
 import logging
 from typing import Any
 
-from oagi.types import AsyncActionHandler, AsyncImageProvider
+from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncStepObserver
 
 from ..protocol import AsyncAgent
 from .memory import PlannerMemory
@@ -34,11 +34,12 @@ class TaskerAgent(AsyncAgent):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-v1",
-        max_steps: int = 30,
-        temperature: float = 0.0,
-        reflection_interval: int = 20,
+        model: str = "lux-actor-1",
+        max_steps: int = 60,
+        temperature: float = 0.5,
+        reflection_interval: int = 4,
         planner: Planner | None = None,
+        step_observer: AsyncStepObserver | None = None,
     ):
         """Initialize the tasker agent.
 
@@ -50,6 +51,7 @@ class TaskerAgent(AsyncAgent):
             temperature: Sampling temperature
             reflection_interval: Actions before reflection
             planner: Planner for planning and reflection
+            step_observer: Optional observer for step tracking
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -58,6 +60,7 @@ class TaskerAgent(AsyncAgent):
         self.temperature = temperature
         self.reflection_interval = reflection_interval
         self.planner = planner or Planner()
+        self.step_observer = step_observer
 
         # Memory for tracking workflow
         self.memory = PlannerMemory()
@@ -168,12 +171,13 @@ class TaskerAgent(AsyncAgent):
             api_key=self.api_key,
             base_url=self.base_url,
             model=self.model,
-            max_steps_per_subtask=10,  # Smaller steps per subtask
+            max_steps_per_subtask=20,  # Smaller steps per subtask
             reflection_interval=self.reflection_interval,
             temperature=self.temperature,
             planner=self.planner,
             external_memory=self.memory,  # Share memory with child
             todo_index=todo_index,  # Pass the todo index
+            step_observer=self.step_observer,  # Pass step observer
         )
 
         self.current_todo_index = todo_index

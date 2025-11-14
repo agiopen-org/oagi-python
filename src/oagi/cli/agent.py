@@ -10,8 +10,13 @@ import argparse
 import asyncio
 import os
 import sys
+import time
+import traceback
 
 from oagi.exceptions import check_optional_dependency
+
+from .display import display_step_table
+from .tracking import StepTracker
 
 
 def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -25,12 +30,14 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
     run_parser.add_argument(
         "instruction", type=str, help="Task instruction for the agent to execute"
     )
-    run_parser.add_argument("--model", type=str, help="Model to use (default: lux-v1)")
     run_parser.add_argument(
-        "--max-steps", type=int, help="Maximum number of steps (default: 30)"
+        "--model", type=str, help="Model to use (default: lux-actor-1)"
     )
     run_parser.add_argument(
-        "--temperature", type=float, help="Sampling temperature (default: 0.0)"
+        "--max-steps", type=int, help="Maximum number of steps (default: 20)"
+    )
+    run_parser.add_argument(
+        "--temperature", type=float, help="Sampling temperature (default: 0.5)"
     )
     run_parser.add_argument(
         "--mode",
@@ -74,12 +81,15 @@ def run_agent(args: argparse.Namespace) -> None:
     base_url = args.oagi_base_url or os.getenv(
         "OAGI_BASE_URL", "https://api.agiopen.org"
     )
-    model = args.model or "lux-v1"
-    max_steps = args.max_steps or 30
-    temperature = args.temperature if args.temperature is not None else 0.0
+    model = args.model or "lux-actor-1"
+    max_steps = args.max_steps or 20
+    temperature = args.temperature if args.temperature is not None else 0.5
     mode = args.mode or "actor"
 
-    # Create agent
+    # Create step tracker
+    step_tracker = StepTracker()
+
+    # Create agent with step tracker
     agent = create_agent(
         mode=mode,
         api_key=api_key,
@@ -87,6 +97,7 @@ def run_agent(args: argparse.Namespace) -> None:
         model=model,
         max_steps=max_steps,
         temperature=temperature,
+        step_observer=step_tracker,
     )
 
     # Create handlers
@@ -99,7 +110,10 @@ def run_agent(args: argparse.Namespace) -> None:
     )
     print("-" * 60)
 
-    # Run agent
+    start_time = time.time()
+    success = False
+    interrupted = False
+
     try:
         success = asyncio.run(
             agent.execute(
@@ -108,18 +122,22 @@ def run_agent(args: argparse.Namespace) -> None:
                 image_provider=image_provider,
             )
         )
-
-        print("-" * 60)
-        if success:
-            print("Task completed successfully!")
-            sys.exit(0)
-        else:
-            print("Task failed or reached max steps without completion.")
-            sys.exit(1)
-
     except KeyboardInterrupt:
-        print("\nAgent execution interrupted.")
-        sys.exit(130)
+        print("\nAgent execution interrupted by user (Ctrl+C)")
+        interrupted = True
     except Exception as e:
-        print(f"Error during agent execution: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"\nError during agent execution: {e}", file=sys.stderr)
+        traceback.print_exc()
+    finally:
+        duration = time.time() - start_time
+
+        if step_tracker.steps:
+            print("\n" + "=" * 60)
+            display_step_table(step_tracker.steps, success, duration)
+        else:
+            print("\nNo steps were executed.")
+
+        if interrupted:
+            sys.exit(130)
+        elif not success:
+            sys.exit(1)

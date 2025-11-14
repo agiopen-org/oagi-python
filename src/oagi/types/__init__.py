@@ -12,6 +12,7 @@ from .async_image_provider import AsyncImageProvider
 from .image import Image
 from .image_provider import ImageProvider
 from .models import Action, ActionType, ImageConfig, Step
+from .step_observer import AsyncStepObserver
 from .url_image import URLImage
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "AsyncActionHandler",
     "ImageProvider",
     "AsyncImageProvider",
+    "AsyncStepObserver",
     "URLImage",
 ]

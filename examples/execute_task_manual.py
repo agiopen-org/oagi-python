@@ -7,20 +7,20 @@
 # -----------------------------------------------------------------------------
 
 from oagi import (
+    Actor,
+    AsyncActor,
     AsyncPyautoguiActionHandler,
     AsyncScreenshotMaker,
-    AsyncTask,
     PyautoguiActionHandler,
     ScreenshotMaker,
-    Task,
 )
 
 
 def execute_task_manual(task_desc, max_steps=5):
     # set OAGI_API_KEY and OAGI_BASE_URL
-    # or ShortTask(api_key="your_api_key", base_url="your_base_url")
-    task = Task()
-    task.init_task(task_desc, max_steps=max_steps)
+    # or Actor(api_key="your_api_key", base_url="your_base_url")
+    actor = Actor()
+    actor.init_task(task_desc, max_steps=max_steps)
     executor = (
         PyautoguiActionHandler()
     )  # executor = lambda actions: print(actions) for debugging
@@ -36,8 +36,8 @@ def execute_task_manual(task_desc, max_steps=5):
         image = image_provider()
 
         # For additional instructions
-        # step = task.step(image, instruction="some instruction")
-        step = task.step(image)
+        # step = actor.step(image, instruction="some instruction")
+        step = actor.step(image)
 
         # do something with step, maybe print to debug
         print(f"Step {i}: {step.reason=}")
@@ -60,9 +60,9 @@ def execute_task_manual(task_desc, max_steps=5):
 
 async def async_execute_task_manual(task_desc, max_steps=5):
     # set OAGI_API_KEY and OAGI_BASE_URL
-    # or ShortTask(api_key="your_api_key", base_url="your_base_url")
-    async with AsyncTask() as task:
-        await task.init_task(task_desc, max_steps=max_steps)
+    # or AsyncActor(api_key="your_api_key", base_url="your_base_url")
+    async with AsyncActor() as actor:
+        await actor.init_task(task_desc, max_steps=max_steps)
         executor = AsyncPyautoguiActionHandler()
 
         # by default, screenshot will be resized to 1260 * 700 and jpeg with quality 85
@@ -76,8 +76,8 @@ async def async_execute_task_manual(task_desc, max_steps=5):
             image = await image_provider()
 
             # For additional instructions
-            # step = task.step(image, instruction="some instruction")
-            step = await task.step(image)
+            # step = actor.step(image, instruction="some instruction")
+            step = await actor.step(image)
 
             # do something with step, maybe print to debug
             print(f"Step {i}: {step.reason=}")

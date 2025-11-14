@@ -97,11 +97,11 @@ class TestTaskeeAgent:
         assert agent.temperature == 0.7
         assert agent.planner is planner
         assert agent.external_memory is external_memory
-        assert agent.task is None
+        assert agent.actor is None
         assert agent.actions == []
 
-    @patch("oagi.agent.tasker.taskee_agent.AsyncTask")
-    async def test_initial_plan(self, mock_async_task):
+    @patch("oagi.agent.tasker.taskee_agent.AsyncActor")
+    async def test_initial_plan(self, mock_async_actor):
         """Test initial planning phase."""
         agent = TaskeeAgent(planner=MockPlanner())
 
@@ -118,13 +118,13 @@ class TestTaskeeAgent:
         assert agent.actions[0].action_type == "plan"
         assert agent.actions[0].target == "initial"
 
-    @patch("oagi.agent.tasker.taskee_agent.AsyncTask")
-    async def test_execute_subtask_success(self, mock_async_task_class):
+    @patch("oagi.agent.tasker.taskee_agent.AsyncActor")
+    async def test_execute_subtask_success(self, mock_async_actor_class):
         """Test executing a subtask successfully."""
-        # Setup mock task
-        mock_task = AsyncMock()
+        # Setup mock actor
+        mock_actor = AsyncMock()
         # Configure async context manager
-        mock_async_task_class.return_value.__aenter__.return_value = mock_task
+        mock_async_actor_class.return_value.__aenter__.return_value = mock_actor
 
         # Mock step response
         mock_step = Step(
@@ -137,7 +137,7 @@ class TestTaskeeAgent:
             ],
             stop=True,  # Signal completion
         )
-        mock_task.step.return_value = mock_step
+        mock_actor.step.return_value = mock_step
 
         agent = TaskeeAgent(planner=MockPlanner())
         agent.current_instruction = "Click submit"
@@ -158,17 +158,19 @@ class TestTaskeeAgent:
         assert agent.success is True
         assert len(agent.actions) == 1
         assert agent.actions[0].action_type == "click"
-        mock_task.init_task.assert_called_once_with("Click submit")
+        mock_actor.init_task.assert_called_once_with("Click submit")
         # close() is now handled automatically by async with context manager
         action_handler.assert_called_once()
 
-    @patch("oagi.agent.tasker.taskee_agent.AsyncTask")
-    async def test_execute_subtask_with_reflection_trigger(self, mock_async_task_class):
+    @patch("oagi.agent.tasker.taskee_agent.AsyncActor")
+    async def test_execute_subtask_with_reflection_trigger(
+        self, mock_async_actor_class
+    ):
         """Test that reflection is triggered at interval."""
-        # Setup mock task
-        mock_task = AsyncMock()
+        # Setup mock actor
+        mock_actor = AsyncMock()
         # Configure async context manager
-        mock_async_task_class.return_value.__aenter__.return_value = mock_task
+        mock_async_actor_class.return_value.__aenter__.return_value = mock_actor
 
         # Mock step responses (many actions to trigger reflection)
         mock_step = Step(
@@ -176,7 +178,7 @@ class TestTaskeeAgent:
             actions=[OAGIAction(type=ActionType.CLICK, argument="100,200")],
             stop=False,
         )
-        mock_task.step.return_value = mock_step
+        mock_actor.step.return_value = mock_step
 
         agent = TaskeeAgent(planner=MockPlanner(), reflection_interval=3)
         agent.current_instruction = "Test instruction"

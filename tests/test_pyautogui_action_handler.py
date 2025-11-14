@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from oagi.pyautogui_action_handler import (
+from oagi.handler.pyautogui_action_handler import (
     CapsLockManager,
     PyautoguiActionHandler,
     PyautoguiConfig,
@@ -20,7 +20,7 @@ from oagi.types import Action, ActionType
 
 @pytest.fixture
 def mock_pyautogui():
-    with patch("oagi.pyautogui_action_handler.pyautogui") as mock:
+    with patch("oagi.handler.pyautogui_action_handler.pyautogui") as mock:
         mock.size.return_value = (1920, 1080)
         yield mock
 

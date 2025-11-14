@@ -6,6 +6,8 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import warnings
+
 from ..client import SyncClient
 from ..logging import get_logger
 from ..types import Image, Step
@@ -14,14 +16,14 @@ from .base import BaseTask
 logger = get_logger("task")
 
 
-class Task(BaseTask):
+class Actor(BaseTask):
     """Base class for task automation with the OAGI API."""
 
     def __init__(
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "vision-model-v1",
+        model: str = "lux-actor-1",
         temperature: float | None = None,
     ):
         super().__init__(api_key, base_url, model, temperature)
@@ -95,3 +97,26 @@ class Task(BaseTask):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+
+class Task(Actor):
+    """Deprecated: Use Actor instead.
+
+    This class is deprecated and will be removed in a future version.
+    Please use Actor instead.
+    """
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str = "lux-actor-1",
+        temperature: float | None = None,
+    ):
+        warnings.warn(
+            "Task is deprecated and will be removed in a future version. "
+            "Please use Actor instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(api_key, base_url, model, temperature)

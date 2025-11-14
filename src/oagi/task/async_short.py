@@ -6,24 +6,36 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import warnings
+
 from ..logging import get_logger
 from ..types import AsyncActionHandler, AsyncImageProvider
-from .async_ import AsyncTask
+from .async_ import AsyncActor
 from .base import BaseAutoMode
 
 logger = get_logger("async_short_task")
 
 
-class AsyncShortTask(AsyncTask, BaseAutoMode):
-    """Async task implementation with automatic mode for short-duration tasks."""
+class AsyncShortTask(AsyncActor, BaseAutoMode):
+    """Deprecated: This class is deprecated and will be removed in a future version.
+
+    Async task implementation with automatic mode for short-duration tasks.
+    Please use AsyncActor directly with custom automation logic instead.
+    """
 
     def __init__(
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "vision-model-v1",
+        model: str = "lux-actor-1",
         temperature: float | None = None,
     ):
+        warnings.warn(
+            "AsyncShortTask is deprecated and will be removed in a future version. "
+            "Please use AsyncActor with custom automation logic instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             api_key=api_key, base_url=base_url, model=model, temperature=temperature
         )

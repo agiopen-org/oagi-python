@@ -5,28 +5,27 @@ Python SDK for the OAGI API - vision-based task automation.
 ## Installation
 
 ```bash
-# Core SDK only (API client and task management)
+# Recommended: All features (desktop automation + server)
 pip install oagi
 
-# With desktop automation support (includes pyautogui and PIL for screenshots)
-pip install oagi[desktop]
+# Or install core only (minimal dependencies)
+pip install oagi-core
 
-# With server support (FastAPI and Socket.IO for browser integration)
-pip install oagi[server]
-
-# All features
-pip install oagi[desktop,server]
+# Or install with specific features
+pip install oagi-core[desktop]  # Desktop automation support
+pip install oagi-core[server]   # Server support
 ```
 
 **Requires Python >= 3.10**
 
 ### Installation Options
 
-- **Core**: Basic API client for interacting with OAGI API. Suitable for server deployments or custom automation setups.
-- **Desktop** (`[desktop]`): Includes `pyautogui` and `pillow` for desktop automation features like screenshot capture and GUI control.
-- **Server** (`[server]`): Includes FastAPI and Socket.IO dependencies for running the real-time server for browser extensions.
+- **`oagi`** (Recommended): Metapackage that includes all features (desktop + server). Equivalent to `oagi-core[desktop,server]`.
+- **`oagi-core`**: Core SDK with minimal dependencies (httpx, pydantic). Suitable for server deployments or custom automation setups.
+- **`oagi-core[desktop]`**: Adds `pyautogui` and `pillow` for desktop automation features like screenshot capture and GUI control.
+- **`oagi-core[server]`**: Adds FastAPI and Socket.IO dependencies for running the real-time server for browser extensions.
 
-**Note**: Features requiring desktop dependencies (like `PILImage.from_screenshot()`, `PyautoguiActionHandler`, `ScreenshotMaker`) will show helpful error messages if you try to use them without installing `oagi[desktop]`.
+**Note**: Features requiring desktop dependencies (like `PILImage.from_screenshot()`, `PyautoguiActionHandler`, `ScreenshotMaker`) will show helpful error messages if you try to use them without installing the `desktop` extra.
 
 ## Quick Start
 
@@ -34,22 +33,6 @@ Set your API credentials:
 ```bash
 export OAGI_API_KEY="your-api-key"
 export OAGI_BASE_URL="https://api.oagi.com"  # or your server URL
-```
-
-### Single-Step Analysis
-
-Analyze a screenshot and get recommended actions:
-
-```python
-from oagi import single_step
-
-step = single_step(
-    task_description="Click the submit button",
-    screenshot="screenshot.png"  # or bytes, or Image object
-)
-
-print(f"Actions: {step.actions}")
-print(f"Complete: {step.is_complete}")
 ```
 
 ### Automated Task Execution
@@ -103,9 +86,6 @@ config = ImageConfig(
     height=700
 )
 compressed = image.transform(config)
-
-# Use with single_step
-step = single_step("Click button", screenshot=compressed)
 ```
 
 ### Async Support
@@ -114,16 +94,9 @@ Use async client for non-blocking operations and better concurrency:
 
 ```python
 import asyncio
-from oagi import async_single_step, AsyncShortTask
+from oagi import AsyncShortTask
 
 async def main():
-    # Single-step async analysis
-    step = await async_single_step(
-        "Find the search bar",
-        screenshot="screenshot.png"
-    )
-    print(f"Found {len(step.actions)} actions")
-    
     # Async task automation
     task = AsyncShortTask()
     async with task:
@@ -137,7 +110,6 @@ asyncio.run(main())
 
 See the [`examples/`](examples/) directory for more usage patterns:
 - `google_weather.py` - Basic task execution with `ShortTask`
-- `single_step.py` - Basic single-step inference
 - `screenshot_with_config.py` - Image compression and optimization
 - `execute_task_auto.py` - Automated task execution
 - `socketio_server_basic.py` - Socket.IO server example
@@ -151,7 +123,9 @@ The SDK includes an optional Socket.IO server for real-time bidirectional commun
 
 ```bash
 # Install with server support
-pip install oagi[server]
+pip install oagi  # Includes server features
+# Or
+pip install oagi-core[server]  # Core + server only
 ```
 
 ### Running the Server

@@ -8,9 +8,9 @@
 
 from typing import Optional
 
+from ..types import Image
+from ..types.models.image_config import ImageConfig
 from .pil_image import PILImage
-from .types import Image
-from .types.models.image_config import ImageConfig
 
 
 class ScreenshotMaker:

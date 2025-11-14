@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling==1.26.3"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oagi"
+version = "0.9.1"
+description = "Official API of OpenAGI Foundation (metapackage with all features)"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "OpenAGI Foundation", email = "contact@agiopen.org" }
+]
+
+requires-python = ">= 3.10"
+
+dependencies = [
+    "oagi-core[desktop,server]==0.9.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/agiopen-org/oagi"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+packages = []
+
+[tool.hatch.build.targets.sdist]
+bypass-selection = true
+packages = []
