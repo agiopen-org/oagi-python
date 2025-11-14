@@ -23,7 +23,7 @@ class AsyncActor(BaseTask):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "vision-model-v1",
+        model: str = "lux-actor-1",
         temperature: float | None = None,
     ):
         super().__init__(api_key, base_url, model, temperature)
@@ -110,7 +110,7 @@ class AsyncTask(AsyncActor):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "vision-model-v1",
+        model: str = "lux-actor-1",
         temperature: float | None = None,
     ):
         warnings.warn(

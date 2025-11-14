@@ -25,9 +25,9 @@ class AsyncDefaultAgent:
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-v1",
-        max_steps: int = 30,
-        temperature: float | None = None,
+        model: str = "lux-actor-1",
+        max_steps: int = 20,
+        temperature: float | None = 0.5,
         step_observer: AsyncStepObserver | None = None,
     ):
         self.api_key = api_key

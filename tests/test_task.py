@@ -31,7 +31,7 @@ class TestActorInit:
         assert isinstance(actor.task_id, str)
         assert len(actor.task_id) == 32  # UUID hex without dashes
         assert actor.task_description is None
-        assert actor.model == "vision-model-v1"
+        assert actor.model == "lux-actor-1"
         assert actor.message_history == []
 
     def test_init_with_custom_model(self, mock_sync_client):
@@ -95,7 +95,7 @@ class TestActorStep:
 
         # Verify API call - V2 uses bytes directly, messages_history instead of last_task_id/history_steps
         call_args = actor.client.create_message.call_args
-        assert call_args[1]["model"] == "vision-model-v1"
+        assert call_args[1]["model"] == "lux-actor-1"
         assert call_args[1]["screenshot"] == b"fake image bytes"
         assert call_args[1]["task_description"] == "Test task"
         assert call_args[1]["task_id"] == "existing-task"
@@ -128,7 +128,7 @@ class TestActorStep:
 
         # Verify API call - V2 uses bytes directly
         call_args = actor.client.create_message.call_args
-        assert call_args[1]["model"] == "vision-model-v1"
+        assert call_args[1]["model"] == "lux-actor-1"
         assert call_args[1]["screenshot"] == image_bytes
         assert call_args[1]["task_description"] == "Test task"
         assert call_args[1]["task_id"] == original_task_id
@@ -187,7 +187,7 @@ class TestActorStep:
 
         # Verify API call includes instruction
         call_args = actor.client.create_message.call_args
-        assert call_args[1]["model"] == "vision-model-v1"
+        assert call_args[1]["model"] == "lux-actor-1"
         assert call_args[1]["screenshot"] == b"image bytes"
         assert call_args[1]["task_description"] == "Test task"
         assert call_args[1]["task_id"] == "existing-task"
@@ -344,7 +344,7 @@ class TestActorHistory:
 
         # Verify API call was made
         call_args = actor.client.create_message.call_args
-        assert call_args[1]["model"] == "vision-model-v1"
+        assert call_args[1]["model"] == "lux-actor-1"
         assert call_args[1]["screenshot"] == b"screenshot_data"
         assert call_args[1]["task_description"] == "Test task"
         assert call_args[1]["task_id"] == task_id

@@ -27,7 +27,7 @@ class ShortTask(Actor, BaseAutoMode):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "vision-model-v1",
+        model: str = "lux-actor-1",
         temperature: float | None = None,
     ):
         warnings.warn(

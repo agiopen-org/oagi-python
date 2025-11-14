@@ -406,7 +406,7 @@ class TestSyncClient:
         assert isinstance(response, LLMResponse)
         assert response.id == "test-123"
         assert response.task_id == "task-456"
-        assert response.model == "vision-model-v1"
+        assert response.model == "lux-actor-1"
         assert response.task_description == "Test task"
         assert not response.is_complete
         assert len(response.actions) == 1
@@ -553,7 +553,7 @@ class TestDataModels:
             id="test-123",
             task_id="task-456",
             created=1677652288,
-            model="vision-model-v1",
+            model="lux-actor-1",
             task_description="Test task",
             is_complete=False,
             actions=[action],
@@ -564,7 +564,7 @@ class TestDataModels:
         assert response.task_id == "task-456"
         assert response.object == "task.completion"  # default value
         assert response.created == 1677652288
-        assert response.model == "vision-model-v1"
+        assert response.model == "lux-actor-1"
         assert response.task_description == "Test task"
         assert not response.is_complete
         assert len(response.actions) == 1

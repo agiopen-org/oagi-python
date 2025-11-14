@@ -30,12 +30,14 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
     run_parser.add_argument(
         "instruction", type=str, help="Task instruction for the agent to execute"
     )
-    run_parser.add_argument("--model", type=str, help="Model to use (default: lux-v1)")
     run_parser.add_argument(
-        "--max-steps", type=int, help="Maximum number of steps (default: 30)"
+        "--model", type=str, help="Model to use (default: lux-actor-1)"
     )
     run_parser.add_argument(
-        "--temperature", type=float, help="Sampling temperature (default: 0.0)"
+        "--max-steps", type=int, help="Maximum number of steps (default: 20)"
+    )
+    run_parser.add_argument(
+        "--temperature", type=float, help="Sampling temperature (default: 0.5)"
     )
     run_parser.add_argument(
         "--mode",
@@ -79,9 +81,9 @@ def run_agent(args: argparse.Namespace) -> None:
     base_url = args.oagi_base_url or os.getenv(
         "OAGI_BASE_URL", "https://api.agiopen.org"
     )
-    model = args.model or "lux-v1"
-    max_steps = args.max_steps or 30
-    temperature = args.temperature if args.temperature is not None else 0.0
+    model = args.model or "lux-actor-1"
+    max_steps = args.max_steps or 20
+    temperature = args.temperature if args.temperature is not None else 0.5
     mode = args.mode or "actor"
 
     # Create step tracker
