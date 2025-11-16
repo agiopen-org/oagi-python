@@ -235,6 +235,12 @@ class TaskeeAgent(AsyncAgent):
                 if step.reason:
                     logger.info(f"Step {self.total_actions + 1}: {step.reason}")
 
+                # Notify observer if present
+                if self.step_observer:
+                    await self.step_observer.on_step(
+                        self.total_actions + 1, step.reason, step.actions
+                    )
+
                 # Record OAGI actions
                 if step.actions:
                     # Log actions with details
@@ -254,12 +260,6 @@ class TaskeeAgent(AsyncAgent):
                             action_type=action.type.lower(),
                             target=action.argument,
                             reasoning=step.reason,
-                        )
-
-                    # Notify observer if present
-                    if self.step_observer:
-                        await self.step_observer.on_step(
-                            self.total_actions + 1, step.reason, step.actions
                         )
 
                     # Execute actions

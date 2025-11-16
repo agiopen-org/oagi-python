@@ -103,3 +103,38 @@ class TestAsyncDefaultAgent:
             mock_actor.step.assert_called_with(
                 mock_async_image_provider.return_value, temperature=0.7
             )
+
+    async def test_execute_with_empty_actions_step(
+        self, mock_async_action_handler, mock_async_image_provider
+    ):
+        """Test that steps with reasoning but no actions are tracked by observer."""
+        step_observer = AsyncMock()
+
+        with patch("oagi.agent.default.AsyncActor") as mock_actor_class:
+            mock_actor = AsyncMock()
+            mock_actor_class.return_value.__aenter__ = AsyncMock(
+                return_value=mock_actor
+            )
+            mock_actor_class.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            # Mock step with reasoning but no actions
+            mock_actor.step.return_value = Step(
+                reason="Analyzing the screen to plan next action",
+                actions=[],  # Empty actions list
+                stop=True,
+            )
+
+            agent = AsyncDefaultAgent(max_steps=5, step_observer=step_observer)
+            success = await agent.execute(
+                "Test task",
+                mock_async_action_handler,
+                mock_async_image_provider,
+            )
+
+            assert success is True
+            # Verify observer was called even with empty actions
+            step_observer.on_step.assert_called_once_with(
+                1, "Analyzing the screen to plan next action", []
+            )
+            # Verify action handler was not called since there are no actions
+            mock_async_action_handler.assert_not_called()

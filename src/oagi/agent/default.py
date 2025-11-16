@@ -63,7 +63,7 @@ class AsyncDefaultAgent:
                     logger.info(f"Step {i + 1}: {step.reason}")
 
                 # Notify observer if present
-                if self.step_observer and step.actions:
+                if self.step_observer:
                     await self.step_observer.on_step(i + 1, step.reason, step.actions)
 
                 # Execute actions if any
