@@ -224,7 +224,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                 # Emit finish event
                 await self.call(
                     "finish",
-                    FinishEventData(action_index=0, total_actions=1).model_dump(),
+                    FinishEventData(index=0, total=1).model_dump(),
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
                 )

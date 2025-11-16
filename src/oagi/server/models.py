@@ -75,7 +75,7 @@ class ScreenshotResponseData(BaseModel):
 
 # Action acknowledgement
 class ActionAckData(BaseModel):
-    action_index: int = Field(...)
+    index: int = Field(...)
     success: bool = Field(...)
     error: str | None = Field(None)
     execution_time_ms: int | None = Field(None)
