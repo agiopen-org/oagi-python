@@ -15,10 +15,16 @@ from oagi.exceptions import check_optional_dependency
 
 
 def get_sdk_version() -> str:
-    try:
-        return get_version("oagi")
-    except Exception:
-        return "unknown"
+    # Try oagi-core first (development install), then oagi (metapackage install)
+    for package_name in ["oagi-core", "oagi"]:
+        try:
+            version = get_version(package_name)
+            # Skip if version is 0.0.0 (placeholder/invalid)
+            if version != "0.0.0":
+                return version
+        except Exception:
+            continue
+    return "unknown"
 
 
 def display_version() -> None:
@@ -50,6 +56,7 @@ def display_config() -> None:
     config_vars = {
         "OAGI_API_KEY": os.getenv("OAGI_API_KEY", ""),
         "OAGI_BASE_URL": os.getenv("OAGI_BASE_URL", "https://api.agiopen.org"),
+        "OAGI_DEFAULT_MODEL": os.getenv("OAGI_DEFAULT_MODEL", "lux-actor-1"),
         "OAGI_LOG_LEVEL": os.getenv("OAGI_LOG_LEVEL", "INFO"),
         "OAGI_SERVER_HOST": os.getenv("OAGI_SERVER_HOST", "0.0.0.0"),
         "OAGI_SERVER_PORT": os.getenv("OAGI_SERVER_PORT", "8000"),
