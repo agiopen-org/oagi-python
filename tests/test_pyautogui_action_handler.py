@@ -6,6 +6,7 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import sys
 from unittest.mock import patch
 
 import pytest
@@ -47,10 +48,14 @@ def handler(mock_pyautogui):
 def test_coordinate_based_actions(
     handler, mock_pyautogui, action_type, argument, expected_method, expected_coords
 ):
-    action = Action(type=action_type, argument=argument, count=1)
-    handler([action])
+    # Mock platform as Linux to ensure standard methods are called (not macOS specific ones)
+    with patch.object(sys, "platform", "linux"):
+        action = Action(type=action_type, argument=argument, count=1)
+        handler([action])
 
-    getattr(mock_pyautogui, expected_method).assert_called_once_with(*expected_coords)
+        getattr(mock_pyautogui, expected_method).assert_called_once_with(
+            *expected_coords
+        )
 
 
 def test_drag_action(handler, mock_pyautogui, config):
@@ -258,12 +263,15 @@ class TestCornerCoordinatesHandling:
             Action(type=ActionType.LEFT_TRIPLE, argument="1000, 0", count=1),
             Action(type=ActionType.RIGHT_SINGLE, argument="0, 1000", count=1),
         ]
-        handler(actions)
 
-        # All corner coordinates should be adjusted
-        mock_pyautogui.doubleClick.assert_called_once_with(1, 1)
-        mock_pyautogui.tripleClick.assert_called_once_with(1919, 1)
-        mock_pyautogui.rightClick.assert_called_once_with(1, 1079)
+        # Mock platform as Linux to ensure standard methods are called
+        with patch.object(sys, "platform", "linux"):
+            handler(actions)
+
+            # All corner coordinates should be adjusted
+            mock_pyautogui.doubleClick.assert_called_once_with(1, 1)
+            mock_pyautogui.tripleClick.assert_called_once_with(1919, 1)
+            mock_pyautogui.rightClick.assert_called_once_with(1, 1079)
 
 
 class TestCapsLockIntegration:

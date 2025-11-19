@@ -7,6 +7,7 @@
 # -----------------------------------------------------------------------------
 
 import re
+import sys
 import time
 
 from pydantic import BaseModel, Field
@@ -16,6 +17,9 @@ from ..types import Action, ActionType
 
 check_optional_dependency("pyautogui", "PyautoguiActionHandler", "desktop")
 import pyautogui  # noqa: E402
+
+if sys.platform == "darwin":
+    from . import _macos
 
 
 class CapsLockManager:
@@ -186,11 +190,17 @@ class PyautoguiActionHandler:
 
             case ActionType.LEFT_DOUBLE:
                 x, y = self._parse_coords(arg)
-                pyautogui.doubleClick(x, y)
+                if sys.platform == "darwin":
+                    _macos.macos_click(x, y, clicks=2)
+                else:
+                    pyautogui.doubleClick(x, y)
 
             case ActionType.LEFT_TRIPLE:
                 x, y = self._parse_coords(arg)
-                pyautogui.tripleClick(x, y)
+                if sys.platform == "darwin":
+                    _macos.macos_click(x, y, clicks=3)
+                else:
+                    pyautogui.tripleClick(x, y)
 
             case ActionType.RIGHT_SINGLE:
                 x, y = self._parse_coords(arg)

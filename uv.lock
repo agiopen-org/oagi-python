@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version == '3.11.*'",
@@ -426,6 +426,7 @@ dependencies = [
 desktop = [
     { name = "pillow" },
     { name = "pyautogui" },
+    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'" },
 ]
 server = [
     { name = "fastapi", extra = ["standard"] },
@@ -450,6 +451,7 @@ requires-dist = [
     { name = "pyautogui", marker = "extra == 'desktop'", specifier = ">=0.9.54" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", marker = "extra == 'server'", specifier = ">=2.0.0" },
+    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin' and extra == 'desktop'", specifier = ">=9.0" },
     { name = "python-socketio", marker = "extra == 'server'", specifier = ">=5.11.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'server'", specifier = ">=0.32.0" },

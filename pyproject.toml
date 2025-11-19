@@ -30,6 +30,7 @@ oagi = "oagi.cli.main:main"
 desktop = [
     "pillow>=11.3.0",
     "pyautogui>=0.9.54",
+    "pyobjc-framework-Quartz>=9.0; sys_platform == 'darwin'",
 ]
 server = [
     "fastapi[standard]>=0.115.0",
