@@ -11,7 +11,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from oagi.handler import _macos
+if sys.platform != "darwin":
+    pytest.skip(
+        "Skipping macOS-specific tests on non-macOS platform", allow_module_level=True
+    )
+
+from oagi.handler import _macos  # noqa: E402
 from oagi.handler.pyautogui_action_handler import PyautoguiActionHandler
 from oagi.types import Action, ActionType
 
