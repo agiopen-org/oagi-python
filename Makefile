@@ -46,13 +46,17 @@ test-verbose: .uv install-dev
 
 .PHONY: version
 version:
-	@if [ -z "$(VERSION)" ]; then \
-		echo "Usage: make version VERSION=x.y.z"; \
-		echo "Current version: $$(grep '^version = ' pyproject.toml | head -1 | cut -d'"' -f2)"; \
+	@if [ -n "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		VERSION=$(filter-out $@,$(MAKECMDGOALS)); \
+	else \
+		echo "Usage: make version <version>"; \
 		exit 1; \
-	fi
-	@echo "Updating version to $(VERSION) in all files..."
-	@sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' pyproject.toml
-	@sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' metapackage/pyproject.toml
-	@sed -i '' 's/oagi-core\[desktop,server\]==.*/oagi-core[desktop,server]==$(VERSION)",/' metapackage/pyproject.toml
+	fi; \
+	echo "Updating version to $$VERSION..."; \
+	uv version $$VERSION; \
+	(cd metapackage && uv version $$VERSION); \
+	sed -i '' 's/oagi-core\[desktop,server\]==.*/oagi-core[desktop,server]=='$$VERSION'",/' metapackage/pyproject.toml; \
 	make build-all
+
+%:
+	@:
