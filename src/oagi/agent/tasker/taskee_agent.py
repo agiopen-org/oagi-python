@@ -64,7 +64,7 @@ class TaskeeAgent(AsyncAgent):
         self.max_steps_per_subtask = max_steps_per_subtask
         self.reflection_interval = reflection_interval
         self.temperature = temperature
-        self.planner = planner or Planner()
+        self.planner = planner or Planner(api_key=api_key, base_url=base_url)
         self.external_memory = external_memory
         self.todo_index = todo_index
         self.step_observer = step_observer

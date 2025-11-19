@@ -93,7 +93,6 @@ class TestSyncClient:
     @pytest.mark.parametrize(
         "missing_param,provided_param,error_message",
         [
-            ("base_url", {"api_key": "test-key"}, "OAGI base URL must be provided"),
             (
                 "api_key",
                 {"base_url": "https://api.example.com"},
@@ -102,8 +101,8 @@ class TestSyncClient:
             (
                 "both",
                 {},
-                "OAGI base URL must be provided",
-            ),  # base_url error comes first
+                "OAGI API key must be provided",
+            ),
         ],
     )
     def test_init_missing_configuration_raises_error(
@@ -111,6 +110,15 @@ class TestSyncClient:
     ):
         with pytest.raises(ConfigurationError, match=error_message):
             SyncClient(**provided_param)
+
+    def test_init_default_base_url(self, create_client):
+        """Test that base_url defaults to prod URL if not provided."""
+        # Ensure OAGI_BASE_URL is not set
+        if "OAGI_BASE_URL" in os.environ:
+            del os.environ["OAGI_BASE_URL"]
+
+        client = create_client(api_key="test-key")
+        assert client.base_url == "https://api.agiopen.org"
 
     def test_base_url_trailing_slash_stripped(self, create_client):
         client = create_client(base_url="https://api.example.com/", api_key="test-key")

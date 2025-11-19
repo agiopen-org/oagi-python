@@ -74,8 +74,9 @@ class TestAsyncClientInitialization:
     @pytest.mark.asyncio
     async def test_init_missing_base_url(self, monkeypatch):
         monkeypatch.delenv("OAGI_BASE_URL", raising=False)
-        with pytest.raises(ConfigurationError):
-            AsyncClient(api_key="test-key")
+        client = AsyncClient(api_key="test-key")
+        assert client.base_url == "https://api.agiopen.org"
+        await client.close()
 
     @pytest.mark.asyncio
     async def test_init_missing_api_key(self, monkeypatch):

@@ -20,19 +20,28 @@ class Planner:
     This class provides planning and reflection capabilities using OAGI workers.
     """
 
-    def __init__(self, client: AsyncClient | None = None):
+    def __init__(
+        self,
+        client: AsyncClient | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ):
         """Initialize the planner.
 
         Args:
             client: AsyncClient for OAGI API calls. If None, one will be created when needed.
+            api_key: API key for creating internal client
+            base_url: Base URL for creating internal client
         """
         self.client = client
+        self.api_key = api_key
+        self.base_url = base_url
         self._owns_client = False  # Track if we created the client
 
     def _ensure_client(self) -> AsyncClient:
         """Ensure we have a client, creating one if needed."""
         if not self.client:
-            self.client = AsyncClient()
+            self.client = AsyncClient(api_key=self.api_key, base_url=self.base_url)
             self._owns_client = True
         return self.client
 

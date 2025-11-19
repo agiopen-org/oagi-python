@@ -41,16 +41,12 @@ class BaseClient(Generic[HttpClientT]):
 
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         # Get from environment if not provided
-        self.base_url = base_url or os.getenv("OAGI_BASE_URL")
+        self.base_url = (
+            base_url or os.getenv("OAGI_BASE_URL") or "https://api.agiopen.org"
+        )
         self.api_key = api_key or os.getenv("OAGI_API_KEY")
 
         # Validate required configuration
-        if not self.base_url:
-            raise ConfigurationError(
-                "OAGI base URL must be provided either as 'base_url' parameter or "
-                "OAGI_BASE_URL environment variable"
-            )
-
         if not self.api_key:
             raise ConfigurationError(
                 "OAGI API key must be provided either as 'api_key' parameter or "

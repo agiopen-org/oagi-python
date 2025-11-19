@@ -59,7 +59,7 @@ class TaskerAgent(AsyncAgent):
         self.max_steps = max_steps
         self.temperature = temperature
         self.reflection_interval = reflection_interval
-        self.planner = planner or Planner()
+        self.planner = planner or Planner(api_key=api_key, base_url=base_url)
         self.step_observer = step_observer
 
         # Memory for tracking workflow
