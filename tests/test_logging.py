@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from oagi import ShortTask
+from oagi import Actor
 from oagi.client import SyncClient
 from oagi.exceptions import ConfigurationError
 from oagi.logging import get_logger
@@ -301,7 +301,7 @@ class TestLoggingIntegration:
 
     def _execute_task_scenario(self, task_desc, log_level, should_have_step):
         """Helper to execute the task scenario."""
-        task = ShortTask()
+        task = Actor()
 
         if log_level == "INFO":
             task.init_task(task_desc, max_steps=3)

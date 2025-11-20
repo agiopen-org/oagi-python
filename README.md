@@ -31,8 +31,8 @@ pip install oagi-core[server]   # Server support
 
 Set your API credentials:
 ```bash
-export OAGI_API_KEY="your-api-key"
-export OAGI_BASE_URL="https://api.oagi.com"  # or your server URL
+export OAGI_API_KEY="your-api-key" # get your API key from https://developer.openagi.org/
+# export OAGI_BASE_URL="https://api.agiopen.org/", # optional, defaults to production endpoint
 ```
 
 ### Automated Task Execution
@@ -40,21 +40,25 @@ export OAGI_BASE_URL="https://api.oagi.com"  # or your server URL
 Run tasks automatically with screenshot capture and action execution:
 
 ```python
-from oagi import ShortTask, ScreenshotMaker, PyautoguiActionHandler
+import asyncio
+from oagi import AsyncDefaultAgent, AsyncPyautoguiActionHandler, AsyncScreenshotMaker
 
-task = ShortTask()
-completed = task.auto_mode(
-    "Search weather on Google",
-    max_steps=10,
-    executor=PyautoguiActionHandler(),  # Executes mouse/keyboard actions
-    image_provider=ScreenshotMaker(),    # Captures screenshots
-)
+async def main():
+    agent = AsyncDefaultAgent(max_steps=10)
+    completed = await agent.execute(
+        "Search weather on Google",
+        action_handler=AsyncPyautoguiActionHandler(),  # Executes mouse/keyboard actions
+        image_provider=AsyncScreenshotMaker(),         # Captures screenshots
+    )
+    return completed
+
+asyncio.run(main())
 ```
 
 Configure PyAutoGUI behavior with custom settings:
 
 ```python
-from oagi import PyautoguiActionHandler, PyautoguiConfig
+from oagi import AsyncPyautoguiActionHandler, PyautoguiConfig
 
 # Customize action behavior
 config = PyautoguiConfig(
@@ -66,8 +70,7 @@ config = PyautoguiConfig(
     capslock_mode="session" # Caps lock mode: 'session' or 'system' (default: 'session')
 )
 
-executor = PyautoguiActionHandler(config=config)
-task.auto_mode("Complete form", executor=executor, image_provider=ScreenshotMaker())
+action_handler = AsyncPyautoguiActionHandler(config=config)
 ```
 
 ### Image Processing
@@ -88,20 +91,28 @@ config = ImageConfig(
 compressed = image.transform(config)
 ```
 
-### Async Support
+### Manual Control with Actor
 
-Use async client for non-blocking operations and better concurrency:
+For step-by-step control over task execution:
 
 ```python
 import asyncio
-from oagi import AsyncShortTask
+from oagi import AsyncActor, AsyncPyautoguiActionHandler, AsyncScreenshotMaker
 
 async def main():
-    # Async task automation
-    task = AsyncShortTask()
-    async with task:
-        await task.init_task("Complete the form")
-        # ... continue with async operations
+    async with AsyncActor() as actor:
+        await actor.init_task("Complete the form")
+        image_provider = AsyncScreenshotMaker()
+        action_handler = AsyncPyautoguiActionHandler()
+
+        for _ in range(10):
+            image = await image_provider()
+            step = await actor.step(image)
+
+            if step.stop:
+                break
+
+            await action_handler(step.actions)
 
 asyncio.run(main())
 ```
@@ -109,9 +120,10 @@ asyncio.run(main())
 ## Examples
 
 See the [`examples/`](examples/) directory for more usage patterns:
-- `google_weather.py` - Basic task execution with `ShortTask`
+- `execute_task_auto.py` - Automated task execution with `AsyncDefaultAgent`
+- `execute_task_manual.py` - Manual step-by-step control with `Actor`
+- `continued_session.py` - Continuing tasks across sessions
 - `screenshot_with_config.py` - Image compression and optimization
-- `execute_task_auto.py` - Automated task execution
 - `socketio_server_basic.py` - Socket.IO server example
 - `socketio_client_example.py` - Socket.IO client implementation
 

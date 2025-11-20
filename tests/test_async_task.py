@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 import pytest_asyncio
 
-from oagi.task import AsyncActor, AsyncShortTask
+from oagi.task import AsyncActor
 from oagi.types import Action, ActionType, Step
 
 
@@ -123,90 +123,6 @@ class TestAsyncActorContextManager:
             assert isinstance(actor.task_id, str)
             assert len(actor.task_id) == 32  # UUID hex without dashes
             assert actor.task_description is None
-
-
-class TestAsyncShortTask:
-    @pytest.mark.asyncio
-    async def test_auto_mode_success(self, api_env):
-        task = AsyncShortTask(base_url=api_env["base_url"], api_key=api_env["api_key"])
-
-        # V2 API: Mock responses for steps only (no init_task call)
-        step_response = Mock()
-        step_response.task_id = "task-123"
-        step_response.reason = "Clicking button"
-        step_response.actions = [
-            Action(type=ActionType.CLICK, argument="500, 300", count=1)
-        ]
-        step_response.is_complete = False
-        step_response.raw_output = "Clicking the button"
-
-        complete_response = Mock()
-        complete_response.task_id = "task-123"
-        complete_response.reason = "Task complete"
-        complete_response.actions = []
-        complete_response.is_complete = True
-        complete_response.raw_output = "Task is complete"
-
-        # Mock image provider and executor
-        mock_image_provider = AsyncMock()
-        mock_image_provider.return_value = Mock(read=lambda: b"test-image")
-
-        mock_executor = AsyncMock()
-
-        with patch.object(
-            task.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            # V2 API: Only step responses (no init response)
-            mock_create.side_effect = [step_response, complete_response]
-
-            result = await task.auto_mode(
-                "Test task",
-                max_steps=5,
-                executor=mock_executor,
-                image_provider=mock_image_provider,
-            )
-
-            assert result is True
-            assert (
-                mock_executor.call_count == 2
-            )  # Called for both steps including the completed one
-            assert mock_image_provider.call_count == 2
-
-        await task.close()
-
-    @pytest.mark.asyncio
-    async def test_auto_mode_max_steps_reached(self, api_env):
-        task = AsyncShortTask(base_url=api_env["base_url"], api_key=api_env["api_key"])
-
-        # Mock response that never completes
-        response = Mock()
-        response.task_id = "task-123"
-        response.reason = "Still working"
-        response.actions = [Action(type=ActionType.WAIT, argument="", count=1)]
-        response.is_complete = False
-        response.raw_output = "Still working on it"
-
-        mock_image_provider = AsyncMock()
-        mock_image_provider.return_value = Mock(read=lambda: b"test-image")
-
-        mock_executor = AsyncMock()
-
-        with patch.object(
-            task.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            mock_create.return_value = response
-
-            result = await task.auto_mode(
-                "Test task",
-                max_steps=3,
-                executor=mock_executor,
-                image_provider=mock_image_provider,
-            )
-
-            assert result is False
-            assert mock_executor.call_count == 3
-
-        await task.close()
 
 
 class TestAsyncActorTemperature:

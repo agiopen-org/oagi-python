@@ -9,7 +9,7 @@
 from examples.execute_task_manual import execute_task_manual
 
 is_completed, screenshot = execute_task_manual(
-    desc := "Search weather with Google", max_steps=5
+    desc := "Search weather with Google", max_steps=10
 )
 
 print(f"is_completed: {is_completed}, desc: {desc}")
