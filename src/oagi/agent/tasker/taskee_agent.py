@@ -106,8 +106,17 @@ class TaskeeAgent(AsyncAgent):
         self.success = False
 
         try:
+            self.actor = AsyncActor(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                model=self.model,
+                temperature=self.temperature,
+            )
             # Initial planning
             await self._initial_plan(image_provider)
+
+            # Initialize the actor with the task
+            await self.actor.init_task(self.current_instruction)
 
             # Main execution loop with reinitializations
             max_total_steps = self.max_steps_per_subtask * 3  # Allow up to 3 reinits
@@ -206,106 +215,88 @@ class TaskeeAgent(AsyncAgent):
         """
         logger.info(f"Executing subtask with max {max_steps} steps")
 
-        # Use async with for automatic resource management
-        async with AsyncActor(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            model=self.model,
-            temperature=self.temperature,
-        ) as actor:
-            # Store reference for potential cleanup in execute's finally block
-            self.actor = actor
+        steps_taken = 0
+        client = self.planner._ensure_client()
 
-            # Initialize actor with current instruction
-            await actor.init_task(self.current_instruction)
+        for step_num in range(max_steps):
+            # Capture screenshot
+            screenshot = await image_provider()
 
-            steps_taken = 0
-            client = self.planner._ensure_client()
+            # Upload screenshot first to get UUID (avoids re-upload in actor.step)
+            try:
+                upload_response = await client.put_s3_presigned_url(screenshot)
+                screenshot_uuid = upload_response.uuid
+                screenshot_url = upload_response.download_url
+            except Exception as e:
+                logger.error(f"Error uploading screenshot: {e}")
+                self._record_action(
+                    action_type="error",
+                    target="screenshot_upload",
+                    reasoning=str(e),
+                )
+                break
 
-            for step_num in range(max_steps):
-                # Capture screenshot
-                screenshot = await image_provider()
+            # Get next step from OAGI using URL (avoids re-upload)
+            try:
+                step = await self.actor.step(URLImage(screenshot_url), instruction=None)
+            except Exception as e:
+                logger.error(f"Error getting step from OAGI: {e}")
+                self._record_action(
+                    action_type="error",
+                    target="oagi_step",
+                    reasoning=str(e),
+                    screenshot_uuid=screenshot_uuid,
+                )
+                break
 
-                # Upload screenshot first to get UUID (avoids re-upload in actor.step)
-                try:
-                    upload_response = await client.put_s3_presigned_url(screenshot)
-                    screenshot_uuid = upload_response.uuid
-                    screenshot_url = upload_response.download_url
-                except Exception as e:
-                    logger.error(f"Error uploading screenshot: {e}")
-                    self._record_action(
-                        action_type="error",
-                        target="screenshot_upload",
-                        reasoning=str(e),
+            # Log reasoning
+            if step.reason:
+                logger.info(f"Step {self.total_actions + 1}: {step.reason}")
+
+            # Notify observer if present
+            if self.step_observer:
+                await self.step_observer.on_step(
+                    self.total_actions + 1, step.reason, step.actions
+                )
+
+            # Record OAGI actions
+            if step.actions:
+                # Log actions with details
+                logger.info(f"Actions ({len(step.actions)}):")
+                for action in step.actions:
+                    count_suffix = (
+                        f" x{action.count}" if action.count and action.count > 1 else ""
                     )
-                    break
+                    logger.info(
+                        f"  [{action.type.value}] {action.argument}{count_suffix}"
+                    )
 
-                # Get next step from OAGI using URL (avoids re-upload)
-                try:
-                    step = await actor.step(URLImage(screenshot_url), instruction=None)
-                except Exception as e:
-                    logger.error(f"Error getting step from OAGI: {e}")
+                for action in step.actions:
                     self._record_action(
-                        action_type="error",
-                        target="oagi_step",
-                        reasoning=str(e),
+                        action_type=action.type.lower(),
+                        target=action.argument,
+                        reasoning=step.reason,
                         screenshot_uuid=screenshot_uuid,
                     )
-                    break
 
-                # Log reasoning
-                if step.reason:
-                    logger.info(f"Step {self.total_actions + 1}: {step.reason}")
+                # Execute actions
+                await action_handler(step.actions)
+                self.total_actions += len(step.actions)
+                self.since_reflection += len(step.actions)
 
-                # Notify observer if present
-                if self.step_observer:
-                    await self.step_observer.on_step(
-                        self.total_actions + 1, step.reason, step.actions
-                    )
+            steps_taken += 1
 
-                # Record OAGI actions
-                if step.actions:
-                    # Log actions with details
-                    logger.info(f"Actions ({len(step.actions)}):")
-                    for action in step.actions:
-                        count_suffix = (
-                            f" x{action.count}"
-                            if action.count and action.count > 1
-                            else ""
-                        )
-                        logger.info(
-                            f"  [{action.type.value}] {action.argument}{count_suffix}"
-                        )
+            # Check if task is complete
+            if step.stop:
+                logger.info("OAGI signaled task completion")
+                break
 
-                    for action in step.actions:
-                        self._record_action(
-                            action_type=action.type.lower(),
-                            target=action.argument,
-                            reasoning=step.reason,
-                            screenshot_uuid=screenshot_uuid,
-                        )
+            # Check if reflection is needed
+            if self.since_reflection >= self.reflection_interval:
+                logger.info("Reflection interval reached")
+                break
 
-                    # Execute actions
-                    await action_handler(step.actions)
-                    self.total_actions += len(step.actions)
-                    self.since_reflection += len(step.actions)
-
-                steps_taken += 1
-
-                # Check if task is complete
-                if step.stop:
-                    logger.info("OAGI signaled task completion")
-                    break
-
-                # Check if reflection is needed
-                if self.since_reflection >= self.reflection_interval:
-                    logger.info("Reflection interval reached")
-                    break
-
-            # Actor will be automatically closed by async with context manager
-            # Clear reference after context manager closes it
-            self.actor = None
-            return steps_taken
+        return steps_taken
 
     async def _reflect_and_decide(self, image_provider: AsyncImageProvider) -> bool:
         """Reflect on progress and decide whether to continue.
@@ -360,6 +351,9 @@ class TaskeeAgent(AsyncAgent):
         if not reflection.continue_current and reflection.new_instruction:
             logger.info(f"Pivoting to new instruction: {reflection.new_instruction}")
             self.current_instruction = reflection.new_instruction
+
+            # the following line create a new actor
+            await self.actor.init_task(self.current_instruction)
             return True
 
         return reflection.continue_current

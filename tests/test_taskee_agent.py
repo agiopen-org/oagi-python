@@ -118,13 +118,10 @@ class TestTaskeeAgent:
         assert agent.actions[0].action_type == "plan"
         assert agent.actions[0].target == "initial"
 
-    @patch("oagi.agent.tasker.taskee_agent.AsyncActor")
-    async def test_execute_subtask_success(self, mock_async_actor_class):
+    async def test_execute_subtask_success(self):
         """Test executing a subtask successfully."""
         # Setup mock actor
         mock_actor = AsyncMock()
-        # Configure async context manager
-        mock_async_actor_class.return_value.__aenter__.return_value = mock_actor
 
         # Mock step response
         mock_step = Step(
@@ -141,6 +138,9 @@ class TestTaskeeAgent:
 
         agent = TaskeeAgent(planner=MockPlanner())
         agent.current_instruction = "Click submit"
+        agent.actor = (
+            mock_actor  # Actor is created in execute(), set manually for unit test
+        )
 
         # Mock handlers
         action_handler = AsyncMock()
@@ -160,19 +160,12 @@ class TestTaskeeAgent:
         )  # success is only set by reflection, not by step.stop
         assert len(agent.actions) == 1
         assert agent.actions[0].action_type == "click"
-        mock_actor.init_task.assert_called_once_with("Click submit")
-        # close() is now handled automatically by async with context manager
         action_handler.assert_called_once()
 
-    @patch("oagi.agent.tasker.taskee_agent.AsyncActor")
-    async def test_execute_subtask_with_reflection_trigger(
-        self, mock_async_actor_class
-    ):
+    async def test_execute_subtask_with_reflection_trigger(self):
         """Test that reflection is triggered at interval."""
         # Setup mock actor
         mock_actor = AsyncMock()
-        # Configure async context manager
-        mock_async_actor_class.return_value.__aenter__.return_value = mock_actor
 
         # Mock step responses (many actions to trigger reflection)
         mock_step = Step(
@@ -184,6 +177,9 @@ class TestTaskeeAgent:
 
         agent = TaskeeAgent(planner=MockPlanner(), reflection_interval=3)
         agent.current_instruction = "Test instruction"
+        agent.actor = (
+            mock_actor  # Actor is created in execute(), set manually for unit test
+        )
 
         # Mock handlers
         action_handler = AsyncMock()
@@ -256,6 +252,7 @@ class TestTaskeeAgent:
         agent = TaskeeAgent(planner=PivotPlanner())
         agent.current_todo = "Test todo"
         agent.current_instruction = "Original instruction"
+        agent.actor = AsyncMock()  # Actor needed for init_task call when pivoting
 
         # Mock image provider
         image_provider = AsyncMock()
@@ -266,6 +263,7 @@ class TestTaskeeAgent:
 
         assert should_continue is True
         assert agent.current_instruction == "Try different approach"
+        agent.actor.init_task.assert_called_once_with("Try different approach")
 
     async def test_reflect_success_assessment(self):
         """Test reflection that assesses success."""
@@ -310,6 +308,7 @@ class TestTaskeeAgent:
         assert should_continue is False
         assert agent.success is True
 
+    @patch("oagi.agent.tasker.taskee_agent.AsyncActor")
     @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent._initial_plan")
     @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent._execute_subtask")
     @patch("oagi.agent.tasker.taskee_agent.TaskeeAgent._reflect_and_decide")
@@ -320,9 +319,13 @@ class TestTaskeeAgent:
         mock_reflect,
         mock_execute_subtask,
         mock_initial_plan,
+        mock_async_actor_class,
     ):
         """Test full execution flow."""
         # Setup mocks
+        mock_async_actor_class.return_value = (
+            AsyncMock()
+        )  # Return AsyncMock for async methods
         mock_execute_subtask.side_effect = [5, 5]  # Two subtask executions
         mock_reflect.side_effect = [True, False]  # Continue once, then stop
 
@@ -341,8 +344,12 @@ class TestTaskeeAgent:
         assert mock_reflect.call_count == 2
         mock_generate_summary.assert_called_once()
 
-    async def test_execute_with_error(self):
+    @patch("oagi.agent.tasker.taskee_agent.AsyncActor")
+    async def test_execute_with_error(self, mock_async_actor_class):
         """Test execution with error handling."""
+        mock_async_actor_class.return_value = (
+            AsyncMock()
+        )  # Return AsyncMock for async methods
         agent = TaskeeAgent(planner=MockPlanner())
 
         # Mock handlers that raise error
