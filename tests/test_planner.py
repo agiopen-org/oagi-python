@@ -175,7 +175,7 @@ class TestPlanner:
     async def test_parse_planner_output_fallback(self, planner):
         response = "Invalid JSON response"
         output = planner._parse_planner_output(response)
-        assert output.instruction == response
+        assert output.instruction == ""
         assert output.reasoning == "Failed to parse structured response"
 
     @pytest.mark.asyncio

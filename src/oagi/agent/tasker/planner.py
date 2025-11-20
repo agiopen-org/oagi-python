@@ -121,7 +121,7 @@ class Planner:
         self,
         todo: str,
         context: dict[str, Any],
-        screenshot: bytes | None = None,
+        screenshot: Image | None = None,
         memory: PlannerMemory | None = None,
         todo_index: int | None = None,
     ) -> PlannerOutput:
@@ -350,7 +350,9 @@ class Planner:
         """
         try:
             # Try to parse as JSON (oagi_first format)
-            data = json.loads(response)
+            # Extract JSON string to handle Markdown code blocks
+            json_response = self._extract_json_str(response)
+            data = json.loads(json_response)
             # oagi_first returns: {"reasoning": "...", "subtask": "..."}
             return PlannerOutput(
                 instruction=data.get("subtask", data.get("instruction", "")),
@@ -362,7 +364,7 @@ class Planner:
         except (json.JSONDecodeError, KeyError):
             # Fallback: use the entire response as instruction
             return PlannerOutput(
-                instruction=response,
+                instruction="",
                 reasoning="Failed to parse structured response",
                 subtodos=[],
             )
