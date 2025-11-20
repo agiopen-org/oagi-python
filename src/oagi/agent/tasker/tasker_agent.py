@@ -100,18 +100,13 @@ class TaskerAgent(AsyncAgent):
         or a failure occurs.
 
         Args:
-            instruction: Overall instruction (can be same as task description)
+            instruction: Not used in TaskerAgent
             action_handler: Handler for executing actions
             image_provider: Provider for capturing screenshots
 
         Returns:
             True if all todos completed successfully, False otherwise
         """
-        # If task not set, use instruction as task description
-        if not self.memory.task_description:
-            logger.warning("Task not set, using instruction as task description")
-            self.memory.task_description = instruction
-
         overall_success = True
 
         # Execute todos until none remain
