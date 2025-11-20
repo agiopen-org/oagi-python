@@ -68,7 +68,10 @@ def test_drag_action(handler, mock_pyautogui, config):
     )
 
 
-def test_hotkey_action(handler, mock_pyautogui, config):
+def test_hotkey_action(mock_pyautogui):
+    # Disable macos_ctrl_to_cmd to test basic hotkey functionality
+    config = PyautoguiConfig(macos_ctrl_to_cmd=False)
+    handler = PyautoguiActionHandler(config=config)
     action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
     handler([action])
 
@@ -136,7 +139,10 @@ class TestActionExecution:
 
         assert mock_pyautogui.click.call_count == 3
 
-    def test_multiple_actions(self, handler, mock_pyautogui):
+    def test_multiple_actions(self, mock_pyautogui):
+        # Disable macos_ctrl_to_cmd to test basic hotkey functionality
+        config = PyautoguiConfig(macos_ctrl_to_cmd=False)
+        handler = PyautoguiActionHandler(config=config)
         actions = [
             Action(type=ActionType.CLICK, argument="100, 100", count=1),
             Action(type=ActionType.TYPE, argument="test", count=1),
@@ -321,9 +327,57 @@ class TestCapsLockIntegration:
         mock_pyautogui.typewrite.assert_called_with("test")
 
     def test_regular_hotkey_not_affected(self, mock_pyautogui):
-        handler = PyautoguiActionHandler()
+        # Disable macos_ctrl_to_cmd to test basic hotkey functionality
+        config = PyautoguiConfig(macos_ctrl_to_cmd=False)
+        handler = PyautoguiActionHandler(config=config)
 
         # Regular hotkeys should work normally
         action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
         handler([action])
         mock_pyautogui.hotkey.assert_called_once_with("ctrl", "c", interval=0.1)
+
+
+class TestMacosCtrlToCmd:
+    @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
+    def test_ctrl_remapped_to_command_on_macos_by_default(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+        action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
+        handler([action])
+        mock_pyautogui.hotkey.assert_called_once_with("command", "c", interval=0.1)
+
+    @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
+    def test_ctrl_not_remapped_when_disabled(self, mock_pyautogui):
+        config = PyautoguiConfig(macos_ctrl_to_cmd=False)
+        handler = PyautoguiActionHandler(config=config)
+        action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
+        handler([action])
+        mock_pyautogui.hotkey.assert_called_once_with("ctrl", "c", interval=0.1)
+
+    @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
+    def test_multiple_keys_with_ctrl_remapped(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+        action = Action(type=ActionType.HOTKEY, argument="ctrl+shift+a", count=1)
+        handler([action])
+        mock_pyautogui.hotkey.assert_called_once_with(
+            "command", "shift", "a", interval=0.1
+        )
+
+    @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
+    def test_cmd_not_affected_on_macos(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+        action = Action(type=ActionType.HOTKEY, argument="cmd+v", count=1)
+        handler([action])
+        mock_pyautogui.hotkey.assert_called_once_with("cmd", "v", interval=0.1)
+
+    def test_ctrl_not_remapped_on_non_macos(self, mock_pyautogui):
+        with patch.object(sys, "platform", "linux"):
+            handler = PyautoguiActionHandler()
+            action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
+            handler([action])
+            mock_pyautogui.hotkey.assert_called_once_with("ctrl", "c", interval=0.1)
+
+    def test_other_keys_not_affected(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+        action = Action(type=ActionType.HOTKEY, argument="shift+tab", count=1)
+        handler([action])
+        mock_pyautogui.hotkey.assert_called_once_with("shift", "tab", interval=0.1)
