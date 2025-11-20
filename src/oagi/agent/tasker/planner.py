@@ -365,7 +365,8 @@ class Planner:
         """
         try:
             # Try to parse as JSON (oagi_follow format)
-            data = json.loads(response)
+            json_response = self._extract_json_str(response)
+            data = json.loads(json_response)
             # oagi_follow returns:
             # {"assessment": "...", "summary": "...", "reflection": "...",
             #  "success": "yes" | "no", "subtask_instruction": "..."}
@@ -392,3 +393,10 @@ class Planner:
                 reasoning="Failed to parse reflection response, continuing current approach",
                 success_assessment=False,
             )
+
+    def _extract_json_str(self, text: str) -> str:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start < 0 or end <= start:
+            return ""
+        return text[start:end]

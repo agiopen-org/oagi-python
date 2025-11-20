@@ -128,7 +128,7 @@ class TestTaskeeAgent:
 
         # Mock step response
         mock_step = Step(
-            reasoning="Found button",
+            reason="Found button",
             actions=[
                 OAGIAction(
                     type=ActionType.CLICK,
@@ -155,7 +155,7 @@ class TestTaskeeAgent:
         )
 
         assert steps_taken == 1
-        assert agent.success is True
+        assert agent.success is False  # success is only set by reflection, not by step.stop
         assert len(agent.actions) == 1
         assert agent.actions[0].action_type == "click"
         mock_actor.init_task.assert_called_once_with("Click submit")
@@ -174,7 +174,7 @@ class TestTaskeeAgent:
 
         # Mock step responses (many actions to trigger reflection)
         mock_step = Step(
-            reasoning="Action",
+            reason="Action",
             actions=[OAGIAction(type=ActionType.CLICK, argument="100,200")],
             stop=False,
         )

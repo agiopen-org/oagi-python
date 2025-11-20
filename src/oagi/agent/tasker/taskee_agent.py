@@ -272,7 +272,6 @@ class TaskeeAgent(AsyncAgent):
                 # Check if task is complete
                 if step.stop:
                     logger.info("OAGI signaled task completion")
-                    self.success = True
                     break
 
                 # Check if reflection is needed
