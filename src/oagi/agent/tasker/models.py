@@ -44,6 +44,7 @@ class Action(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
     reasoning: str | None = None
     result: str | None = None
+    screenshot_uuid: str | None = None  # UUID of uploaded screenshot for this action
 
 
 class TodoHistory(BaseModel):

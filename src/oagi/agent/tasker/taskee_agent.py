@@ -11,7 +11,12 @@ from datetime import datetime
 from typing import Any
 
 from oagi import AsyncActor
-from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncStepObserver
+from oagi.types import (
+    AsyncActionHandler,
+    AsyncImageProvider,
+    AsyncStepObserver,
+    URLImage,
+)
 
 from ..protocol import AsyncAgent
 from .memory import PlannerMemory
@@ -215,19 +220,36 @@ class TaskeeAgent(AsyncAgent):
             await actor.init_task(self.current_instruction)
 
             steps_taken = 0
+            client = self.planner._ensure_client()
+
             for step_num in range(max_steps):
                 # Capture screenshot
                 screenshot = await image_provider()
 
-                # Get next step from OAGI
+                # Upload screenshot first to get UUID (avoids re-upload in actor.step)
                 try:
-                    step = await actor.step(screenshot, instruction=None)
+                    upload_response = await client.put_s3_presigned_url(screenshot)
+                    screenshot_uuid = upload_response.uuid
+                    screenshot_url = upload_response.download_url
+                except Exception as e:
+                    logger.error(f"Error uploading screenshot: {e}")
+                    self._record_action(
+                        action_type="error",
+                        target="screenshot_upload",
+                        reasoning=str(e),
+                    )
+                    break
+
+                # Get next step from OAGI using URL (avoids re-upload)
+                try:
+                    step = await actor.step(URLImage(screenshot_url), instruction=None)
                 except Exception as e:
                     logger.error(f"Error getting step from OAGI: {e}")
                     self._record_action(
                         action_type="error",
                         target="oagi_step",
                         reasoning=str(e),
+                        screenshot_uuid=screenshot_uuid,
                     )
                     break
 
@@ -260,6 +282,7 @@ class TaskeeAgent(AsyncAgent):
                             action_type=action.type.lower(),
                             target=action.argument,
                             reasoning=step.reason,
+                            screenshot_uuid=screenshot_uuid,
                         )
 
                     # Execute actions
@@ -313,6 +336,7 @@ class TaskeeAgent(AsyncAgent):
             memory=self.external_memory,
             todo_index=self.todo_index,
             current_instruction=self.current_instruction,
+            reflection_interval=self.reflection_interval,
         )
 
         # Record reflection
@@ -369,6 +393,7 @@ class TaskeeAgent(AsyncAgent):
         target: str | None,
         reasoning: str | None = None,
         result: str | None = None,
+        screenshot_uuid: str | None = None,
     ) -> None:
         """Record an action to the history.
 
@@ -377,6 +402,7 @@ class TaskeeAgent(AsyncAgent):
             target: Target of the action
             reasoning: Reasoning for the action
             result: Result of the action
+            screenshot_uuid: UUID of uploaded screenshot for this action
         """
         action = Action(
             timestamp=datetime.now().isoformat(),
@@ -385,6 +411,7 @@ class TaskeeAgent(AsyncAgent):
             reasoning=reasoning,
             result=result,
             details={},
+            screenshot_uuid=screenshot_uuid,
         )
         self.actions.append(action)
 

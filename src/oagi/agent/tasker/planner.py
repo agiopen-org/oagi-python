@@ -10,6 +10,7 @@ import json
 from typing import Any
 
 from ...client import AsyncClient
+from ...types import Image
 from .memory import PlannerMemory
 from .models import Action, PlannerOutput, ReflectionOutput
 
@@ -175,10 +176,11 @@ class Planner:
         self,
         actions: list[Action],
         context: dict[str, Any],
-        screenshot: bytes | None = None,
+        screenshot: Image | None = None,
         memory: PlannerMemory | None = None,
         todo_index: int | None = None,
         current_instruction: str | None = None,
+        reflection_interval: int = 4,
     ) -> ReflectionOutput:
         """Reflect on recent actions and progress.
 
@@ -189,6 +191,7 @@ class Planner:
             memory: Optional PlannerMemory for formatting contexts
             todo_index: Optional todo index for formatting internal context
             current_instruction: Current subtask instruction being executed
+            reflection_interval: Window size for recent actions/screenshots
 
         Returns:
             ReflectionOutput with continuation decision and reasoning
@@ -212,6 +215,9 @@ class Planner:
             overall_todo,
         ) = self._extract_memory_data(memory, context, todo_index)
 
+        # Get window of recent actions based on reflection_interval
+        window_actions = actions[-reflection_interval:]
+
         # Convert actions to window_steps format
         window_steps = [
             {
@@ -220,7 +226,14 @@ class Planner:
                 "target": action.target or "",
                 "reasoning": action.reasoning or "",
             }
-            for i, action in enumerate(actions[-10:])  # Last 10 actions
+            for i, action in enumerate(window_actions)
+        ]
+
+        # Extract screenshot UUIDs from window actions
+        window_screenshots = [
+            action.screenshot_uuid
+            for action in window_actions
+            if action.screenshot_uuid
         ]
 
         # Format prior notes from context (still needed as a simple string summary)
@@ -238,7 +251,7 @@ class Planner:
             task_execution_summary=task_execution_summary,
             current_subtask_instruction=current_instruction or "",
             window_steps=window_steps,
-            window_screenshots=[],  # Could be populated if we track screenshot history
+            window_screenshots=window_screenshots,
             result_screenshot=result_screenshot_uuid,
             prior_notes=prior_notes,
         )

@@ -155,7 +155,9 @@ class TestTaskeeAgent:
         )
 
         assert steps_taken == 1
-        assert agent.success is False  # success is only set by reflection, not by step.stop
+        assert (
+            agent.success is False
+        )  # success is only set by reflection, not by step.stop
         assert len(agent.actions) == 1
         assert agent.actions[0].action_type == "click"
         mock_actor.init_task.assert_called_once_with("Click submit")
