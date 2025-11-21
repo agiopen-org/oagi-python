@@ -82,7 +82,7 @@ class TestTaskeeAgent:
             api_key="test-key",
             base_url="https://api.test.com",
             model="test-model",
-            max_steps_per_subtask=15,
+            max_steps=15,
             reflection_interval=25,
             temperature=0.7,
             planner=planner,
@@ -92,7 +92,7 @@ class TestTaskeeAgent:
         assert agent.api_key == "test-key"
         assert agent.base_url == "https://api.test.com"
         assert agent.model == "test-model"
-        assert agent.max_steps_per_subtask == 15
+        assert agent.max_steps == 15
         assert agent.reflection_interval == 25
         assert agent.temperature == 0.7
         assert agent.planner is planner

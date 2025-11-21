@@ -41,7 +41,7 @@ class TaskeeAgent(AsyncAgent):
         api_key: str | None = None,
         base_url: str | None = None,
         model: str = "lux-actor-1",
-        max_steps_per_subtask: int = 20,
+        max_steps: int = 20,
         reflection_interval: int = 4,
         temperature: float = 0.5,
         planner: Planner | None = None,
@@ -55,7 +55,7 @@ class TaskeeAgent(AsyncAgent):
             api_key: OAGI API key
             base_url: OAGI API base URL
             model: Model to use for vision tasks
-            max_steps_per_subtask: Maximum steps before reinitializing task
+            max_steps: Maximum steps before reinitializing task
             reflection_interval: Number of actions before triggering reflection
             temperature: Sampling temperature
             planner: Planner for planning and reflection
@@ -66,7 +66,7 @@ class TaskeeAgent(AsyncAgent):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
-        self.max_steps_per_subtask = max_steps_per_subtask
+        self.max_steps = max_steps
         self.reflection_interval = reflection_interval
         self.temperature = temperature
         self.planner = planner or Planner(api_key=api_key, base_url=base_url)
@@ -119,13 +119,12 @@ class TaskeeAgent(AsyncAgent):
             await self.actor.init_task(self.current_instruction)
 
             # Main execution loop with reinitializations
-            max_total_steps = self.max_steps_per_subtask * 3  # Allow up to 3 reinits
-            remaining_steps = max_total_steps
+            remaining_steps = self.max_steps
 
             while remaining_steps > 0 and not self.success:
                 # Execute subtask
                 steps_taken = await self._execute_subtask(
-                    min(self.max_steps_per_subtask, remaining_steps),
+                    min(self.max_steps, remaining_steps),
                     action_handler,
                     image_provider,
                 )

@@ -166,7 +166,7 @@ class TaskerAgent(AsyncAgent):
             api_key=self.api_key,
             base_url=self.base_url,
             model=self.model,
-            max_steps_per_subtask=self.max_steps,  # Smaller steps per subtask
+            max_steps=self.max_steps,  # Smaller steps per subtask
             reflection_interval=self.reflection_interval,
             temperature=self.temperature,
             planner=self.planner,
