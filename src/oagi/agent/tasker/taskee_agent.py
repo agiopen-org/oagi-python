@@ -116,7 +116,9 @@ class TaskeeAgent(AsyncAgent):
             await self._initial_plan(image_provider)
 
             # Initialize the actor with the task
-            await self.actor.init_task(self.current_instruction)
+            await self.actor.init_task(
+                self.current_instruction, max_steps=self.max_steps
+            )
 
             # Main execution loop with reinitializations
             remaining_steps = self.max_steps
@@ -352,7 +354,9 @@ class TaskeeAgent(AsyncAgent):
             self.current_instruction = reflection.new_instruction
 
             # the following line create a new actor
-            await self.actor.init_task(self.current_instruction)
+            await self.actor.init_task(
+                self.current_instruction, max_steps=self.max_steps
+            )
             return True
 
         return reflection.continue_current

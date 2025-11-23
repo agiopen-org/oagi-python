@@ -43,7 +43,7 @@ class ShortTask(Actor, BaseAutoMode):
     def auto_mode(
         self,
         task_desc: str,
-        max_steps: int = 5,
+        max_steps: int = 20,
         executor: ActionHandler = None,
         image_provider: ImageProvider = None,
         temperature: float | None = None,

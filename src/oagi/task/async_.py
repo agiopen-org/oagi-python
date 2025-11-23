@@ -34,13 +34,13 @@ class AsyncActor(BaseActor):
     async def init_task(
         self,
         task_desc: str,
-        max_steps: int = 5,
+        max_steps: int = 20,
     ):
         """Initialize a new task with the given description.
 
         Args:
             task_desc: Task description
-            max_steps: Maximum number of steps (for logging)
+            max_steps: Maximum number of steps allowed
         """
         self._prepare_init_task(task_desc, max_steps)
 
@@ -61,6 +61,7 @@ class AsyncActor(BaseActor):
             Step: The actions and reasoning for this step
         """
         self._validate_step_preconditions()
+        self._check_and_increment_step()
         self._log_step_execution(prefix="async ")
 
         try:

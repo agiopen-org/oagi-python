@@ -178,6 +178,18 @@ class TestActorStep:
         with pytest.raises(Exception, match="API Error"):
             actor.step(b"image bytes")
 
+    def test_step_raises_error_when_max_steps_reached(self, actor, sample_llm_response):
+        actor.client.create_message.return_value = sample_llm_response
+        actor.init_task("Test task", max_steps=3)
+
+        # Execute 3 steps successfully
+        for _ in range(3):
+            actor.step(b"image bytes")
+
+        # 4th step should raise error
+        with pytest.raises(ValueError, match="Max steps limit \\(3\\) reached"):
+            actor.step(b"image bytes")
+
     def test_step_with_instruction(self, actor, sample_llm_response):
         actor.task_description = "Test task"
         actor.task_id = "existing-task"

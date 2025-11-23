@@ -263,7 +263,9 @@ class TestTaskeeAgent:
 
         assert should_continue is True
         assert agent.current_instruction == "Try different approach"
-        agent.actor.init_task.assert_called_once_with("Try different approach")
+        agent.actor.init_task.assert_called_once_with(
+            "Try different approach", max_steps=20
+        )
 
     async def test_reflect_success_assessment(self):
         """Test reflection that assesses success."""

@@ -43,7 +43,7 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
     async def auto_mode(
         self,
         task_desc: str,
-        max_steps: int = 5,
+        max_steps: int = 20,
         executor: AsyncActionHandler = None,
         image_provider: AsyncImageProvider = None,
         temperature: float | None = None,

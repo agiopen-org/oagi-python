@@ -111,6 +111,29 @@ class TestAsyncActorStep:
             assert result.stop is True
             assert result.reason == "Task completed"
 
+    @pytest.mark.asyncio
+    async def test_step_raises_error_when_max_steps_reached(self, async_actor):
+        mock_response = Mock()
+        mock_response.task_id = "task-123"
+        mock_response.reason = "Action taken"
+        mock_response.actions = []
+        mock_response.is_complete = False
+        mock_response.raw_output = "test"
+
+        with patch.object(
+            async_actor.client, "create_message", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+            await async_actor.init_task("Test task", max_steps=3)
+
+            # Execute 3 steps successfully
+            for _ in range(3):
+                await async_actor.step(b"test-image")
+
+            # 4th step should raise error
+            with pytest.raises(ValueError, match="Max steps limit \\(3\\) reached"):
+                await async_actor.step(b"test-image")
+
 
 class TestAsyncActorContextManager:
     @pytest.mark.asyncio

@@ -30,6 +30,8 @@ class BaseActor:
         self.model = model
         self.temperature = temperature
         self.message_history: list = []  # OpenAI-compatible message history
+        self.max_steps: int = 20  # Maximum steps allowed
+        self.current_step: int = 0  # Current step counter
         # Client will be set by subclasses
         self.api_key: str | None = None
         self.base_url: str | None = None
@@ -48,11 +50,21 @@ class BaseActor:
         self.task_id = uuid4().hex
         self.task_description = task_desc
         self.message_history = []
+        self.max_steps = max_steps
+        self.current_step = 0
         logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
 
     def _validate_step_preconditions(self):
         if not self.task_description:
             raise ValueError("Task description must be set. Call init_task() first.")
+
+    def _check_and_increment_step(self):
+        if self.current_step >= self.max_steps:
+            raise ValueError(
+                f"Max steps limit ({self.max_steps}) reached. "
+                "Call init_task() to start a new task."
+            )
+        self.current_step += 1
 
     def _prepare_screenshot(self, screenshot: Image | bytes) -> bytes:
         if isinstance(screenshot, Image):
