@@ -9,10 +9,11 @@
 from typing import Protocol
 
 from .image import Image
+from .url import URL
 
 
 class AsyncImageProvider(Protocol):
-    async def __call__(self) -> Image:
+    async def __call__(self) -> Image | URL:
         """
         Asynchronously provides an image.
 
@@ -28,7 +29,7 @@ class AsyncImageProvider(Protocol):
             RuntimeError: If an error occurs during image capture or generation.
         """
 
-    async def last_image(self) -> Image:
+    async def last_image(self) -> Image | URL:
         """
         Asynchronously returns the last captured image.
 

@@ -9,10 +9,11 @@
 from typing import Protocol
 
 from .image import Image
+from .url import URL
 
 
 class ImageProvider(Protocol):
-    def __call__(self) -> Image:
+    def __call__(self) -> Image | URL:
         """
         Represents the functionality to invoke the callable object and produce an Image
         result. Typically used to process or generate images using the defined logic
@@ -22,7 +23,7 @@ class ImageProvider(Protocol):
             Image: The resulting image output from the callable logic.
         """
 
-    def last_image(self) -> Image:
+    def last_image(self) -> Image | URL:
         """
         Returns the last captured image.
 

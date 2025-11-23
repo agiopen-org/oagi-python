@@ -240,8 +240,8 @@ def mock_sync_client():
 
 @pytest.fixture
 def mock_image():
-    """Create a mock Image object (not URLImage)."""
-    mock = Mock(spec=["read"])  # Only has read() method, not get_url()
+    """Create a mock Image object (not URL)."""
+    mock = Mock(spec=["read"])  # Only has read() method
     mock.read.return_value = b"fake image bytes"
     return mock
 

@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from ...client import AsyncClient
-from ...types import Image
+from ...types import URL, Image
 from .memory import PlannerMemory
 from .models import Action, PlannerOutput, ReflectionOutput
 
@@ -121,7 +121,7 @@ class Planner:
         self,
         todo: str,
         context: dict[str, Any],
-        screenshot: Image | None = None,
+        screenshot: Image | URL | None = None,
         memory: PlannerMemory | None = None,
         todo_index: int | None = None,
     ) -> PlannerOutput:
@@ -176,7 +176,7 @@ class Planner:
         self,
         actions: list[Action],
         context: dict[str, Any],
-        screenshot: Image | None = None,
+        screenshot: Image | URL | None = None,
         memory: PlannerMemory | None = None,
         todo_index: int | None = None,
         current_instruction: str | None = None,

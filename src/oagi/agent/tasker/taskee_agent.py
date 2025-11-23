@@ -12,10 +12,10 @@ from typing import Any
 
 from oagi import AsyncActor
 from oagi.types import (
+    URL,
     AsyncActionHandler,
     AsyncImageProvider,
     AsyncStepObserver,
-    URLImage,
 )
 
 from ..protocol import AsyncAgent
@@ -237,7 +237,7 @@ class TaskeeAgent(AsyncAgent):
 
             # Get next step from OAGI using URL (avoids re-upload)
             try:
-                step = await self.actor.step(URLImage(screenshot_url), instruction=None)
+                step = await self.actor.step(URL(screenshot_url), instruction=None)
             except Exception as e:
                 logger.error(f"Error getting step from OAGI: {e}")
                 self._record_action(

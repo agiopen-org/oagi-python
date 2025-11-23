@@ -10,7 +10,7 @@ import warnings
 
 from ..client import AsyncClient
 from ..logging import get_logger
-from ..types import Image, Step
+from ..types import URL, Image, Step
 from .base import BaseTask
 
 logger = get_logger("async_task")
@@ -46,7 +46,7 @@ class AsyncActor(BaseTask):
 
     async def step(
         self,
-        screenshot: Image | bytes,
+        screenshot: Image | URL | bytes,
         instruction: str | None = None,
         temperature: float | None = None,
     ) -> Step:

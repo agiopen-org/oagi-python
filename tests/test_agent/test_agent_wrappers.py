@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from oagi.server.agent_wrappers import SocketIOActionHandler, SocketIOImageProvider
-from oagi.types import Action, ActionType, URLImage
+from oagi.types import Action, ActionType
 
 
 @pytest.fixture
@@ -73,8 +73,8 @@ class TestSocketIOImageProvider:
 
         image = await provider()
 
-        assert isinstance(image, URLImage)
-        assert image.url == "https://s3.example.com/download/uuid-123"
+        assert isinstance(image, str)
+        assert image == "https://s3.example.com/download/uuid-123"
         assert (
             mock_session.current_screenshot_url
             == "https://s3.example.com/download/uuid-123"
@@ -117,8 +117,8 @@ class TestSocketIOImageProvider:
 
         image = await provider.last_image()
 
-        assert isinstance(image, URLImage)
-        assert image.url == "https://s3.example.com/cached/image.png"
+        assert isinstance(image, str)
+        assert image == "https://s3.example.com/cached/image.png"
         mock_namespace.call.assert_not_called()
 
     @pytest.mark.asyncio
@@ -132,6 +132,6 @@ class TestSocketIOImageProvider:
 
         image = await provider.last_image()
 
-        assert isinstance(image, URLImage)
-        assert image.url == "https://s3.example.com/download/uuid-123"
+        assert isinstance(image, str)
+        assert image == "https://s3.example.com/download/uuid-123"
         mock_namespace.call.assert_called_once()

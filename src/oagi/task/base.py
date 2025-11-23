@@ -9,7 +9,7 @@
 from uuid import uuid4
 
 from ..logging import get_logger
-from ..types import Image, Step, URLImage
+from ..types import URL, Image, Step
 from ..types.models import LLMResponse
 
 logger = get_logger("task.base")
@@ -62,9 +62,9 @@ class BaseTask:
     def _get_temperature(self, temperature: float | None) -> float | None:
         return temperature if temperature is not None else self.temperature
 
-    def _prepare_screenshot_kwargs(self, screenshot: Image | bytes) -> dict:
-        if isinstance(screenshot, URLImage):
-            return {"screenshot_url": screenshot.get_url()}
+    def _prepare_screenshot_kwargs(self, screenshot: Image | URL | bytes) -> dict:
+        if isinstance(screenshot, str):
+            return {"screenshot_url": screenshot}
         return {"screenshot": self._prepare_screenshot(screenshot)}
 
     def _handle_response_message_history(self, response: LLMResponse):

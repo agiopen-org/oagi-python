@@ -9,7 +9,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from ..types import URLImage
+from ..types import URL
 from ..types.models.action import Action
 from .models import ScreenshotRequestData, ScreenshotResponseData
 
@@ -56,7 +56,7 @@ class SocketIOImageProvider:
         self.oagi_client = oagi_client
         self._last_url: str | None = None
 
-    async def __call__(self) -> URLImage:
+    async def __call__(self) -> URL:
         logger.debug("Requesting screenshot via Socket.IO")
 
         # Get S3 presigned URL from OAGI
@@ -87,12 +87,12 @@ class SocketIOImageProvider:
         self.session.current_screenshot_url = upload_response.download_url
 
         logger.debug(f"Screenshot captured successfully: {upload_response.uuid}")
-        return URLImage(upload_response.download_url)
+        return URL(upload_response.download_url)
 
-    async def last_image(self) -> URLImage:
+    async def last_image(self) -> URL:
         if self._last_url:
             logger.debug("Returning last captured screenshot")
-            return URLImage(self._last_url)
+            return URL(self._last_url)
 
         logger.debug("No previous screenshot, capturing new one")
         return await self()
