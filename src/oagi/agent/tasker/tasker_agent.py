@@ -9,7 +9,7 @@
 import logging
 from typing import Any
 
-from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncStepObserver
+from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncObserver, SplitEvent
 
 from ..protocol import AsyncAgent
 from .memory import PlannerMemory
@@ -39,7 +39,7 @@ class TaskerAgent(AsyncAgent):
         temperature: float = 0.5,
         reflection_interval: int = 4,
         planner: Planner | None = None,
-        step_observer: AsyncStepObserver | None = None,
+        step_observer: AsyncObserver | None = None,
     ):
         """Initialize the tasker agent.
 
@@ -128,6 +128,14 @@ class TaskerAgent(AsyncAgent):
                 action_handler,
                 image_provider,
             )
+
+            # Emit split event after each todo
+            if self.step_observer:
+                await self.step_observer.on_event(
+                    SplitEvent(
+                        label=f"End of todo {todo_index + 1}: {todo.description}"
+                    )
+                )
 
             if not success:
                 logger.warning(f"Todo {todo_index} failed")

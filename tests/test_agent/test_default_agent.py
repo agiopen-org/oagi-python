@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from oagi.agent import AsyncDefaultAgent
-from oagi.types import Action, ActionType
+from oagi.types import Action, ActionType, StepEvent
 from oagi.types.models.step import Step
 
 
@@ -133,8 +133,11 @@ class TestAsyncDefaultAgent:
 
             assert success is True
             # Verify observer was called even with empty actions
-            step_observer.on_step.assert_called_once_with(
-                1, "Analyzing the screen to plan next action", []
-            )
+            step_observer.on_event.assert_called_once()
+            call_args = step_observer.on_event.call_args[0][0]
+            assert isinstance(call_args, StepEvent)
+            assert call_args.step_num == 1
+            assert call_args.step.reason == "Analyzing the screen to plan next action"
+            assert call_args.step.actions == []
             # Verify action handler was not called since there are no actions
             mock_async_action_handler.assert_not_called()

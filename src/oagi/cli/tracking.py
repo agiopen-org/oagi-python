@@ -9,7 +9,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from oagi.types import Action
+from oagi.types import Action, ActionEvent, ObserverEvent, StepEvent
 
 
 @dataclass
@@ -23,23 +23,33 @@ class StepData:
 
 
 class StepTracker:
-    """Tracks agent step execution by implementing AsyncStepObserver protocol."""
+    """Tracks agent step execution by implementing AsyncObserver protocol."""
 
     def __init__(self):
         self.steps: list[StepData] = []
 
-    async def on_step(
-        self,
-        step_num: int,
-        reasoning: str | None,
-        actions: list[Action],
-    ) -> None:
-        step_data = StepData(
-            step_num=step_num,
-            timestamp=datetime.now(),
-            reasoning=reasoning,
-            actions=actions,
-            action_count=len(actions),
-            status="running",
-        )
-        self.steps.append(step_data)
+    async def on_event(self, event: ObserverEvent) -> None:
+        """Handle observer events.
+
+        Args:
+            event: The observer event to handle.
+        """
+        match event:
+            case StepEvent():
+                step_data = StepData(
+                    step_num=event.step_num,
+                    timestamp=event.timestamp,
+                    reasoning=event.step.reason,
+                    actions=event.step.actions,
+                    action_count=len(event.step.actions),
+                    status="running",
+                )
+                self.steps.append(step_data)
+            case ActionEvent():
+                # Update status of corresponding step
+                for step in self.steps:
+                    if step.step_num == event.step_num:
+                        step.status = "error" if event.error else "completed"
+                        break
+            case _:
+                pass

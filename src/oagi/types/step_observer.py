@@ -6,29 +6,88 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from typing import Protocol
+from datetime import datetime
+from typing import Literal, Protocol
 
-from .models import Action
+from pydantic import BaseModel, Field
+
+from .models import Action, Step
 
 
-class AsyncStepObserver(Protocol):
-    """Protocol for observing agent step execution.
+class BaseEvent(BaseModel):
+    """Base class for all observer events with automatic timestamp."""
 
-    Observers receive step information (reasoning and actions) as agents
-    execute tasks, enabling tracking, logging, or other side effects.
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class ImageEvent(BaseEvent):
+    """Event emitted when a screenshot is captured."""
+
+    type: Literal["image"] = "image"
+    step_num: int
+    image: bytes | str
+
+
+class StepEvent(BaseEvent):
+    """Event emitted when LLM returns a step decision."""
+
+    type: Literal["step"] = "step"
+    step_num: int
+    image: bytes | str
+    step: Step
+
+
+class ActionEvent(BaseEvent):
+    """Event emitted after actions are executed."""
+
+    type: Literal["action"] = "action"
+    step_num: int
+    actions: list[Action]
+    error: str | None = None
+
+
+class LogEvent(BaseEvent):
+    """Event for custom log messages."""
+
+    type: Literal["log"] = "log"
+    message: str
+
+
+class SplitEvent(BaseEvent):
+    """Event for visual separators in exported reports."""
+
+    type: Literal["split"] = "split"
+    label: str = ""
+
+
+class PlanEvent(BaseEvent):
+    """Event emitted for planner activities (planning, reflection, summary)."""
+
+    type: Literal["plan"] = "plan"
+    phase: Literal["initial", "reflection", "summary"]
+    image: bytes | str | None = None
+    reasoning: str
+    result: str | None = None
+
+
+ObserverEvent = ImageEvent | StepEvent | ActionEvent | LogEvent | SplitEvent | PlanEvent
+
+
+class AsyncObserver(Protocol):
+    """Protocol for observing agent execution events.
+
+    Observers receive events during agent execution, enabling
+    recording, tracking, logging, or other side effects.
     """
 
-    async def on_step(
-        self,
-        step_num: int,
-        reasoning: str | None,
-        actions: list[Action],
-    ) -> None:
-        """Called when an agent executes a step.
+    async def on_event(self, event: ObserverEvent) -> None:
+        """Called when an agent execution event occurs.
 
         Args:
-            step_num: The step number (1-indexed)
-            reasoning: The reasoning/thinking for this step (if available)
-            actions: The list of actions being executed in this step
+            event: The event that occurred during agent execution.
         """
         ...
+
+
+# Deprecated: Use AsyncObserver instead
+AsyncStepObserver = AsyncObserver

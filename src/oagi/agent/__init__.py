@@ -9,6 +9,7 @@
 # Import factories to trigger registration
 from . import factories  # noqa: F401
 from .default import AsyncDefaultAgent
+from .observer import AsyncAgentObserver
 from .protocol import Agent, AsyncAgent
 from .registry import (
     async_agent_register,
@@ -21,6 +22,7 @@ from .tasker import TaskeeAgent, TaskerAgent
 __all__ = [
     "Agent",
     "AsyncAgent",
+    "AsyncAgentObserver",
     "AsyncDefaultAgent",
     "TaskerAgent",
     "TaskeeAgent",

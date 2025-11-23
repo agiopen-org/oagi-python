@@ -10,12 +10,22 @@ import logging
 
 from .. import AsyncActor
 from ..types import (
+    ActionEvent,
     AsyncActionHandler,
     AsyncImageProvider,
-    AsyncStepObserver,
+    AsyncObserver,
+    Image,
+    StepEvent,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _serialize_image(image: Image | str) -> bytes | str:
+    """Convert an image to bytes or keep URL as string."""
+    if isinstance(image, str):
+        return image
+    return image.read()
 
 
 class AsyncDefaultAgent:
@@ -28,7 +38,7 @@ class AsyncDefaultAgent:
         model: str = "lux-actor-1",
         max_steps: int = 20,
         temperature: float | None = 0.5,
-        step_observer: AsyncStepObserver | None = None,
+        step_observer: AsyncObserver | None = None,
     ):
         self.api_key = api_key
         self.base_url = base_url
@@ -50,7 +60,8 @@ class AsyncDefaultAgent:
             await self.actor.init_task(instruction, max_steps=self.max_steps)
 
             for i in range(self.max_steps):
-                logger.debug(f"Executing step {i + 1}/{self.max_steps}")
+                step_num = i + 1
+                logger.debug(f"Executing step {step_num}/{self.max_steps}")
 
                 # Capture current state
                 image = await image_provider()
@@ -60,11 +71,17 @@ class AsyncDefaultAgent:
 
                 # Log reasoning
                 if step.reason:
-                    logger.info(f"Step {i + 1}: {step.reason}")
+                    logger.info(f"Step {step_num}: {step.reason}")
 
-                # Notify observer if present
+                # Emit step event
                 if self.step_observer:
-                    await self.step_observer.on_step(i + 1, step.reason, step.actions)
+                    await self.step_observer.on_event(
+                        StepEvent(
+                            step_num=step_num,
+                            image=_serialize_image(image),
+                            step=step,
+                        )
+                    )
 
                 # Execute actions if any
                 if step.actions:
@@ -78,11 +95,27 @@ class AsyncDefaultAgent:
                         logger.info(
                             f"  [{action.type.value}] {action.argument}{count_suffix}"
                         )
-                    await action_handler(step.actions)
+
+                    error = None
+                    try:
+                        await action_handler(step.actions)
+                    except Exception as e:
+                        error = str(e)
+                        raise
+
+                    # Emit action event
+                    if self.step_observer:
+                        await self.step_observer.on_event(
+                            ActionEvent(
+                                step_num=step_num,
+                                actions=step.actions,
+                                error=error,
+                            )
+                        )
 
                 # Check if task is complete
                 if step.stop:
-                    logger.info(f"Task completed successfully after {i + 1} steps")
+                    logger.info(f"Task completed successfully after {step_num} steps")
                     return True
 
             logger.warning(

@@ -13,9 +13,13 @@ from typing import Any
 from oagi import AsyncActor
 from oagi.types import (
     URL,
+    ActionEvent,
     AsyncActionHandler,
     AsyncImageProvider,
-    AsyncStepObserver,
+    AsyncObserver,
+    Image,
+    PlanEvent,
+    StepEvent,
 )
 
 from ..protocol import AsyncAgent
@@ -24,6 +28,13 @@ from .models import Action, ExecutionResult
 from .planner import Planner
 
 logger = logging.getLogger(__name__)
+
+
+def _serialize_image(image: Image | str) -> bytes | str:
+    """Convert an image to bytes or keep URL as string."""
+    if isinstance(image, str):
+        return image
+    return image.read()
 
 
 class TaskeeAgent(AsyncAgent):
@@ -47,7 +58,7 @@ class TaskeeAgent(AsyncAgent):
         planner: Planner | None = None,
         external_memory: PlannerMemory | None = None,
         todo_index: int | None = None,
-        step_observer: AsyncStepObserver | None = None,
+        step_observer: AsyncObserver | None = None,
     ):
         """Initialize the taskee agent.
 
@@ -189,6 +200,17 @@ class TaskeeAgent(AsyncAgent):
             result=plan_output.instruction,
         )
 
+        # Emit plan event
+        if self.step_observer:
+            await self.step_observer.on_event(
+                PlanEvent(
+                    phase="initial",
+                    image=_serialize_image(screenshot),
+                    reasoning=plan_output.reasoning,
+                    result=plan_output.instruction,
+                )
+            )
+
         # Set current instruction
         self.current_instruction = plan_output.instruction
         logger.info(f"Initial instruction: {self.current_instruction}")
@@ -254,10 +276,14 @@ class TaskeeAgent(AsyncAgent):
             if step.reason:
                 logger.info(f"Step {self.total_actions + 1}: {step.reason}")
 
-            # Notify observer if present
+            # Emit step event
             if self.step_observer:
-                await self.step_observer.on_step(
-                    self.total_actions + 1, step.reason, step.actions
+                await self.step_observer.on_event(
+                    StepEvent(
+                        step_num=self.total_actions + 1,
+                        image=_serialize_image(screenshot),
+                        step=step,
+                    )
                 )
 
             # Record OAGI actions
@@ -281,7 +307,23 @@ class TaskeeAgent(AsyncAgent):
                     )
 
                 # Execute actions
-                await action_handler(step.actions)
+                error = None
+                try:
+                    await action_handler(step.actions)
+                except Exception as e:
+                    error = str(e)
+                    raise
+
+                # Emit action event
+                if self.step_observer:
+                    await self.step_observer.on_event(
+                        ActionEvent(
+                            step_num=self.total_actions + 1,
+                            actions=step.actions,
+                            error=error,
+                        )
+                    )
+
                 self.total_actions += len(step.actions)
                 self.since_reflection += len(step.actions)
 
@@ -339,6 +381,22 @@ class TaskeeAgent(AsyncAgent):
             result=("continue" if reflection.continue_current else "pivot"),
         )
 
+        # Emit plan event for reflection
+        if self.step_observer:
+            decision = (
+                "success"
+                if reflection.success_assessment
+                else ("continue" if reflection.continue_current else "pivot")
+            )
+            await self.step_observer.on_event(
+                PlanEvent(
+                    phase="reflection",
+                    image=_serialize_image(screenshot),
+                    reasoning=reflection.reasoning,
+                    result=decision,
+                )
+            )
+
         # Update success assessment
         if reflection.success_assessment:
             self.success = True
@@ -381,6 +439,17 @@ class TaskeeAgent(AsyncAgent):
             target=None,
             reasoning=summary,
         )
+
+        # Emit plan event for summary
+        if self.step_observer:
+            await self.step_observer.on_event(
+                PlanEvent(
+                    phase="summary",
+                    image=None,
+                    reasoning=summary,
+                    result=None,
+                )
+            )
 
         logger.info(f"Execution summary: {summary}")
 

@@ -13,6 +13,7 @@ import sys
 import time
 import traceback
 
+from oagi.agent.observer import AsyncAgentObserver
 from oagi.exceptions import check_optional_dependency
 
 from .display import display_step_table
@@ -53,6 +54,17 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         type=str,
         help="OAGI base URL (default: https://api.agiopen.org, or OAGI_BASE_URL env var)",
     )
+    run_parser.add_argument(
+        "--export",
+        type=str,
+        choices=["markdown", "html", "json"],
+        help="Export execution history to file (markdown, html, or json)",
+    )
+    run_parser.add_argument(
+        "--export-file",
+        type=str,
+        help="Output file path for export (default: execution_report.[md|html|json])",
+    )
 
 
 def handle_agent_command(args: argparse.Namespace) -> None:
@@ -85,11 +97,23 @@ def run_agent(args: argparse.Namespace) -> None:
     max_steps = args.max_steps or 20
     temperature = args.temperature if args.temperature is not None else 0.5
     mode = args.mode or "actor"
+    export_format = args.export
+    export_file = args.export_file
 
-    # Create step tracker
+    # Create observers
     step_tracker = StepTracker()
+    agent_observer = AsyncAgentObserver() if export_format else None
 
-    # Create agent with step tracker
+    # Use a combined observer that forwards to both
+    class CombinedObserver:
+        async def on_event(self, event):
+            await step_tracker.on_event(event)
+            if agent_observer:
+                await agent_observer.on_event(event)
+
+    observer = CombinedObserver()
+
+    # Create agent with observer
     agent = create_agent(
         mode=mode,
         api_key=api_key,
@@ -97,7 +121,7 @@ def run_agent(args: argparse.Namespace) -> None:
         model=model,
         max_steps=max_steps,
         temperature=temperature,
-        step_observer=step_tracker,
+        step_observer=observer,
     )
 
     # Create handlers
@@ -136,6 +160,21 @@ def run_agent(args: argparse.Namespace) -> None:
             display_step_table(step_tracker.steps, success, duration)
         else:
             print("\nNo steps were executed.")
+
+        # Export if requested
+        if export_format and agent_observer:
+            # Determine output file path
+            if export_file:
+                output_path = export_file
+            else:
+                ext_map = {"markdown": "md", "html": "html", "json": "json"}
+                output_path = f"execution_report.{ext_map[export_format]}"
+
+            try:
+                agent_observer.export(export_format, output_path)
+                print(f"\nExecution history exported to: {output_path}")
+            except Exception as e:
+                print(f"\nError exporting execution history: {e}", file=sys.stderr)
 
         if interrupted:
             sys.exit(130)
