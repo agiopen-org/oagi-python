@@ -11,12 +11,12 @@ import warnings
 from ..client import SyncClient
 from ..logging import get_logger
 from ..types import URL, Image, Step
-from .base import BaseTask
+from .base import BaseActor
 
 logger = get_logger("task")
 
 
-class Actor(BaseTask):
+class Actor(BaseActor):
     """Base class for task automation with the OAGI API."""
 
     def __init__(

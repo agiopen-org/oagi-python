@@ -15,8 +15,8 @@ from ..types.models import LLMResponse
 logger = get_logger("task.base")
 
 
-class BaseTask:
-    """Base class with shared task management logic for sync/async tasks."""
+class BaseActor:
+    """Base class with shared task management logic for sync/async actors."""
 
     def __init__(
         self,
