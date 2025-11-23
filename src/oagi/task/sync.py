@@ -9,11 +9,8 @@
 import warnings
 
 from ..client import SyncClient
-from ..logging import get_logger
 from ..types import URL, Image, Step
 from .base import BaseActor
-
-logger = get_logger("task")
 
 
 class Actor(BaseActor):
@@ -60,34 +57,13 @@ class Actor(BaseActor):
         Returns:
             Step: The actions and reasoning for this step
         """
-        self._validate_step_preconditions()
-        self._check_and_increment_step()
-        self._log_step_execution()
+        kwargs = self._prepare_step(screenshot, instruction, temperature)
 
         try:
-            # Use provided temperature or fall back to task default
-            temp = self._get_temperature(temperature)
-
-            # Prepare screenshot kwargs (handles URLImage vs bytes/Image)
-            screenshot_kwargs = self._prepare_screenshot_kwargs(screenshot)
-
-            # Call API with dynamically determined screenshot argument
-            response = self.client.create_message(
-                model=self.model,
-                task_description=self.task_description,
-                task_id=self.task_id,
-                instruction=instruction,
-                messages_history=self.message_history,
-                temperature=temp,
-                **screenshot_kwargs,
-            )
-
-            # Convert API response to Step (also updates message_history)
+            response = self.client.create_message(**kwargs)
             return self._build_step_response(response)
-
         except Exception as e:
-            logger.error(f"Error during step execution: {e}")
-            raise
+            self._handle_step_error(e)
 
     def close(self):
         """Close the underlying HTTP client to free resources."""

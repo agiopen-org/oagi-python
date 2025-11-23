@@ -54,17 +54,39 @@ class BaseActor:
         self.current_step = 0
         logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
 
-    def _validate_step_preconditions(self):
+    def _validate_and_increment_step(self):
         if not self.task_description:
             raise ValueError("Task description must be set. Call init_task() first.")
-
-    def _check_and_increment_step(self):
         if self.current_step >= self.max_steps:
             raise ValueError(
                 f"Max steps limit ({self.max_steps}) reached. "
                 "Call init_task() to start a new task."
             )
         self.current_step += 1
+
+    def _prepare_step(
+        self,
+        screenshot: Image | URL | bytes,
+        instruction: str | None,
+        temperature: float | None,
+        prefix: str = "",
+    ) -> dict:
+        self._validate_and_increment_step()
+        self._log_step_execution(prefix=prefix)
+
+        return {
+            "model": self.model,
+            "task_description": self.task_description,
+            "task_id": self.task_id,
+            "instruction": instruction,
+            "messages_history": self.message_history,
+            "temperature": self._get_temperature(temperature),
+            **self._prepare_screenshot_kwargs(screenshot),
+        }
+
+    def _handle_step_error(self, error: Exception, prefix: str = ""):
+        logger.error(f"Error during {prefix}step execution: {error}")
+        raise
 
     def _prepare_screenshot(self, screenshot: Image | bytes) -> bytes:
         if isinstance(screenshot, Image):
