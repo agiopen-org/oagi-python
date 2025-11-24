@@ -17,8 +17,27 @@ from .registry import async_agent_register
 def create_default_agent(
     api_key: str | None = None,
     base_url: str | None = None,
-    model: str = "lux-v1",
+    model: str = "lux-actor-1",
     max_steps: int = 20,
+    temperature: float = 0.1,
+    step_observer: AsyncStepObserver | None = None,
+) -> AsyncAgent:
+    return AsyncDefaultAgent(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        max_steps=max_steps,
+        temperature=temperature,
+        step_observer=step_observer,
+    )
+
+
+@async_agent_register(mode="thinker")
+def create_thinker_agent(
+    api_key: str | None = None,
+    base_url: str | None = None,
+    model: str = "lux-thinker-1",
+    max_steps: int = 100,
     temperature: float = 0.1,
     step_observer: AsyncStepObserver | None = None,
 ) -> AsyncAgent:
@@ -36,9 +55,9 @@ def create_default_agent(
 def create_planner_agent(
     api_key: str | None = None,
     base_url: str | None = None,
-    model: str = "lux-v1",
+    model: str = "lux-actor-1",
     max_steps: int = 30,
-    temperature: float = 0.0,
+    temperature: float = 0.1,
     reflection_interval: int = 20,
     step_observer: AsyncStepObserver | None = None,
 ) -> AsyncAgent:
