@@ -64,7 +64,7 @@ class TestAgentRegistry:
         def create_test_agent(
             api_key: str | None = None,
             base_url: str | None = None,
-            model: str = "lux-v1",
+            model: str = "lux-actor-1",
         ) -> AsyncAgent:
             return MockAsyncAgent(api_key=api_key, base_url=base_url, model=model)
 
@@ -159,7 +159,7 @@ class TestAgentRegistry:
             mode="actor",
             api_key="test-key",
             base_url="test-url",
-            model="lux-v1",
+            model="lux-actor-1",
             max_steps=20,
             temperature=0.5,
         )
@@ -167,7 +167,7 @@ class TestAgentRegistry:
         assert hasattr(agent, "execute")
         assert hasattr(agent, "api_key")
         assert agent.api_key == "test-key"
-        assert agent.model == "lux-v1"
+        assert agent.model == "lux-actor-1"
         assert agent.max_steps == 20
 
     def test_create_built_in_tasker_agent(self):
@@ -175,7 +175,7 @@ class TestAgentRegistry:
             mode="tasker",
             api_key="test-key",
             base_url="test-url",
-            model="lux-v1",
+            model="lux-actor-1",
             max_steps=25,
             temperature=0.2,
             reflection_interval=15,
@@ -184,7 +184,7 @@ class TestAgentRegistry:
         assert hasattr(agent, "execute")
         assert hasattr(agent, "api_key")
         assert agent.api_key == "test-key"
-        assert agent.model == "lux-v1"
+        assert agent.model == "lux-actor-1"
         assert agent.max_steps == 25
         assert agent.reflection_interval == 15
 

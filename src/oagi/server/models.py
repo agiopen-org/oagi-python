@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 class InitEventData(BaseModel):
     instruction: str = Field(...)
     mode: str | None = Field(default="actor")
-    model: str | None = Field(default="lux-v1")
+    model: str | None = Field(default="lux-actor-1")
     temperature: float | None = Field(default=0.1, ge=0.0, le=2.0)
 
 

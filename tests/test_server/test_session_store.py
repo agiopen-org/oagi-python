@@ -17,7 +17,7 @@ def session():
         session_id="test_session",
         instruction="Test task",
         mode="actor",
-        model="lux-v1",
+        model="lux-actor-1",
         temperature=0.5,
     )
 
@@ -26,7 +26,7 @@ def test_session_creation(session):
     assert session.session_id == "test_session"
     assert session.instruction == "Test task"
     assert session.mode == "actor"
-    assert session.model == "lux-v1"
+    assert session.model == "lux-actor-1"
     assert session.temperature == 0.5
     assert session.status == "initialized"
     assert len(session.task_id) == 32
@@ -62,7 +62,7 @@ def test_create_session_with_defaults(store):
     session = store.get_session(session_id)
 
     assert session.mode == "actor"  # Default mode
-    assert session.model == "lux-v1"  # Default model
+    assert session.model == "lux-actor-1"  # Default model
     assert session.temperature == 0.0  # Default temperature
 
 

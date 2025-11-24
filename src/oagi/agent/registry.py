@@ -91,7 +91,7 @@ def create_agent(mode: str, **kwargs: Any) -> AsyncAgent:
     Standard parameters typically include:
     - api_key: OAGI API key
     - base_url: OAGI API base URL
-    - model: Model identifier (e.g., "lux-v1")
+    - model: Model identifier (e.g., "lux-actor-1")
     - max_steps: Maximum number of steps to execute
     - temperature: Sampling temperature
 
@@ -111,7 +111,7 @@ def create_agent(mode: str, **kwargs: Any) -> AsyncAgent:
             mode="actor",
             api_key="...",
             base_url="...",
-            model="lux-v1",
+            model="lux-actor-1",
             max_steps=30,
             temperature=0.0,
         )

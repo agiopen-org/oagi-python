@@ -18,7 +18,7 @@ class Session:
         session_id: str,
         instruction: str,
         mode: str = "actor",
-        model: str = "lux-v1",
+        model: str = "lux-actor-1",
         temperature: float = 0.0,
     ):
         self.session_id: str = session_id
@@ -54,7 +54,7 @@ class SessionStore:
         self,
         instruction: str,
         mode: str = "actor",
-        model: str = "lux-v1",
+        model: str = "lux-actor-1",
         temperature: float = 0.0,
         session_id: str | None = None,
     ) -> str:
