@@ -106,7 +106,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
@@ -397,33 +397,34 @@ sdist = { url = "https://files.pythonhosted.org/packages/28/fa/b2ba8229b9381e8f6
 
 [[package]]
 name = "oagi"
-version = "0.9.2"
+version = "0.10.0"
 source = { editable = "." }
 dependencies = [
     { name = "oagi-core", extra = ["desktop", "server"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "oagi-core", extras = ["desktop", "server"], specifier = "==0.9.1" }]
+requires-dist = [{ name = "oagi-core", extras = ["desktop", "server"], specifier = "==0.9.2" }]
 
 [[package]]
 name = "oagi-core"
-version = "0.9.1"
+version = "0.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8c/f5/e7782e86376068d5ce46e746da96dd6692f73aaaa3440cc0b403ff23824c/oagi_core-0.9.1.tar.gz", hash = "sha256:7885e527c4c80121ec946c34f49798948d8df80be6924c79885a219b8ef88330", size = 164972, upload-time = "2025-11-13T17:18:01.912Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4b/68/382a3096645de041f252f5ee8f01d02439f5a419476ab8e84fec638c3592/oagi_core-0.9.2.tar.gz", hash = "sha256:eb18c49f364561c94a26b09c98b855225ac19c19a456170e7a69c1467166f4e5", size = 253368, upload-time = "2025-11-19T04:29:14.85Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/5c/a5ba4897bf8522659de7ef379e504c29de1cda4cc0b4fc72a5224a9c00aa/oagi_core-0.9.1-py3-none-any.whl", hash = "sha256:fdb1a880b632911075c7f9ff92493d139ebbc2fd66b4eba6aef7e6798f2c0e3e", size = 74337, upload-time = "2025-11-13T17:18:00.537Z" },
+    { url = "https://files.pythonhosted.org/packages/56/15/f6e55511b78622fea2265eb9137d9c03ebbac102b66ebbf49f26bcd713ab/oagi_core-0.9.2-py3-none-any.whl", hash = "sha256:6f14abeae8338f1703fd30ff7e7ae7316be12c025cb3b30307dfb2d35efbf4fc", size = 75648, upload-time = "2025-11-19T04:29:13.961Z" },
 ]
 
 [package.optional-dependencies]
 desktop = [
     { name = "pillow" },
     { name = "pyautogui" },
+    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'" },
 ]
 server = [
     { name = "fastapi", extra = ["standard"] },
