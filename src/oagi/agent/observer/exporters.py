@@ -427,13 +427,19 @@ def export_to_json(events: list[ObserverEvent], path: str) -> None:
     # Convert events to JSON-serializable format
     json_events = []
     for event in events:
-        event_dict = event.model_dump(mode="json")
-        # Handle bytes images - convert to base64
+        # Handle bytes images before model_dump to avoid UTF-8 decode error
         if isinstance(event, (StepEvent, ImageEvent, PlanEvent)) and isinstance(
             getattr(event, "image", None), bytes
         ):
+            # Dump without json mode first, then handle bytes manually
+            event_dict = event.model_dump()
             event_dict["image"] = base64.b64encode(event.image).decode("utf-8")
             event_dict["image_encoding"] = "base64"
+            # Convert datetime to string
+            if "timestamp" in event_dict:
+                event_dict["timestamp"] = event_dict["timestamp"].isoformat()
+        else:
+            event_dict = event.model_dump(mode="json")
         json_events.append(event_dict)
 
     output_path.write_text(json.dumps(json_events, indent=2, default=str))

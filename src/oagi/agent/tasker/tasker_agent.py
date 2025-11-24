@@ -122,6 +122,14 @@ class TaskerAgent(AsyncAgent):
             todo, todo_index = todo_info
             logger.info(f"Executing todo {todo_index}: {todo.description}")
 
+            # Emit split event at the start of todo
+            if self.step_observer:
+                await self.step_observer.on_event(
+                    SplitEvent(
+                        label=f"Start of todo {todo_index + 1}: {todo.description}"
+                    )
+                )
+
             # Execute the todo
             success = await self._execute_todo(
                 todo_index,
