@@ -6,6 +6,7 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 import importlib
+from typing import TYPE_CHECKING
 
 from oagi.client import AsyncClient, SyncClient
 from oagi.exceptions import (
@@ -19,40 +20,82 @@ from oagi.exceptions import (
     RequestTimeoutError,
     ServerError,
     ValidationError,
+    check_optional_dependency,
 )
 from oagi.task import Actor, AsyncActor, AsyncShortTask, AsyncTask, ShortTask, Task
-from oagi.types import (
-    AsyncActionHandler,
-    AsyncImageProvider,
-    ImageConfig,
+from oagi.types import ImageConfig
+from oagi.types.models import (
+    ErrorDetail,
+    ErrorResponse,
+    GenerateResponse,
+    LLMResponse,
+    UploadFileResponse,
 )
-from oagi.types.models import ErrorDetail, ErrorResponse, LLMResponse
 
-# Lazy imports for pyautogui-dependent modules
-# These will only be imported when actually accessed
-_LAZY_IMPORTS = {
-    "AsyncPyautoguiActionHandler": "oagi.handler.async_pyautogui_action_handler",
-    "AsyncScreenshotMaker": "oagi.handler.async_screenshot_maker",
-    "PILImage": "oagi.handler.pil_image",
-    "PyautoguiActionHandler": "oagi.handler.pyautogui_action_handler",
-    "PyautoguiConfig": "oagi.handler.pyautogui_action_handler",
-    "ScreenshotMaker": "oagi.handler.screenshot_maker",
-    # Agent modules (to avoid circular imports)
-    "TaskerAgent": "oagi.agent.tasker",
-    # Server modules (optional - requires server dependencies)
-    "create_app": "oagi.server.main",
-    "ServerConfig": "oagi.server.config",
-    "sio": "oagi.server.socketio_server",
+# Lazy imports for optional dependency modules
+# Format: name -> (module_path, package_to_check, extra_name)
+# package_to_check is None if no optional dependency is required
+_LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
+    # Desktop handlers (require pyautogui/PIL)
+    "AsyncPyautoguiActionHandler": (
+        "oagi.handler.async_pyautogui_action_handler",
+        "pyautogui",
+        "desktop",
+    ),
+    "AsyncScreenshotMaker": ("oagi.handler.async_screenshot_maker", "PIL", "desktop"),
+    "PILImage": ("oagi.handler.pil_image", "PIL", "desktop"),
+    "PyautoguiActionHandler": (
+        "oagi.handler.pyautogui_action_handler",
+        "pyautogui",
+        "desktop",
+    ),
+    "PyautoguiConfig": (
+        "oagi.handler.pyautogui_action_handler",
+        "pyautogui",
+        "desktop",
+    ),
+    "ScreenshotMaker": ("oagi.handler.screenshot_maker", "PIL", "desktop"),
+    # Agent modules (lazy to avoid circular imports)
+    "AsyncDefaultAgent": ("oagi.agent.default", None, None),
+    "TaskerAgent": ("oagi.agent.tasker", None, None),
+    "AsyncAgentObserver": ("oagi.agent.observer.agent_observer", None, None),
+    # Server modules (require server dependencies)
+    "create_app": ("oagi.server.main", "socketio", "server"),
+    "ServerConfig": ("oagi.server.config", "pydantic_settings", "server"),
+    "sio": ("oagi.server.socketio_server", "socketio", "server"),
 }
+
+if TYPE_CHECKING:
+    from oagi.agent.default import AsyncDefaultAgent
+    from oagi.agent.observer.agent_observer import AsyncAgentObserver
+    from oagi.agent.tasker import TaskerAgent
+    from oagi.handler.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
+    from oagi.handler.async_screenshot_maker import AsyncScreenshotMaker
+    from oagi.handler.pil_image import PILImage
+    from oagi.handler.pyautogui_action_handler import (
+        PyautoguiActionHandler,
+        PyautoguiConfig,
+    )
+    from oagi.handler.screenshot_maker import ScreenshotMaker
+    from oagi.server.config import ServerConfig
+    from oagi.server.main import create_app
+    from oagi.server.socketio_server import sio
 
 
 def __getattr__(name: str):
-    """Lazy import for pyautogui-dependent modules."""
-    if name in _LAZY_IMPORTS:
-        module_name = _LAZY_IMPORTS[name]
-        module = importlib.import_module(module_name)
+    """Lazy import for optional dependency modules with helpful error messages."""
+    if name in _LAZY_IMPORTS_DATA:
+        module_path, package, extra = _LAZY_IMPORTS_DATA[name]
+        if package is not None:
+            check_optional_dependency(package, name, extra)
+        module = importlib.import_module(module_path)
         return getattr(module, name)
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    """Return all public names including lazy imports."""
+    return sorted(set(globals().keys()) | set(_LAZY_IMPORTS_DATA.keys()))
 
 
 __all__ = [
@@ -67,14 +110,15 @@ __all__ = [
     "AsyncShortTask",  # Deprecated
     "AsyncClient",
     # Agent classes
+    "AsyncDefaultAgent",
     "TaskerAgent",
-    # Async protocols
-    "AsyncActionHandler",
-    "AsyncImageProvider",
+    "AsyncAgentObserver",
     # Configuration
     "ImageConfig",
     # Response models
     "LLMResponse",
+    "GenerateResponse",
+    "UploadFileResponse",
     "ErrorResponse",
     "ErrorDetail",
     # Exceptions
@@ -88,17 +132,16 @@ __all__ = [
     "ServerError",
     "RequestTimeoutError",
     "ValidationError",
-    # Lazy imports
-    # Image classes
+    # Lazy imports - Image classes
     "PILImage",
-    # Handler classes
+    # Lazy imports - Handler classes
     "PyautoguiActionHandler",
     "PyautoguiConfig",
     "ScreenshotMaker",
-    # Async handler classes
+    # Lazy imports - Async handler classes
     "AsyncPyautoguiActionHandler",
     "AsyncScreenshotMaker",
-    # Server modules (optional)
+    # Lazy imports - Server modules (optional)
     "create_app",
     "ServerConfig",
     "sio",
