@@ -30,7 +30,6 @@ class TestPlanner:
         memory.set_task(
             task_description="Test task",
             todos=["Todo 1", "Todo 2"],
-            deliverables=["Deliverable 1"],
         )
         return memory
 

@@ -5,7 +5,6 @@ import pytest
 from oagi.agent.tasker.memory import PlannerMemory
 from oagi.agent.tasker.models import (
     Action,
-    Deliverable,
     Todo,
     TodoStatus,
 )
@@ -22,21 +21,18 @@ class TestPlannerMemory:
         memory.set_task(
             task_description="Complete a test task",
             todos=["First todo", "Second todo", "Third todo"],
-            deliverables=["Working system", "Documentation"],
         )
         return memory
 
     def test_init_empty(self, memory):
         assert memory.task_description == ""
         assert memory.todos == []
-        assert memory.deliverables == []
         assert memory.history == []
 
     def test_set_task_with_strings(self, memory):
         memory.set_task(
             task_description="Test task",
             todos=["Todo 1", "Todo 2"],
-            deliverables=["Deliverable 1"],
         )
         assert memory.task_description == "Test task"
         assert len(memory.todos) == 2
@@ -46,14 +42,11 @@ class TestPlannerMemory:
 
     def test_set_task_with_objects(self, memory):
         todos = [Todo(description="Todo 1"), Todo(description="Todo 2")]
-        deliverables = [Deliverable(description="Deliverable 1")]
         memory.set_task(
             task_description="Test task",
             todos=todos,
-            deliverables=deliverables,
         )
         assert memory.todos == todos
-        assert memory.deliverables == deliverables
 
     def test_get_current_todo(self, populated_memory):
         todo, idx = populated_memory.get_current_todo()
@@ -113,16 +106,10 @@ class TestPlannerMemory:
         assert len(memory.todos) == 1
         assert memory.todos[0].description == "New todo"
 
-    def test_append_deliverable(self, memory):
-        memory.append_deliverable("New deliverable")
-        assert len(memory.deliverables) == 1
-        assert memory.deliverables[0].description == "New deliverable"
-
     def test_get_context(self, populated_memory):
         context = populated_memory.get_context()
         assert context["task_description"] == "Complete a test task"
         assert len(context["todos"]) == 3
-        assert len(context["deliverables"]) == 2
         assert context["todos"][0]["status"] == TodoStatus.PENDING
 
 

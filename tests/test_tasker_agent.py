@@ -50,22 +50,20 @@ class TestTaskerAgent:
         assert agent.current_todo_index == -1
 
     async def test_set_task(self):
-        """Test setting task with todos and deliverables."""
+        """Test setting task with todos."""
         agent = TaskerAgent()
         todos = ["Todo 1", "Todo 2", "Todo 3"]
-        deliverables = ["Deliverable 1", "Deliverable 2"]
 
-        agent.set_task("Test task", todos, deliverables)
+        agent.set_task("Test task", todos)
 
         assert agent.memory.task_description == "Test task"
         assert len(agent.memory.todos) == 3
-        assert len(agent.memory.deliverables) == 2
         assert all(t.status == TodoStatus.PENDING for t in agent.memory.todos)
 
     async def test_prepare_with_no_todos(self):
         """Test prepare when no todos remain."""
         agent = TaskerAgent()
-        agent.set_task("Test task", [], [])
+        agent.set_task("Test task", [])
 
         result = agent._prepare()
         assert result is None
@@ -73,7 +71,7 @@ class TestTaskerAgent:
     async def test_prepare_with_pending_todo(self):
         """Test prepare with pending todo."""
         agent = TaskerAgent(planner=MockPlanner())
-        agent.set_task("Test task", ["Todo 1"], [])
+        agent.set_task("Test task", ["Todo 1"])
 
         result = agent._prepare()
         assert result is not None
@@ -106,7 +104,7 @@ class TestTaskerAgent:
 
         # Create agent and set task
         agent = TaskerAgent(planner=MockPlanner())
-        agent.set_task("Test task", ["Todo 1"], [])
+        agent.set_task("Test task", ["Todo 1"])
 
         # Create mock handlers
         action_handler = AsyncMock()
@@ -136,7 +134,7 @@ class TestTaskerAgent:
 
         # Create agent and set task
         agent = TaskerAgent(planner=MockPlanner())
-        agent.set_task("Test task", ["Todo 1", "Todo 2", "Todo 3"], [])
+        agent.set_task("Test task", ["Todo 1", "Todo 2", "Todo 3"])
 
         # Create mock handlers
         action_handler = AsyncMock()
@@ -158,7 +156,7 @@ class TestTaskerAgent:
 
         # Create agent and set task
         agent = TaskerAgent(planner=MockPlanner())
-        agent.set_task("Test task", ["Todo 1"], [])
+        agent.set_task("Test task", ["Todo 1"])
 
         # Create mock handlers
         action_handler = AsyncMock()
@@ -175,7 +173,7 @@ class TestTaskerAgent:
     async def test_append_todo(self):
         """Test dynamically appending a todo."""
         agent = TaskerAgent()
-        agent.set_task("Test task", ["Todo 1"], [])
+        agent.set_task("Test task", ["Todo 1"])
 
         agent.append_todo("Todo 2")
 
@@ -183,21 +181,10 @@ class TestTaskerAgent:
         assert agent.memory.todos[1].description == "Todo 2"
         assert agent.memory.todos[1].status == TodoStatus.PENDING
 
-    async def test_append_deliverable(self):
-        """Test dynamically appending a deliverable."""
-        agent = TaskerAgent()
-        agent.set_task("Test task", ["Todo 1"], ["Deliverable 1"])
-
-        agent.append_deliverable("Deliverable 2")
-
-        assert len(agent.memory.deliverables) == 2
-        assert agent.memory.deliverables[1].description == "Deliverable 2"
-        assert agent.memory.deliverables[1].achieved is False
-
     async def test_get_memory(self):
         """Test getting memory state."""
         agent = TaskerAgent()
-        agent.set_task("Test task", ["Todo 1"], [])
+        agent.set_task("Test task", ["Todo 1"])
 
         memory = agent.get_memory()
 
@@ -208,7 +195,7 @@ class TestTaskerAgent:
     async def test_update_task_summary(self):
         """Test updating task execution summary."""
         agent = TaskerAgent()
-        agent.set_task("Test task", ["Todo 1", "Todo 2"], [])
+        agent.set_task("Test task", ["Todo 1", "Todo 2"])
 
         # Mark first todo as completed
         agent.memory.update_todo(0, TodoStatus.COMPLETED, "First completed")

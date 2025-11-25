@@ -73,20 +73,15 @@ class TaskerAgent(AsyncAgent):
         self,
         task: str,
         todos: list[str],
-        deliverables: list[str] | None = None,
     ) -> None:
-        """Set the task, todos, and deliverables for the workflow.
+        """Set the task and todos for the workflow.
 
         Args:
             task: Overall task description
             todos: List of todo descriptions
-            deliverables: Optional list of deliverable descriptions
         """
-        self.memory.set_task(task, todos, deliverables)
-        logger.info(
-            f"Task set with {len(todos)} todos and "
-            f"{len(deliverables) if deliverables else 0} deliverables"
-        )
+        self.memory.set_task(task, todos)
+        logger.info(f"Task set with {len(todos)} todos")
 
     async def execute(
         self,
@@ -327,12 +322,3 @@ class TaskerAgent(AsyncAgent):
         """
         self.memory.append_todo(description)
         logger.info(f"Appended new todo: {description}")
-
-    def append_deliverable(self, description: str) -> None:
-        """Dynamically append a new deliverable to the workflow.
-
-        Args:
-            description: Description of the new deliverable
-        """
-        self.memory.append_deliverable(description)
-        logger.info(f"Appended new deliverable: {description}")

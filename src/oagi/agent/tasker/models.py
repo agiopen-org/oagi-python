@@ -28,13 +28,6 @@ class Todo(BaseModel):
     status: TodoStatus = TodoStatus.PENDING
 
 
-class Deliverable(BaseModel):
-    """A deliverable or goal to be achieved."""
-
-    description: str
-    achieved: bool = False
-
-
 class Action(BaseModel):
     """An action taken during execution."""
 

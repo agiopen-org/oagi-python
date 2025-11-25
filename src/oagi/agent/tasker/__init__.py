@@ -9,7 +9,6 @@
 from .memory import PlannerMemory
 from .models import (
     Action,
-    Deliverable,
     PlannerOutput,
     ReflectionOutput,
     Todo,
@@ -27,7 +26,6 @@ __all__ = [
     "Planner",
     "Todo",
     "TodoStatus",
-    "Deliverable",
     "Action",
     "TodoHistory",
     "PlannerOutput",

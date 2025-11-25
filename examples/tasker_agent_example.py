@@ -42,16 +42,10 @@ async def main():
         "Click on the official Python.org website link",
     ]
 
-    # Define deliverables to achieve
-    deliverables = [
-        "Python.org website is opened",
-    ]
-
     # Set the task
     tasker.set_task(
         task=task_description,
         todos=todos,
-        deliverables=deliverables,
     )
 
     image_provider = AsyncScreenshotMaker()

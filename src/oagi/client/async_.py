@@ -223,7 +223,6 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         overall_todo: str,
         task_description: str,
         todos: list[dict],
-        deliverables: list[dict],
         history: list[dict] | None = None,
         current_todo_index: int | None = None,
         task_execution_summary: str | None = None,
@@ -243,7 +242,6 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             overall_todo: Current todo description
             task_description: Overall task description
             todos: List of todo dicts with index, description, status, execution_summary
-            deliverables: List of deliverable dicts with description, achieved
             history: List of history dicts with todo_index, todo_description, action_count, summary, completed
             current_todo_index: Index of current todo being executed
             task_execution_summary: Summary of overall task execution
@@ -269,7 +267,6 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             overall_todo=overall_todo,
             task_description=task_description,
             todos=todos,
-            deliverables=deliverables,
             history=history,
             current_todo_index=current_todo_index,
             task_execution_summary=task_execution_summary,

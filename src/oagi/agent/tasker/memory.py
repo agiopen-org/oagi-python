@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from .models import Action, Deliverable, Todo, TodoHistory, TodoStatus
+from .models import Action, Todo, TodoHistory, TodoStatus
 
 
 class PlannerMemory:
@@ -16,7 +16,7 @@ class PlannerMemory:
 
     This class manages the hierarchical task execution state for TaskerAgent.
     It provides methods for:
-    - Task/todo/deliverable management
+    - Task/todo management
     - Execution history tracking
     - Memory state serialization
 
@@ -27,7 +27,6 @@ class PlannerMemory:
         """Initialize empty memory."""
         self.task_description: str = ""
         self.todos: list[Todo] = []
-        self.deliverables: list[Deliverable] = []
         self.history: list[TodoHistory] = []
         self.task_execution_summary: str = ""
         self.todo_execution_summaries: dict[int, str] = {}
@@ -36,14 +35,12 @@ class PlannerMemory:
         self,
         task_description: str,
         todos: list[str] | list[Todo],
-        deliverables: list[str] | list[Deliverable] | None = None,
     ) -> None:
-        """Set the task, todos, and deliverables.
+        """Set the task and todos.
 
         Args:
             task_description: Overall task description
             todos: List of todo items (strings or Todo objects)
-            deliverables: Optional list of deliverables (strings or Deliverable objects)
         """
         self.task_description = task_description
 
@@ -54,15 +51,6 @@ class PlannerMemory:
                 self.todos.append(Todo(description=todo))
             else:
                 self.todos.append(todo)
-
-        # Convert deliverables
-        self.deliverables = []
-        if deliverables:
-            for deliverable in deliverables:
-                if isinstance(deliverable, str):
-                    self.deliverables.append(Deliverable(description=deliverable))
-                else:
-                    self.deliverables.append(deliverable)
 
     def get_current_todo(self) -> tuple[Todo | None, int]:
         """Get the next pending or in-progress todo.
@@ -133,10 +121,6 @@ class PlannerMemory:
                 {"index": i, "description": t.description, "status": t.status}
                 for i, t in enumerate(self.todos)
             ],
-            "deliverables": [
-                {"description": d.description, "achieved": d.achieved}
-                for d in self.deliverables
-            ],
             "history": [
                 {
                     "todo_index": h.todo_index,
@@ -174,11 +158,3 @@ class PlannerMemory:
             description: Description of the new todo
         """
         self.todos.append(Todo(description=description))
-
-    def append_deliverable(self, description: str) -> None:
-        """Append a new deliverable to the list.
-
-        Args:
-            description: Description of the new deliverable
-        """
-        self.deliverables.append(Deliverable(description=description))

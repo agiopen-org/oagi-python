@@ -62,7 +62,7 @@ class Planner:
         memory: PlannerMemory | None,
         context: dict[str, Any],
         todo_index: int | None = None,
-    ) -> tuple[str, list, list, list, str | None, str]:
+    ) -> tuple[str, list, list, str | None, str]:
         """Extract memory data for API calls.
 
         Args:
@@ -71,7 +71,7 @@ class Planner:
             todo_index: Optional todo index for extracting overall_todo
 
         Returns:
-            Tuple of (task_description, todos, deliverables, history,
+            Tuple of (task_description, todos, history,
                      task_execution_summary, overall_todo)
         """
         if memory and todo_index is not None:
@@ -86,7 +86,6 @@ class Planner:
                 }
                 for i, t in enumerate(memory.todos)
             ]
-            deliverables = [d.model_dump() for d in memory.deliverables]
             history = [
                 {
                     "todo_index": h.todo_index,
@@ -103,7 +102,6 @@ class Planner:
             # Fallback to basic context
             task_description = context.get("task_description", "")
             todos = context.get("todos", [])
-            deliverables = context.get("deliverables", [])
             history = context.get("history", [])
             task_execution_summary = None
             overall_todo = context.get("current_todo", "")
@@ -111,7 +109,6 @@ class Planner:
         return (
             task_description,
             todos,
-            deliverables,
             history,
             task_execution_summary,
             overall_todo,
@@ -150,7 +147,6 @@ class Planner:
         (
             task_description,
             todos,
-            deliverables,
             history,
             task_execution_summary,
             _,  # overall_todo not needed here, we use the `todo` parameter
@@ -162,7 +158,6 @@ class Planner:
             overall_todo=todo,
             task_description=task_description,
             todos=todos,
-            deliverables=deliverables,
             history=history,
             current_todo_index=todo_index,
             task_execution_summary=task_execution_summary,
@@ -209,7 +204,6 @@ class Planner:
         (
             task_description,
             todos,
-            deliverables,
             history,
             task_execution_summary,
             overall_todo,
@@ -245,7 +239,6 @@ class Planner:
             overall_todo=overall_todo,
             task_description=task_description,
             todos=todos,
-            deliverables=deliverables,
             history=history,
             current_todo_index=todo_index,
             task_execution_summary=task_execution_summary,
@@ -284,7 +277,6 @@ class Planner:
         (
             task_description,
             todos,
-            deliverables,
             history,
             task_execution_summary,
             overall_todo,
@@ -302,7 +294,6 @@ class Planner:
             overall_todo=overall_todo,
             task_description=task_description,
             todos=todos,
-            deliverables=deliverables,
             history=history,
             current_todo_index=todo_index,
             task_execution_summary=task_execution_summary,
