@@ -173,6 +173,11 @@ class PyautoguiActionHandler:
         # Normalize caps lock variations
         if key in ["caps_lock", "caps", "capslock"]:
             return "capslock"
+        # Normalize page up/down variations
+        if key in ["page_up", "pageup"]:
+            return "pgup"
+        elif key in ["page_down", "pagedown"]:
+            return "pgdn"
         # Remap ctrl to command on macOS if enabled
         if self.config.macos_ctrl_to_cmd and sys.platform == "darwin" and key == "ctrl":
             return "command"
