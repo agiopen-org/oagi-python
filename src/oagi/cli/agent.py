@@ -66,16 +66,115 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Output file path for export (default: execution_report.[md|html|json])",
     )
 
+    # agent permission command
+    agent_subparsers.add_parser(
+        "permission",
+        help="Check macOS permissions for screen recording and accessibility",
+    )
+
 
 def handle_agent_command(args: argparse.Namespace) -> None:
     if args.agent_command == "run":
         run_agent(args)
+    elif args.agent_command == "permission":
+        check_permissions()
+
+
+def check_permissions() -> None:
+    """Check and request macOS permissions for screen recording and accessibility.
+
+    Guides the user through granting permissions one at a time.
+    """
+    if sys.platform != "darwin":
+        print("Warning: Permission check is only applicable on macOS.")
+        print("On other platforms, no special permissions are required.")
+        return
+
+    check_optional_dependency("Quartz", "Permission check", "desktop")
+    check_optional_dependency("ApplicationServices", "Permission check", "desktop")
+
+    import subprocess  # noqa: PLC0415
+
+    from ApplicationServices import AXIsProcessTrusted  # noqa: PLC0415
+    from Quartz import (  # noqa: PLC0415
+        CGPreflightScreenCaptureAccess,
+        CGRequestScreenCaptureAccess,
+    )
+
+    # Check all permissions first to show status
+    screen_recording_granted = CGPreflightScreenCaptureAccess()
+    accessibility_granted = AXIsProcessTrusted()
+
+    print("Checking permissions...")
+    print(f"  {'[OK]' if screen_recording_granted else '[MISSING]'} Screen Recording")
+    print(f"  {'[OK]' if accessibility_granted else '[MISSING]'} Accessibility")
+
+    # Guide user through missing permissions one at a time
+    if not screen_recording_granted:
+        CGRequestScreenCaptureAccess()
+        subprocess.run(
+            [
+                "open",
+                "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+            ],
+            check=False,
+        )
+        print("\nPlease grant Screen Recording permission in System Preferences.")
+        print("After granting, run this command again to continue.")
+        print("Note: You may need to restart your terminal after granting permissions.")
+        sys.exit(1)
+
+    if not accessibility_granted:
+        subprocess.run(
+            [
+                "open",
+                "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+            ],
+            check=False,
+        )
+        print("\nPlease grant Accessibility permission in System Preferences.")
+        print("After granting, run this command again to continue.")
+        print("Note: You may need to restart your terminal after granting permissions.")
+        sys.exit(1)
+
+    print()
+    print("All permissions granted. You can run the agent.")
+
+
+def _warn_missing_permissions() -> None:
+    if sys.platform != "darwin":
+        return
+
+    if not check_optional_dependency(
+        "Quartz", "Permission check", "desktop", raise_error=False
+    ):
+        return
+    if not check_optional_dependency(
+        "ApplicationServices", "Permission check", "desktop", raise_error=False
+    ):
+        return
+
+    from ApplicationServices import AXIsProcessTrusted  # noqa: PLC0415
+    from Quartz import CGPreflightScreenCaptureAccess  # noqa: PLC0415
+
+    missing = []
+    if not CGPreflightScreenCaptureAccess():
+        missing.append("Screen Recording")
+    if not AXIsProcessTrusted():
+        missing.append("Accessibility")
+
+    if missing:
+        print(f"Warning: Missing macOS permissions: {', '.join(missing)}")
+        print("Run 'oagi agent permission' to configure permissions.\n")
 
 
 def run_agent(args: argparse.Namespace) -> None:
     # Check if desktop extras are installed
     check_optional_dependency("pyautogui", "Agent execution", "desktop")
     check_optional_dependency("PIL", "Agent execution", "desktop")
+
+    # Warn about missing macOS permissions (non-blocking)
+    _warn_missing_permissions()
 
     from oagi import AsyncPyautoguiActionHandler, AsyncScreenshotMaker  # noqa: PLC0415
     from oagi.agent import create_agent  # noqa: PLC0415
