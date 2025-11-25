@@ -28,7 +28,7 @@ class MockPlanner(Planner):
                     response='{"reasoning": "Need to submit form", "subtask": "Click the submit button"}',
                     prompt_tokens=100,
                     completion_tokens=50,
-                    cost=0.001,
+                    cost=0.0,
                 )
             elif worker_id == "oagi_follow":
                 # Reflection response (continue with current approach)
@@ -36,7 +36,7 @@ class MockPlanner(Planner):
                     response='{"success": "no", "subtask_instruction": "", "reflection": "Making progress"}',
                     prompt_tokens=100,
                     completion_tokens=50,
-                    cost=0.001,
+                    cost=0.0,
                 )
             else:
                 # Summary response
@@ -44,7 +44,7 @@ class MockPlanner(Planner):
                     response='{"task_summary": "Successfully submitted the form"}',
                     prompt_tokens=80,
                     completion_tokens=20,
-                    cost=0.001,
+                    cost=0.0,
                 )
 
         mock_client.call_worker = AsyncMock(side_effect=call_worker_side_effect)
@@ -230,7 +230,7 @@ class TestTaskeeAgent:
                         response='{"success": "no", "subtask_instruction": "Try different approach", "reflection": "Not working"}',
                         prompt_tokens=100,
                         completion_tokens=50,
-                        cost=0.001,
+                        cost=0.0,
                     )
                 )
                 mock_client.put_s3_presigned_url = AsyncMock(
@@ -278,7 +278,7 @@ class TestTaskeeAgent:
                         response='{"success": "yes", "subtask_instruction": "", "reflection": "Task completed"}',
                         prompt_tokens=100,
                         completion_tokens=50,
-                        cost=0.001,
+                        cost=0.0,
                     )
                 )
                 mock_client.put_s3_presigned_url = AsyncMock(

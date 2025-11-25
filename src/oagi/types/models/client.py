@@ -6,7 +6,7 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .action import Action
 
@@ -56,9 +56,13 @@ class UploadFileResponse(BaseModel):
 
 
 class GenerateResponse(BaseModel):
-    """Response from /v2/generate endpoint."""
+    """Response from /v1/generate endpoint."""
 
     response: str
     prompt_tokens: int
     completion_tokens: int
-    cost: float  # in USD
+    cost: float | None = Field(
+        default=None,
+        deprecated=True,
+        description="This field is deprecated",
+    )
