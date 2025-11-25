@@ -456,6 +456,5 @@ class BaseClient(Generic[HttpClientT]):
 
         logger.info(
             f"Generate request successful - tokens: {result.prompt_tokens}+{result.completion_tokens}, "
-            f"cost: ${result.cost:.6f}"
         )
         return result

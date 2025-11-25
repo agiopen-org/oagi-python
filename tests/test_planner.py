@@ -48,7 +48,7 @@ class TestPlanner:
             response='{"reasoning": "Start with clicking", "subtask": "Click on button"}',
             prompt_tokens=100,
             completion_tokens=50,
-            cost=0.001,
+            cost=0.0,
         )
 
         screenshot = b"fake_image_bytes"
@@ -72,7 +72,7 @@ class TestPlanner:
             response='{"reasoning": "No visual needed", "subtask": "Type text"}',
             prompt_tokens=100,
             completion_tokens=50,
-            cost=0.001,
+            cost=0.0,
         )
 
         result = await planner.initial_plan(
@@ -111,7 +111,7 @@ class TestPlanner:
             response='{"assessment": "Good progress", "success": "yes", "reflection": "Task completed", "subtask_instruction": ""}',
             prompt_tokens=150,
             completion_tokens=75,
-            cost=0.002,
+            cost=0.0,
         )
 
         result = await planner.reflect(
@@ -133,7 +133,7 @@ class TestPlanner:
             response='{"success": "no", "subtask_instruction": "Try different approach", "reflection": "Need to pivot"}',
             prompt_tokens=100,
             completion_tokens=50,
-            cost=0.001,
+            cost=0.0,
         )
 
         result = await planner.reflect(
@@ -152,7 +152,7 @@ class TestPlanner:
             response='{"task_summary": "Successfully completed the task"}',
             prompt_tokens=80,
             completion_tokens=20,
-            cost=0.001,
+            cost=0.0,
         )
 
         result = await planner.summarize(
