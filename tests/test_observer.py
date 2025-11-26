@@ -186,11 +186,12 @@ class TestAsyncAgentObserver:
             assert output_path.exists()
             content = output_path.read_text()
             assert "<html" in content
-            assert "Step 1" in content
-            assert "Clicking the button" in content
-            assert "Test log" in content
-            # Check base64 image is embedded
-            assert "data:image/png;base64," in content
+            # Content is now in JSON data rendered by JavaScript
+            assert '"step_num": 1' in content
+            assert '"reason": "Clicking the button"' in content
+            assert '"message": "Test log"' in content
+            # Check base64 image is in JSON data
+            assert '"image": "' in content
 
     @pytest.mark.asyncio
     async def test_export_json(self, sample_step):
@@ -326,10 +327,12 @@ class TestPlanEventExports:
             assert output_path.exists()
             content = output_path.read_text()
             assert "<html" in content
-            assert "Reflection" in content
-            assert "Reflection reasoning" in content
-            assert "pivot" in content
-            assert "data:image/png;base64," in content
+            # Content is now in JSON data rendered by JavaScript
+            assert '"phase": "reflection"' in content
+            assert '"reasoning": "Reflection reasoning"' in content
+            assert '"result": "pivot"' in content
+            # Check base64 image is in JSON data
+            assert '"image": "' in content
 
     @pytest.mark.asyncio
     async def test_export_json_with_plan_event(self):

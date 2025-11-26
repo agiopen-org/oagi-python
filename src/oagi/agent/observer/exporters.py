@@ -11,14 +11,62 @@ import json
 from pathlib import Path
 
 from ...types import (
+    Action,
     ActionEvent,
+    ActionType,
     ImageEvent,
     LogEvent,
     ObserverEvent,
     PlanEvent,
     SplitEvent,
     StepEvent,
+    parse_coords,
+    parse_drag_coords,
+    parse_scroll,
 )
+
+
+def _parse_action_coords(action: Action) -> dict | None:
+    """Parse coordinates from action argument for cursor indicators.
+
+    Returns:
+        Dict with coordinates based on action type, or None if not applicable.
+        - Click types: {"type": "click", "x": int, "y": int}
+        - Drag: {"type": "drag", "x1": int, "y1": int, "x2": int, "y2": int}
+        - Scroll: {"type": "scroll", "x": int, "y": int, "direction": str}
+    """
+    arg = action.argument.strip("()")
+
+    match action.type:
+        case (
+            ActionType.CLICK
+            | ActionType.LEFT_DOUBLE
+            | ActionType.LEFT_TRIPLE
+            | ActionType.RIGHT_SINGLE
+        ):
+            coords = parse_coords(arg)
+            if coords:
+                return {"type": "click", "x": coords[0], "y": coords[1]}
+        case ActionType.DRAG:
+            coords = parse_drag_coords(arg)
+            if coords:
+                return {
+                    "type": "drag",
+                    "x1": coords[0],
+                    "y1": coords[1],
+                    "x2": coords[2],
+                    "y2": coords[3],
+                }
+        case ActionType.SCROLL:
+            result = parse_scroll(arg)
+            if result:
+                return {
+                    "type": "scroll",
+                    "x": result[0],
+                    "y": result[1],
+                    "direction": result[2],
+                }
+    return None
 
 
 def export_to_markdown(
@@ -137,6 +185,102 @@ def export_to_markdown(
     output_path.write_text("".join(lines))
 
 
+def _convert_events_for_html(events: list[ObserverEvent]) -> list[dict]:
+    """Convert events to JSON-serializable format for HTML template."""
+    result = []
+
+    for event in events:
+        timestamp = event.timestamp.strftime("%H:%M:%S")
+
+        match event:
+            case StepEvent():
+                # Collect action coordinates for cursor indicators
+                action_coords = []
+                actions_list = []
+                if event.step.actions:
+                    for action in event.step.actions:
+                        coords = _parse_action_coords(action)
+                        if coords:
+                            action_coords.append(coords)
+                        actions_list.append(
+                            {
+                                "type": action.type.value,
+                                "argument": action.argument,
+                                "count": action.count or 1,
+                            }
+                        )
+
+                # Handle image
+                image_data = None
+                if isinstance(event.image, bytes):
+                    image_data = base64.b64encode(event.image).decode("utf-8")
+                elif isinstance(event.image, str):
+                    image_data = event.image
+
+                result.append(
+                    {
+                        "event_type": "step",
+                        "timestamp": timestamp,
+                        "step_num": event.step_num,
+                        "image": image_data,
+                        "action_coords": action_coords,
+                        "reason": event.step.reason,
+                        "actions": actions_list,
+                        "stop": event.step.stop,
+                    }
+                )
+
+            case ActionEvent():
+                result.append(
+                    {
+                        "event_type": "action",
+                        "timestamp": timestamp,
+                        "error": event.error,
+                    }
+                )
+
+            case LogEvent():
+                result.append(
+                    {
+                        "event_type": "log",
+                        "timestamp": timestamp,
+                        "message": event.message,
+                    }
+                )
+
+            case SplitEvent():
+                result.append(
+                    {
+                        "event_type": "split",
+                        "timestamp": timestamp,
+                        "label": event.label,
+                    }
+                )
+
+            case ImageEvent():
+                pass
+
+            case PlanEvent():
+                image_data = None
+                if isinstance(event.image, bytes):
+                    image_data = base64.b64encode(event.image).decode("utf-8")
+                elif isinstance(event.image, str):
+                    image_data = event.image
+
+                result.append(
+                    {
+                        "event_type": "plan",
+                        "timestamp": timestamp,
+                        "phase": event.phase,
+                        "image": image_data,
+                        "reasoning": event.reasoning,
+                        "result": event.result,
+                    }
+                )
+
+    return result
+
+
 def export_to_html(events: list[ObserverEvent], path: str) -> None:
     """Export events to a self-contained HTML file.
 
@@ -147,271 +291,18 @@ def export_to_html(events: list[ObserverEvent], path: str) -> None:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    html_parts: list[str] = [_get_html_header()]
+    # Load template
+    template_path = Path(__file__).parent / "report_template.html"
+    template = template_path.read_text()
 
-    for event in events:
-        timestamp = event.timestamp.strftime("%H:%M:%S")
+    # Convert events to JSON
+    events_data = _convert_events_for_html(events)
+    events_json = json.dumps(events_data)
 
-        match event:
-            case StepEvent():
-                html_parts.append('<div class="step">')
-                html_parts.append(f"<h2>Step {event.step_num}</h2>")
-                html_parts.append(f'<span class="timestamp">{timestamp}</span>')
+    # Replace placeholder
+    html_content = template.replace("{EVENTS_DATA}", events_json)
 
-                if isinstance(event.image, bytes):
-                    b64_image = base64.b64encode(event.image).decode("utf-8")
-                    html_parts.append(
-                        f'<img src="data:image/png;base64,{b64_image}" '
-                        f'alt="Step {event.step_num}" class="screenshot"/>'
-                    )
-                elif isinstance(event.image, str):
-                    html_parts.append(
-                        f'<p class="url">Screenshot URL: <a href="{event.image}">{event.image}</a></p>'
-                    )
-
-                if event.step.reason:
-                    html_parts.append('<div class="reasoning">')
-                    html_parts.append(
-                        f"<strong>Reasoning:</strong><p>{_escape_html(event.step.reason)}</p>"
-                    )
-                    html_parts.append("</div>")
-
-                if event.step.actions:
-                    html_parts.append('<div class="actions">')
-                    html_parts.append("<strong>Planned Actions:</strong><ul>")
-                    for action in event.step.actions:
-                        count_str = (
-                            f" (x{action.count})"
-                            if action.count and action.count > 1
-                            else ""
-                        )
-                        html_parts.append(
-                            f"<li><code>{action.type.value}</code>: "
-                            f"{_escape_html(action.argument)}{count_str}</li>"
-                        )
-                    html_parts.append("</ul></div>")
-
-                if event.step.stop:
-                    html_parts.append('<div class="complete">Task Complete</div>')
-
-                html_parts.append("</div>")
-
-            case ActionEvent():
-                html_parts.append('<div class="action-result">')
-                html_parts.append(f'<span class="timestamp">{timestamp}</span>')
-                if event.error:
-                    html_parts.append(
-                        f'<div class="error">Error: {_escape_html(event.error)}</div>'
-                    )
-                else:
-                    html_parts.append(
-                        '<div class="success">Actions executed successfully</div>'
-                    )
-                html_parts.append("</div>")
-
-            case LogEvent():
-                html_parts.append('<div class="log">')
-                html_parts.append(f'<span class="timestamp">{timestamp}</span>')
-                html_parts.append(f"<p>{_escape_html(event.message)}</p>")
-                html_parts.append("</div>")
-
-            case SplitEvent():
-                if event.label:
-                    html_parts.append(
-                        f'<div class="split"><h3>{_escape_html(event.label)}</h3></div>'
-                    )
-                else:
-                    html_parts.append('<hr class="split-line"/>')
-
-            case ImageEvent():
-                pass
-
-            case PlanEvent():
-                phase_titles = {
-                    "initial": "Initial Planning",
-                    "reflection": "Reflection",
-                    "summary": "Summary",
-                }
-                phase_title = phase_titles.get(event.phase, event.phase.capitalize())
-                html_parts.append('<div class="plan">')
-                html_parts.append(f"<h3>{phase_title}</h3>")
-                html_parts.append(f'<span class="timestamp">{timestamp}</span>')
-
-                if event.image:
-                    if isinstance(event.image, bytes):
-                        b64_image = base64.b64encode(event.image).decode("utf-8")
-                        html_parts.append(
-                            f'<img src="data:image/png;base64,{b64_image}" '
-                            f'alt="{phase_title}" class="screenshot"/>'
-                        )
-                    elif isinstance(event.image, str):
-                        html_parts.append(
-                            f'<p class="url">Screenshot URL: '
-                            f'<a href="{event.image}">{event.image}</a></p>'
-                        )
-
-                if event.reasoning:
-                    html_parts.append('<div class="reasoning">')
-                    html_parts.append(
-                        f"<strong>Reasoning:</strong><p>{_escape_html(event.reasoning)}</p>"
-                    )
-                    html_parts.append("</div>")
-
-                if event.result:
-                    html_parts.append(
-                        f'<div class="plan-result"><strong>Result:</strong> '
-                        f"{_escape_html(event.result)}</div>"
-                    )
-
-                html_parts.append("</div>")
-
-    html_parts.append(_get_html_footer())
-    output_path.write_text("".join(html_parts))
-
-
-def _escape_html(text: str) -> str:
-    """Escape HTML special characters."""
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#39;")
-    )
-
-
-def _get_html_header() -> str:
-    """Get HTML document header with CSS styles."""
-    return """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Execution Report</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        h1 {
-            color: #333;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 10px;
-        }
-        .step {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .step h2 {
-            margin-top: 0;
-            color: #007bff;
-        }
-        .timestamp {
-            color: #666;
-            font-size: 0.9em;
-        }
-        .screenshot {
-            max-width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin: 10px 0;
-        }
-        .reasoning {
-            background: #f8f9fa;
-            padding: 10px;
-            border-left: 3px solid #007bff;
-            margin: 10px 0;
-        }
-        .actions {
-            margin: 10px 0;
-        }
-        .actions ul {
-            margin: 5px 0;
-            padding-left: 20px;
-        }
-        .actions code {
-            background: #e9ecef;
-            padding: 2px 6px;
-            border-radius: 3px;
-        }
-        .complete {
-            background: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-        .action-result {
-            padding: 10px;
-            margin: 5px 0;
-        }
-        .success {
-            color: #155724;
-        }
-        .error {
-            color: #721c24;
-            background: #f8d7da;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .log {
-            background: #fff3cd;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        .split {
-            text-align: center;
-            margin: 30px 0;
-        }
-        .split h3 {
-            color: #666;
-        }
-        .split-line {
-            border: none;
-            border-top: 2px dashed #ccc;
-            margin: 30px 0;
-        }
-        .url {
-            word-break: break-all;
-        }
-        .plan {
-            background: #e7f3ff;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .plan h3 {
-            margin-top: 0;
-            color: #0056b3;
-        }
-        .plan-result {
-            background: #d1ecf1;
-            color: #0c5460;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Agent Execution Report</h1>
-"""
-
-
-def _get_html_footer() -> str:
-    """Get HTML document footer."""
-    return """
-</body>
-</html>
-"""
+    output_path.write_text(html_content)
 
 
 def export_to_json(events: list[ObserverEvent], path: str) -> None:
