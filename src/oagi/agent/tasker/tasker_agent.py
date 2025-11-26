@@ -40,6 +40,7 @@ class TaskerAgent(AsyncAgent):
         reflection_interval: int = 4,
         planner: Planner | None = None,
         step_observer: AsyncObserver | None = None,
+        step_delay: float = 0.3,
     ):
         """Initialize the tasker agent.
 
@@ -52,6 +53,7 @@ class TaskerAgent(AsyncAgent):
             reflection_interval: Actions before reflection
             planner: Planner for planning and reflection
             step_observer: Optional observer for step tracking
+            step_delay: Delay in seconds after actions before next screenshot
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -61,6 +63,7 @@ class TaskerAgent(AsyncAgent):
         self.reflection_interval = reflection_interval
         self.planner = planner or Planner(api_key=api_key, base_url=base_url)
         self.step_observer = step_observer
+        self.step_delay = step_delay
 
         # Memory for tracking workflow
         self.memory = PlannerMemory()
@@ -184,6 +187,7 @@ class TaskerAgent(AsyncAgent):
             external_memory=self.memory,  # Share memory with child
             todo_index=todo_index,  # Pass the todo index
             step_observer=self.step_observer,  # Pass step observer
+            step_delay=self.step_delay,
         )
 
         self.current_todo_index = todo_index

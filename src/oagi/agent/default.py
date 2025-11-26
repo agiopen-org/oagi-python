@@ -6,6 +6,7 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import asyncio
 import logging
 
 from .. import AsyncActor
@@ -39,6 +40,7 @@ class AsyncDefaultAgent:
         max_steps: int = 20,
         temperature: float | None = 0.5,
         step_observer: AsyncObserver | None = None,
+        step_delay: float = 0.3,
     ):
         self.api_key = api_key
         self.base_url = base_url
@@ -46,6 +48,7 @@ class AsyncDefaultAgent:
         self.max_steps = max_steps
         self.temperature = temperature
         self.step_observer = step_observer
+        self.step_delay = step_delay
 
     async def execute(
         self,
@@ -112,6 +115,10 @@ class AsyncDefaultAgent:
                                 error=error,
                             )
                         )
+
+                # Wait after actions before next screenshot
+                if self.step_delay > 0:
+                    await asyncio.sleep(self.step_delay)
 
                 # Check if task is complete
                 if step.stop:

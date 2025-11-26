@@ -6,6 +6,7 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Any
@@ -59,6 +60,7 @@ class TaskeeAgent(AsyncAgent):
         external_memory: PlannerMemory | None = None,
         todo_index: int | None = None,
         step_observer: AsyncObserver | None = None,
+        step_delay: float = 0.3,
     ):
         """Initialize the taskee agent.
 
@@ -73,6 +75,7 @@ class TaskeeAgent(AsyncAgent):
             external_memory: External memory from parent agent
             todo_index: Index of the todo being executed
             step_observer: Optional observer for step tracking
+            step_delay: Delay in seconds after actions before next screenshot
         """
         self.api_key = api_key
         self.base_url = base_url
@@ -84,6 +87,7 @@ class TaskeeAgent(AsyncAgent):
         self.external_memory = external_memory
         self.todo_index = todo_index
         self.step_observer = step_observer
+        self.step_delay = step_delay
 
         # Internal state
         self.actor: AsyncActor | None = None
@@ -326,6 +330,10 @@ class TaskeeAgent(AsyncAgent):
 
                 self.total_actions += len(step.actions)
                 self.since_reflection += len(step.actions)
+
+            # Wait after actions before next screenshot
+            if self.step_delay > 0:
+                await asyncio.sleep(self.step_delay)
 
             steps_taken += 1
 

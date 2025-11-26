@@ -21,6 +21,7 @@ def create_default_agent(
     max_steps: int = 20,
     temperature: float = 0.1,
     step_observer: AsyncStepObserver | None = None,
+    step_delay: float = 0.3,
 ) -> AsyncAgent:
     return AsyncDefaultAgent(
         api_key=api_key,
@@ -29,6 +30,7 @@ def create_default_agent(
         max_steps=max_steps,
         temperature=temperature,
         step_observer=step_observer,
+        step_delay=step_delay,
     )
 
 
@@ -40,6 +42,7 @@ def create_thinker_agent(
     max_steps: int = 100,
     temperature: float = 0.1,
     step_observer: AsyncStepObserver | None = None,
+    step_delay: float = 0.3,
 ) -> AsyncAgent:
     return AsyncDefaultAgent(
         api_key=api_key,
@@ -48,6 +51,7 @@ def create_thinker_agent(
         max_steps=max_steps,
         temperature=temperature,
         step_observer=step_observer,
+        step_delay=step_delay,
     )
 
 
@@ -60,6 +64,7 @@ def create_planner_agent(
     temperature: float = 0.1,
     reflection_interval: int = 20,
     step_observer: AsyncStepObserver | None = None,
+    step_delay: float = 0.3,
 ) -> AsyncAgent:
     tasker = TaskerAgent(
         api_key=api_key,
@@ -69,6 +74,7 @@ def create_planner_agent(
         temperature=temperature,
         reflection_interval=reflection_interval,
         step_observer=step_observer,
+        step_delay=step_delay,
     )
     # tasker.set_task()
     return tasker

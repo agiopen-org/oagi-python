@@ -65,6 +65,11 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         type=str,
         help="Output file path for export (default: execution_report.[md|html|json])",
     )
+    run_parser.add_argument(
+        "--step-delay",
+        type=float,
+        help="Delay in seconds after each step before next screenshot (default: 0.3)",
+    )
 
     # agent permission command
     agent_subparsers.add_parser(
@@ -196,6 +201,7 @@ def run_agent(args: argparse.Namespace) -> None:
     max_steps = args.max_steps or 20
     temperature = args.temperature if args.temperature is not None else 0.5
     mode = args.mode or "actor"
+    step_delay = args.step_delay if args.step_delay is not None else 0.3
     export_format = args.export
     export_file = args.export_file
 
@@ -221,6 +227,7 @@ def run_agent(args: argparse.Namespace) -> None:
         max_steps=max_steps,
         temperature=temperature,
         step_observer=observer,
+        step_delay=step_delay,
     )
 
     # Create handlers
@@ -229,7 +236,8 @@ def run_agent(args: argparse.Namespace) -> None:
 
     print(f"Starting agent with instruction: {args.instruction}")
     print(
-        f"Mode: {mode}, Model: {model}, Max steps: {max_steps}, Temperature: {temperature}"
+        f"Mode: {mode}, Model: {model}, Max steps: {max_steps}, "
+        f"Temperature: {temperature}, Step delay: {step_delay}s"
     )
     print("-" * 60)
 
