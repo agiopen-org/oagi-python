@@ -16,7 +16,13 @@ from pydantic import ValidationError
 from ..agent import AsyncDefaultAgent, create_agent
 from ..client import AsyncClient
 from ..exceptions import check_optional_dependency
-from ..types.models.action import Action, ActionType
+from ..types.models.action import (
+    Action,
+    ActionType,
+    parse_coords,
+    parse_drag_coords,
+    parse_scroll,
+)
 from .agent_wrappers import SocketIOActionHandler, SocketIOImageProvider
 from .config import ServerConfig
 from .models import (
@@ -275,31 +281,29 @@ class SessionNamespace(socketio.AsyncNamespace):
                 | ActionType.LEFT_TRIPLE
                 | ActionType.RIGHT_SINGLE
             ):
-                coords = arg.split(",")
-                if len(coords) >= 2:
-                    x, y = int(coords[0]), int(coords[1])
-                else:
+                coords = parse_coords(arg)
+                if not coords:
                     logger.warning(f"Invalid action coordinates: {arg}")
                     return None
 
                 return await self.call(
                     action.type.value,
-                    ClickEventData(**common, x=x, y=y).model_dump(),
+                    ClickEventData(**common, x=coords[0], y=coords[1]).model_dump(),
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
                 )
 
             case ActionType.DRAG:
-                coords = arg.split(",")
-                if len(coords) >= 4:
-                    x1, y1, x2, y2 = (int(coords[i]) for i in range(4))
-                else:
+                coords = parse_drag_coords(arg)
+                if not coords:
                     logger.warning(f"Invalid drag coordinates: {arg}")
                     return None
 
                 return await self.call(
                     "drag",
-                    DragEventData(**common, x1=x1, y1=y1, x2=x2, y2=y2).model_dump(),
+                    DragEventData(
+                        **common, x1=coords[0], y1=coords[1], x2=coords[2], y2=coords[3]
+                    ).model_dump(),
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
                 )
@@ -326,11 +330,8 @@ class SessionNamespace(socketio.AsyncNamespace):
                 )
 
             case ActionType.SCROLL:
-                parts = arg.split(",")
-                if len(parts) >= 3:
-                    x, y = int(parts[0]), int(parts[1])
-                    direction = parts[2].strip().lower()
-                else:
+                result = parse_scroll(arg)
+                if not result:
                     logger.warning(f"Invalid scroll coordinates: {arg}")
                     return None
 
@@ -340,9 +341,9 @@ class SessionNamespace(socketio.AsyncNamespace):
                     "scroll",
                     ScrollEventData(
                         **common,
-                        x=x,
-                        y=y,
-                        direction=direction,
+                        x=result[0],
+                        y=result[1],
+                        direction=result[2],
                         count=count,  # type: ignore
                     ).model_dump(),
                     to=session.socket_id,

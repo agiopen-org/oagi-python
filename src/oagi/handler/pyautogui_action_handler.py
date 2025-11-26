@@ -6,14 +6,13 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-import re
 import sys
 import time
 
 from pydantic import BaseModel, Field
 
 from ..exceptions import check_optional_dependency
-from ..types import Action, ActionType
+from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
 
 check_optional_dependency("pyautogui", "PyautoguiActionHandler", "desktop")
 import pyautogui  # noqa: E402
@@ -136,36 +135,27 @@ class PyautoguiActionHandler:
 
     def _parse_coords(self, args_str: str) -> tuple[int, int]:
         """Extract x, y coordinates from argument string."""
-        match = re.match(r"(\d+),\s*(\d+)", args_str)
-        if not match:
+        coords = parse_coords(args_str)
+        if not coords:
             raise ValueError(f"Invalid coordinates format: {args_str}")
-        x, y = int(match.group(1)), int(match.group(2))
-        return self._denormalize_coords(x, y)
+        return self._denormalize_coords(coords[0], coords[1])
 
     def _parse_drag_coords(self, args_str: str) -> tuple[int, int, int, int]:
         """Extract x1, y1, x2, y2 coordinates from drag argument string."""
-        match = re.match(r"(\d+),\s*(\d+),\s*(\d+),\s*(\d+)", args_str)
-        if not match:
+        coords = parse_drag_coords(args_str)
+        if not coords:
             raise ValueError(f"Invalid drag coordinates format: {args_str}")
-        x1, y1, x2, y2 = (
-            int(match.group(1)),
-            int(match.group(2)),
-            int(match.group(3)),
-            int(match.group(4)),
-        )
-        x1, y1 = self._denormalize_coords(x1, y1)
-        x2, y2 = self._denormalize_coords(x2, y2)
+        x1, y1 = self._denormalize_coords(coords[0], coords[1])
+        x2, y2 = self._denormalize_coords(coords[2], coords[3])
         return x1, y1, x2, y2
 
     def _parse_scroll(self, args_str: str) -> tuple[int, int, str]:
         """Extract x, y, direction from scroll argument string."""
-        match = re.match(r"(\d+),\s*(\d+),\s*(\w+)", args_str)
-        if not match:
+        result = parse_scroll(args_str)
+        if not result:
             raise ValueError(f"Invalid scroll format: {args_str}")
-        x, y = int(match.group(1)), int(match.group(2))
-        x, y = self._denormalize_coords(x, y)
-        direction = match.group(3).lower()
-        return x, y, direction
+        x, y = self._denormalize_coords(result[0], result[1])
+        return x, y, result[2]
 
     def _normalize_key(self, key: str) -> str:
         """Normalize key names for consistency."""

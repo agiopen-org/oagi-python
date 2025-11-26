@@ -11,7 +11,15 @@ from .async_action_handler import AsyncActionHandler
 from .async_image_provider import AsyncImageProvider
 from .image import Image
 from .image_provider import ImageProvider
-from .models import Action, ActionType, ImageConfig, Step
+from .models import (
+    Action,
+    ActionType,
+    ImageConfig,
+    Step,
+    parse_coords,
+    parse_drag_coords,
+    parse_scroll,
+)
 from .step_observer import (
     ActionEvent,
     AsyncObserver,
@@ -47,4 +55,7 @@ __all__ = [
     "ImageProvider",
     "AsyncImageProvider",
     "URL",
+    "parse_coords",
+    "parse_drag_coords",
+    "parse_scroll",
 ]

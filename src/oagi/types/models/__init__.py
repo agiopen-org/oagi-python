@@ -6,7 +6,13 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from .action import Action, ActionType
+from .action import (
+    Action,
+    ActionType,
+    parse_coords,
+    parse_drag_coords,
+    parse_scroll,
+)
 from .client import (
     ErrorDetail,
     ErrorResponse,
@@ -29,4 +35,7 @@ __all__ = [
     "Step",
     "UploadFileResponse",
     "Usage",
+    "parse_coords",
+    "parse_drag_coords",
+    "parse_scroll",
 ]
