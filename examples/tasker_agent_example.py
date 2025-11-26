@@ -27,7 +27,7 @@ async def main():
     tasker = TaskerAgent(
         api_key=os.getenv("OAGI_API_KEY"),
         base_url=os.getenv("OAGI_BASE_URL", "https://api.agiopen.org"),
-        model="sft-bigs1-1027-s2-1113-mixoc-1107-32b",
+        model="lux-actor-1",
         max_steps=30,
         temperature=0.5,
         step_observer=observer,
