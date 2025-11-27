@@ -409,6 +409,27 @@ class TestSyncClient:
                 url=upload_file_response["url"], content=b"test screenshot"
             )
 
+    def test_get_s3_presigned_url_insufficient_balance_error(
+        self, mock_httpx_client, test_client
+    ):
+        """Test that 402 responses return clear error messages about insufficient balance."""
+        mock_response = Mock()
+        mock_response.status_code = 402
+        mock_response.json.return_value = {
+            "error": {
+                "code": "insufficient_balance",
+                "message": "Please add funds to continue.",
+            }
+        }
+        mock_httpx_client.get.return_value = mock_response
+
+        with pytest.raises(APIError) as exc_info:
+            test_client.get_s3_presigned_url()
+
+        assert exc_info.value.status_code == 402
+        assert exc_info.value.code == "insufficient_balance"
+        assert "Please add funds to continue" in str(exc_info.value)
+
     def _assert_successful_llm_response(self, response):
         """Helper method to verify successful LLM response structure."""
         assert isinstance(response, LLMResponse)

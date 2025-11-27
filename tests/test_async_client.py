@@ -14,6 +14,7 @@ import pytest_asyncio
 
 from oagi.client import AsyncClient
 from oagi.exceptions import (
+    APIError,
     AuthenticationError,
     ConfigurationError,
     NetworkError,
@@ -358,3 +359,27 @@ class TestAsyncClientS3Upload:
                 mock_upload_client.put.assert_called_once_with(
                     url=upload_file_response["url"], content=b"test screenshot"
                 )
+
+    @pytest.mark.asyncio
+    async def test_get_s3_presigned_url_insufficient_balance_error(self, async_client):
+        """Test that 402 responses return clear error messages about insufficient balance."""
+        mock_response = Mock()
+        mock_response.status_code = 402
+        mock_response.json.return_value = {
+            "error": {
+                "code": "insufficient_balance",
+                "message": "Please add funds to continue.",
+            }
+        }
+
+        with patch.object(
+            async_client.client, "get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_response
+
+            with pytest.raises(APIError) as exc_info:
+                await async_client.get_s3_presigned_url()
+
+            assert exc_info.value.status_code == 402
+            assert exc_info.value.code == "insufficient_balance"
+            assert "Please add funds to continue" in str(exc_info.value)

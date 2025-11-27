@@ -273,22 +273,20 @@ class BaseClient(Generic[HttpClientT]):
             NetworkError: If network error occurs
             APIError: If API returns error or invalid response
         """
+        response_data = self._parse_response_json(response)
+
+        # Check for error status codes first (follows _process_response pattern)
+        if response.status_code != 200:
+            self._handle_response_error(response, response_data)
+
         try:
-            response_data = response.json()
             upload_file_response = UploadFileResponse(**response_data)
             logger.debug("Calling /v1/file/upload successful")
             return upload_file_response
-        except ValueError:
-            logger.error(f"Non-JSON API response: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Invalid upload response: {response.status_code}")
             raise APIError(
-                f"Invalid response format (status {response.status_code})",
-                status_code=response.status_code,
-                response=response,
-            )
-        except KeyError as e:
-            logger.error(f"Invalid response: {response.status_code}")
-            raise APIError(
-                f"Invalid presigned S3 URL response: missing field {e}",
+                f"Invalid presigned S3 URL response: {e}",
                 status_code=response.status_code,
                 response=response,
             )
