@@ -58,7 +58,7 @@ def display_config() -> None:
         "OAGI_BASE_URL": os.getenv("OAGI_BASE_URL", "https://api.agiopen.org"),
         "OAGI_DEFAULT_MODEL": os.getenv("OAGI_DEFAULT_MODEL", "lux-actor-1"),
         "OAGI_LOG_LEVEL": os.getenv("OAGI_LOG_LEVEL", "INFO"),
-        "OAGI_SERVER_HOST": os.getenv("OAGI_SERVER_HOST", "0.0.0.0"),
+        "OAGI_SERVER_HOST": os.getenv("OAGI_SERVER_HOST", "127.0.0.1"),
         "OAGI_SERVER_PORT": os.getenv("OAGI_SERVER_PORT", "8000"),
         "OAGI_MAX_STEPS": os.getenv("OAGI_MAX_STEPS", "30"),
     }

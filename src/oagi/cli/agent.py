@@ -189,7 +189,8 @@ def run_agent(args: argparse.Namespace) -> None:
     if not api_key:
         print(
             "Error: OAGI API key not provided.\n"
-            "Set OAGI_API_KEY environment variable or use --oagi-api-key flag.",
+            "Set OAGI_API_KEY environment variable or use --oagi-api-key flag.\n"
+            "Get your API key at https://developer.agiopen.org/api-keys",
             file=sys.stderr,
         )
         sys.exit(1)

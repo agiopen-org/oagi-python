@@ -29,7 +29,8 @@ def display_step_table(
         actions_display = []
         for action in step.actions[:3]:
             arg = action.argument[:20] if action.argument else ""
-            actions_display.append(f"{action.type.value}({arg})")
+            count_str = f" x{action.count}" if action.count and action.count > 1 else ""
+            actions_display.append(f"{action.type.value}({arg}){count_str}")
 
         actions_str = ", ".join(actions_display)
         if len(step.actions) > 3:

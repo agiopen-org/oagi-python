@@ -25,7 +25,7 @@ def add_server_parser(subparsers: argparse._SubParsersAction) -> None:
     start_parser.add_argument(
         "--host",
         type=str,
-        help="Server host (default: 0.0.0.0, or OAGI_SERVER_HOST env var)",
+        help="Server host (default: 127.0.0.1, or OAGI_SERVER_HOST env var)",
     )
     start_parser.add_argument(
         "--port",

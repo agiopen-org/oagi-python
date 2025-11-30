@@ -20,7 +20,7 @@ class ServerConfig(BaseSettings):
     oagi_base_url: str = Field(default="https://api.agiopen.org", alias="OAGI_BASE_URL")
 
     # Server settings
-    server_host: str = Field(default="0.0.0.0", alias="OAGI_SERVER_HOST")
+    server_host: str = Field(default="127.0.0.1", alias="OAGI_SERVER_HOST")
     server_port: int = Field(default=8000, alias="OAGI_SERVER_PORT")
     cors_allowed_origins: str = Field(default="*", alias="OAGI_CORS_ORIGINS")
 

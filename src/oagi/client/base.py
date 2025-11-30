@@ -50,7 +50,8 @@ class BaseClient(Generic[HttpClientT]):
         if not self.api_key:
             raise ConfigurationError(
                 "OAGI API key must be provided either as 'api_key' parameter or "
-                "OAGI_API_KEY environment variable"
+                "OAGI_API_KEY environment variable. "
+                "Get your API key at https://developer.agiopen.org/api-keys"
             )
 
         self.base_url = self.base_url.rstrip("/")

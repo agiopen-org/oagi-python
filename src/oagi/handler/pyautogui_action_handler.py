@@ -64,7 +64,8 @@ class PyautoguiConfig(BaseModel):
         default=0.5, description="Duration for drag operations in seconds"
     )
     scroll_amount: int = Field(
-        default=30, description="Amount to scroll (positive for up, negative for down)"
+        default=2 if sys.platform == "darwin" else 100,
+        description="Amount to scroll (positive for up, negative for down)",
     )
     wait_duration: float = Field(
         default=1.0, description="Duration for wait actions in seconds"
