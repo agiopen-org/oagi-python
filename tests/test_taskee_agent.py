@@ -7,6 +7,7 @@ import pytest
 from oagi.agent.tasker.memory import PlannerMemory
 from oagi.agent.tasker.planner import Planner
 from oagi.agent.tasker.taskee_agent import TaskeeAgent
+from oagi.constants import DEFAULT_MAX_STEPS
 from oagi.types.models import Action as OAGIAction
 from oagi.types.models import ActionType, Step
 from oagi.types.models.client import GenerateResponse, UploadFileResponse
@@ -264,7 +265,7 @@ class TestTaskeeAgent:
         assert should_continue is True
         assert agent.current_instruction == "Try different approach"
         agent.actor.init_task.assert_called_once_with(
-            "Try different approach", max_steps=20
+            "Try different approach", max_steps=DEFAULT_MAX_STEPS
         )
 
     async def test_reflect_success_assessment(self):

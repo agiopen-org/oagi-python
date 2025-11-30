@@ -8,6 +8,7 @@
 
 from pydantic import Field
 
+from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..exceptions import check_optional_dependency
 
 check_optional_dependency("pydantic_settings", "Server features", "server")
@@ -28,11 +29,13 @@ class ServerConfig(BaseSettings):
     session_timeout_seconds: float = Field(default=10.0)
 
     # Model settings
-    default_model: str = Field(default="lux-actor-1", alias="OAGI_DEFAULT_MODEL")
+    default_model: str = Field(default=MODEL_ACTOR, alias="OAGI_DEFAULT_MODEL")
     default_temperature: float = Field(default=0.5, ge=0.0, le=2.0)
 
     # Agent settings
-    max_steps: int = Field(default=20, alias="OAGI_MAX_STEPS", ge=1, le=100)
+    max_steps: int = Field(
+        default=DEFAULT_MAX_STEPS, alias="OAGI_MAX_STEPS", ge=1, le=200
+    )
 
     # Socket.IO settings
     socketio_path: str = Field(default="/socket.io")

@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
+from oagi.constants import MODEL_ACTOR
 from oagi.types import Action, ActionType
 from oagi.types.models import LLMResponse
 
@@ -122,7 +123,7 @@ def api_response_data(sample_action, sample_usage):
         "task_id": "task-456",
         "object": "task.completion",
         "created": 1677652288,
-        "model": "lux-actor-1",
+        "model": MODEL_ACTOR,
         "task_description": "Test task",
         "is_complete": False,
         "actions": [
@@ -146,7 +147,7 @@ def api_response_completed(sample_usage):
         "task_id": "task-456",
         "object": "task.completion",
         "created": 1677652288,
-        "model": "lux-actor-1",
+        "model": MODEL_ACTOR,
         "task_description": "Test task",
         "is_complete": True,
         "actions": [],
@@ -164,7 +165,7 @@ def api_response_init_task(sample_usage):
         "task_id": "task-456",
         "object": "task.completion",
         "created": 1677652288,
-        "model": "lux-actor-1",
+        "model": MODEL_ACTOR,
         "task_description": "Test task",
         "is_complete": False,
         "actions": [],

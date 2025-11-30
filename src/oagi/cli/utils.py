@@ -11,6 +11,7 @@ import os
 import sys
 from importlib.metadata import version as get_version
 
+from oagi.constants import MODEL_ACTOR
 from oagi.exceptions import check_optional_dependency
 
 
@@ -56,7 +57,7 @@ def display_config() -> None:
     config_vars = {
         "OAGI_API_KEY": os.getenv("OAGI_API_KEY", ""),
         "OAGI_BASE_URL": os.getenv("OAGI_BASE_URL", "https://api.agiopen.org"),
-        "OAGI_DEFAULT_MODEL": os.getenv("OAGI_DEFAULT_MODEL", "lux-actor-1"),
+        "OAGI_DEFAULT_MODEL": os.getenv("OAGI_DEFAULT_MODEL", MODEL_ACTOR),
         "OAGI_LOG_LEVEL": os.getenv("OAGI_LOG_LEVEL", "INFO"),
         "OAGI_SERVER_HOST": os.getenv("OAGI_SERVER_HOST", "127.0.0.1"),
         "OAGI_SERVER_PORT": os.getenv("OAGI_SERVER_PORT", "8000"),

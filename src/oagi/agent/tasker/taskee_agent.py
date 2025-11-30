@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any
 
 from oagi import AsyncActor
+from oagi.constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from oagi.types import (
     URL,
     ActionEvent,
@@ -52,8 +53,8 @@ class TaskeeAgent(AsyncAgent):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-actor-1",
-        max_steps: int = 20,
+        model: str = MODEL_ACTOR,
+        max_steps: int = DEFAULT_MAX_STEPS,
         reflection_interval: int = 4,
         temperature: float = 0.5,
         planner: Planner | None = None,

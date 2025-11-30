@@ -9,6 +9,7 @@
 import logging
 from typing import Any
 
+from oagi.constants import MODEL_ACTOR
 from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncObserver, SplitEvent
 
 from ..protocol import AsyncAgent
@@ -34,7 +35,7 @@ class TaskerAgent(AsyncAgent):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-actor-1",
+        model: str = MODEL_ACTOR,
         max_steps: int = 60,
         temperature: float = 0.5,
         reflection_interval: int = 4,

@@ -8,6 +8,7 @@
 
 import warnings
 
+from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..logging import get_logger
 from ..types import ActionHandler, ImageProvider
 from .base import BaseAutoMode
@@ -27,7 +28,7 @@ class ShortTask(Actor, BaseAutoMode):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-actor-1",
+        model: str = MODEL_ACTOR,
         temperature: float | None = None,
     ):
         warnings.warn(
@@ -43,7 +44,7 @@ class ShortTask(Actor, BaseAutoMode):
     def auto_mode(
         self,
         task_desc: str,
-        max_steps: int = 20,
+        max_steps: int = DEFAULT_MAX_STEPS,
         executor: ActionHandler = None,
         image_provider: ImageProvider = None,
         temperature: float | None = None,

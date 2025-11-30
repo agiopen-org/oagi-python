@@ -9,6 +9,7 @@
 import warnings
 
 from ..client import SyncClient
+from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..types import URL, Image, Step
 from .base import BaseActor
 
@@ -20,7 +21,7 @@ class Actor(BaseActor):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-actor-1",
+        model: str = MODEL_ACTOR,
         temperature: float | None = None,
     ):
         super().__init__(api_key, base_url, model, temperature)
@@ -31,7 +32,7 @@ class Actor(BaseActor):
     def init_task(
         self,
         task_desc: str,
-        max_steps: int = 20,
+        max_steps: int = DEFAULT_MAX_STEPS,
     ):
         """Initialize a new task with the given description.
 
@@ -87,7 +88,7 @@ class Task(Actor):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-actor-1",
+        model: str = MODEL_ACTOR,
         temperature: float | None = None,
     ):
         warnings.warn(

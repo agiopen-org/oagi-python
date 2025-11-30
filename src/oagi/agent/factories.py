@@ -6,6 +6,7 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 from oagi.agent.tasker import TaskerAgent
+from oagi.constants import DEFAULT_MAX_STEPS, MODEL_ACTOR, MODEL_THINKER
 from oagi.types import AsyncStepObserver
 
 from .default import AsyncDefaultAgent
@@ -17,8 +18,8 @@ from .registry import async_agent_register
 def create_default_agent(
     api_key: str | None = None,
     base_url: str | None = None,
-    model: str = "lux-actor-1",
-    max_steps: int = 20,
+    model: str = MODEL_ACTOR,
+    max_steps: int = DEFAULT_MAX_STEPS,
     temperature: float = 0.1,
     step_observer: AsyncStepObserver | None = None,
     step_delay: float = 0.3,
@@ -38,7 +39,7 @@ def create_default_agent(
 def create_thinker_agent(
     api_key: str | None = None,
     base_url: str | None = None,
-    model: str = "lux-thinker-1",
+    model: str = MODEL_THINKER,
     max_steps: int = 100,
     temperature: float = 0.1,
     step_observer: AsyncStepObserver | None = None,
@@ -59,7 +60,7 @@ def create_thinker_agent(
 def create_planner_agent(
     api_key: str | None = None,
     base_url: str | None = None,
-    model: str = "lux-actor-1",
+    model: str = MODEL_ACTOR,
     max_steps: int = 30,
     temperature: float = 0.1,
     reflection_interval: int = 20,

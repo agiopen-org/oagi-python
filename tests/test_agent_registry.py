@@ -8,6 +8,7 @@ from oagi.agent import (
     list_agent_modes,
 )
 from oagi.agent.registry import _agent_registry
+from oagi.constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from oagi.types import AsyncActionHandler, AsyncImageProvider
 
 
@@ -64,7 +65,7 @@ class TestAgentRegistry:
         def create_test_agent(
             api_key: str | None = None,
             base_url: str | None = None,
-            model: str = "lux-actor-1",
+            model: str = MODEL_ACTOR,
         ) -> AsyncAgent:
             return MockAsyncAgent(api_key=api_key, base_url=base_url, model=model)
 
@@ -159,23 +160,23 @@ class TestAgentRegistry:
             mode="actor",
             api_key="test-key",
             base_url="test-url",
-            model="lux-actor-1",
-            max_steps=20,
+            model=MODEL_ACTOR,
+            max_steps=DEFAULT_MAX_STEPS,
             temperature=0.5,
         )
         # Should create AsyncDefaultAgent
         assert hasattr(agent, "execute")
         assert hasattr(agent, "api_key")
         assert agent.api_key == "test-key"
-        assert agent.model == "lux-actor-1"
-        assert agent.max_steps == 20
+        assert agent.model == MODEL_ACTOR
+        assert agent.max_steps == DEFAULT_MAX_STEPS
 
     def test_create_built_in_tasker_agent(self):
         agent = create_agent(
             mode="tasker",
             api_key="test-key",
             base_url="test-url",
-            model="lux-actor-1",
+            model=MODEL_ACTOR,
             max_steps=25,
             temperature=0.2,
             reflection_interval=15,
@@ -184,7 +185,7 @@ class TestAgentRegistry:
         assert hasattr(agent, "execute")
         assert hasattr(agent, "api_key")
         assert agent.api_key == "test-key"
-        assert agent.model == "lux-actor-1"
+        assert agent.model == MODEL_ACTOR
         assert agent.max_steps == 25
         assert agent.reflection_interval == 15
 

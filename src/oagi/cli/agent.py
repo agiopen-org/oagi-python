@@ -14,6 +14,12 @@ import time
 import traceback
 
 from oagi.agent.observer import AsyncAgentObserver
+from oagi.constants import (
+    DEFAULT_MAX_STEPS,
+    DEFAULT_MAX_STEPS_THINKER,
+    MODEL_ACTOR,
+    MODEL_THINKER,
+)
 from oagi.exceptions import check_optional_dependency
 
 from .display import display_step_table
@@ -32,7 +38,7 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         "instruction", type=str, help="Task instruction for the agent to execute"
     )
     run_parser.add_argument(
-        "--model", type=str, help="Model to use (default: lux-actor-1)"
+        "--model", type=str, help=f"Model to use (default: {MODEL_ACTOR})"
     )
     run_parser.add_argument(
         "--max-steps", type=int, help="Maximum number of steps (default: 20)"
@@ -198,8 +204,11 @@ def run_agent(args: argparse.Namespace) -> None:
     base_url = args.oagi_base_url or os.getenv(
         "OAGI_BASE_URL", "https://api.agiopen.org"
     )
-    model = args.model or "lux-actor-1"
-    max_steps = args.max_steps or 20
+    model = args.model or MODEL_ACTOR
+    default_max_steps = (
+        DEFAULT_MAX_STEPS_THINKER if model == MODEL_THINKER else DEFAULT_MAX_STEPS
+    )
+    max_steps = args.max_steps or default_max_steps
     temperature = args.temperature if args.temperature is not None else 0.5
     mode = args.mode or "actor"
     step_delay = args.step_delay if args.step_delay is not None else 0.3

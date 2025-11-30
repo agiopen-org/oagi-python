@@ -8,6 +8,7 @@
 
 from uuid import uuid4
 
+from ..constants import DEFAULT_MAX_STEPS
 from ..logging import get_logger
 from ..types import URL, Image, Step
 from ..types.models import LLMResponse
@@ -30,7 +31,7 @@ class BaseActor:
         self.model = model
         self.temperature = temperature
         self.message_history: list = []  # OpenAI-compatible message history
-        self.max_steps: int = 20  # Maximum steps allowed
+        self.max_steps: int = DEFAULT_MAX_STEPS
         self.current_step: int = 0  # Current step counter
         # Client will be set by subclasses
         self.api_key: str | None = None

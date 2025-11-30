@@ -14,6 +14,7 @@ import httpx
 import pytest
 
 from oagi.client import SyncClient
+from oagi.constants import MODEL_ACTOR
 from oagi.exceptions import (
     APIError,
     AuthenticationError,
@@ -582,7 +583,7 @@ class TestDataModels:
             id="test-123",
             task_id="task-456",
             created=1677652288,
-            model="lux-actor-1",
+            model=MODEL_ACTOR,
             task_description="Test task",
             is_complete=False,
             actions=[action],
@@ -593,7 +594,7 @@ class TestDataModels:
         assert response.task_id == "task-456"
         assert response.object == "task.completion"  # default value
         assert response.created == 1677652288
-        assert response.model == "lux-actor-1"
+        assert response.model == MODEL_ACTOR
         assert response.task_description == "Test task"
         assert not response.is_complete
         assert len(response.actions) == 1

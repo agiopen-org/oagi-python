@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from oagi.cli.main import main
+from oagi.constants import MODEL_ACTOR
 
 
 @pytest.fixture
@@ -71,7 +72,7 @@ class TestServerStart:
             mock_config.server_host = "0.0.0.0"
             mock_config.server_port = 9000
             mock_config.oagi_base_url = "https://api.agiopen.org"
-            mock_config.default_model = "lux-actor-1"
+            mock_config.default_model = MODEL_ACTOR
             mock_config_class.return_value = mock_config
 
             main()

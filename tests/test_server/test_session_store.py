@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pytest
 
+from oagi.constants import MODEL_ACTOR
 from oagi.server.session_store import Session, SessionStore
 
 
@@ -17,7 +18,7 @@ def session():
         session_id="test_session",
         instruction="Test task",
         mode="actor",
-        model="lux-actor-1",
+        model=MODEL_ACTOR,
         temperature=0.5,
     )
 
@@ -26,7 +27,7 @@ def test_session_creation(session):
     assert session.session_id == "test_session"
     assert session.instruction == "Test task"
     assert session.mode == "actor"
-    assert session.model == "lux-actor-1"
+    assert session.model == MODEL_ACTOR
     assert session.temperature == 0.5
     assert session.status == "initialized"
     assert len(session.task_id) == 32
@@ -62,7 +63,7 @@ def test_create_session_with_defaults(store):
     session = store.get_session(session_id)
 
     assert session.mode == "actor"  # Default mode
-    assert session.model == "lux-actor-1"  # Default model
+    assert session.model == MODEL_ACTOR  # Default model
     assert session.temperature == 0.0  # Default temperature
 
 

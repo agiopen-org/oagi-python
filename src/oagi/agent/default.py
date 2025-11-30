@@ -10,6 +10,7 @@ import asyncio
 import logging
 
 from .. import AsyncActor
+from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..types import (
     ActionEvent,
     AsyncActionHandler,
@@ -36,8 +37,8 @@ class AsyncDefaultAgent:
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-actor-1",
-        max_steps: int = 20,
+        model: str = MODEL_ACTOR,
+        max_steps: int = DEFAULT_MAX_STEPS,
         temperature: float | None = 0.5,
         step_observer: AsyncObserver | None = None,
         step_delay: float = 0.3,

@@ -8,6 +8,7 @@
 
 import warnings
 
+from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..logging import get_logger
 from ..types import AsyncActionHandler, AsyncImageProvider
 from .async_ import AsyncActor
@@ -27,7 +28,7 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "lux-actor-1",
+        model: str = MODEL_ACTOR,
         temperature: float | None = None,
     ):
         warnings.warn(
@@ -43,7 +44,7 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
     async def auto_mode(
         self,
         task_desc: str,
-        max_steps: int = 20,
+        max_steps: int = DEFAULT_MAX_STEPS,
         executor: AsyncActionHandler = None,
         image_provider: AsyncImageProvider = None,
         temperature: float | None = None,

@@ -10,12 +10,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ..constants import MODEL_ACTOR
+
 
 # Client-to-server events
 class InitEventData(BaseModel):
     instruction: str = Field(...)
     mode: str | None = Field(default="actor")
-    model: str | None = Field(default="lux-actor-1")
+    model: str | None = Field(default=MODEL_ACTOR)
     temperature: float | None = Field(default=0.1, ge=0.0, le=2.0)
 
 
