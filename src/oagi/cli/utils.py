@@ -11,7 +11,7 @@ import os
 import sys
 from importlib.metadata import version as get_version
 
-from oagi.constants import MODEL_ACTOR
+from oagi.constants import DEFAULT_BASE_URL, MODEL_ACTOR
 from oagi.exceptions import check_optional_dependency
 
 
@@ -56,7 +56,7 @@ def display_version() -> None:
 def display_config() -> None:
     config_vars = {
         "OAGI_API_KEY": os.getenv("OAGI_API_KEY", ""),
-        "OAGI_BASE_URL": os.getenv("OAGI_BASE_URL", "https://api.agiopen.org"),
+        "OAGI_BASE_URL": os.getenv("OAGI_BASE_URL", DEFAULT_BASE_URL),
         "OAGI_DEFAULT_MODEL": os.getenv("OAGI_DEFAULT_MODEL", MODEL_ACTOR),
         "OAGI_LOG_LEVEL": os.getenv("OAGI_LOG_LEVEL", "INFO"),
         "OAGI_SERVER_HOST": os.getenv("OAGI_SERVER_HOST", "127.0.0.1"),

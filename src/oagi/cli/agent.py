@@ -15,8 +15,13 @@ import traceback
 
 from oagi.agent.observer import AsyncAgentObserver
 from oagi.constants import (
+    API_KEY_HELP_URL,
+    DEFAULT_BASE_URL,
     DEFAULT_MAX_STEPS,
     DEFAULT_MAX_STEPS_THINKER,
+    DEFAULT_STEP_DELAY,
+    DEFAULT_TEMPERATURE,
+    MODE_ACTOR,
     MODEL_ACTOR,
     MODEL_THINKER,
 )
@@ -49,8 +54,8 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
     run_parser.add_argument(
         "--mode",
         type=str,
-        default="actor",
-        help="Agent mode to use (default: actor). Available modes: actor, planner",
+        default=MODE_ACTOR,
+        help=f"Agent mode to use (default: {MODE_ACTOR}). Available modes: actor, planner",
     )
     run_parser.add_argument(
         "--oagi-api-key", type=str, help="OAGI API key (default: OAGI_API_KEY env var)"
@@ -58,7 +63,7 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
     run_parser.add_argument(
         "--oagi-base-url",
         type=str,
-        help="OAGI base URL (default: https://api.agiopen.org, or OAGI_BASE_URL env var)",
+        help=f"OAGI base URL (default: {DEFAULT_BASE_URL}, or OAGI_BASE_URL env var)",
     )
     run_parser.add_argument(
         "--export",
@@ -74,7 +79,7 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
     run_parser.add_argument(
         "--step-delay",
         type=float,
-        help="Delay in seconds after each step before next screenshot (default: 0.3)",
+        help=f"Delay in seconds after each step before next screenshot (default: {DEFAULT_STEP_DELAY})",
     )
 
     # agent permission command
@@ -196,22 +201,22 @@ def run_agent(args: argparse.Namespace) -> None:
         print(
             "Error: OAGI API key not provided.\n"
             "Set OAGI_API_KEY environment variable or use --oagi-api-key flag.\n"
-            "Get your API key at https://developer.agiopen.org/api-keys",
+            f"Get your API key at {API_KEY_HELP_URL}",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    base_url = args.oagi_base_url or os.getenv(
-        "OAGI_BASE_URL", "https://api.agiopen.org"
-    )
+    base_url = args.oagi_base_url or os.getenv("OAGI_BASE_URL", DEFAULT_BASE_URL)
     model = args.model or MODEL_ACTOR
     default_max_steps = (
         DEFAULT_MAX_STEPS_THINKER if model == MODEL_THINKER else DEFAULT_MAX_STEPS
     )
     max_steps = args.max_steps or default_max_steps
-    temperature = args.temperature if args.temperature is not None else 0.5
-    mode = args.mode or "actor"
-    step_delay = args.step_delay if args.step_delay is not None else 0.3
+    temperature = (
+        args.temperature if args.temperature is not None else DEFAULT_TEMPERATURE
+    )
+    mode = args.mode or MODE_ACTOR
+    step_delay = args.step_delay if args.step_delay is not None else DEFAULT_STEP_DELAY
     export_format = args.export
     export_file = args.export_file
 

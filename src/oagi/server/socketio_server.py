@@ -15,6 +15,7 @@ from pydantic import ValidationError
 
 from ..agent import AsyncDefaultAgent, create_agent
 from ..client import AsyncClient
+from ..constants import MODE_ACTOR
 from ..exceptions import check_optional_dependency
 from ..types.models.action import (
     Action,
@@ -80,7 +81,7 @@ class SessionNamespace(socketio.AsyncNamespace):
             session = Session(
                 session_id=session_id,
                 instruction="",
-                mode="actor",  # Default mode
+                mode=MODE_ACTOR,
                 model=self.config.default_model,
                 temperature=self.config.default_temperature,
             )

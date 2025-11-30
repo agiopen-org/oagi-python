@@ -12,7 +12,13 @@ from datetime import datetime
 from typing import Any
 
 from oagi import AsyncActor
-from oagi.constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
+from oagi.constants import (
+    DEFAULT_MAX_STEPS,
+    DEFAULT_REFLECTION_INTERVAL,
+    DEFAULT_STEP_DELAY,
+    DEFAULT_TEMPERATURE,
+    MODEL_ACTOR,
+)
 from oagi.types import (
     URL,
     ActionEvent,
@@ -55,13 +61,13 @@ class TaskeeAgent(AsyncAgent):
         base_url: str | None = None,
         model: str = MODEL_ACTOR,
         max_steps: int = DEFAULT_MAX_STEPS,
-        reflection_interval: int = 4,
-        temperature: float = 0.5,
+        reflection_interval: int = DEFAULT_REFLECTION_INTERVAL,
+        temperature: float = DEFAULT_TEMPERATURE,
         planner: Planner | None = None,
         external_memory: PlannerMemory | None = None,
         todo_index: int | None = None,
         step_observer: AsyncObserver | None = None,
-        step_delay: float = 0.3,
+        step_delay: float = DEFAULT_STEP_DELAY,
     ):
         """Initialize the taskee agent.
 

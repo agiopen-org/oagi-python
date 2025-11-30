@@ -9,7 +9,13 @@
 import logging
 from typing import Any
 
-from oagi.constants import MODEL_ACTOR
+from oagi.constants import (
+    DEFAULT_MAX_STEPS_TASKER,
+    DEFAULT_REFLECTION_INTERVAL,
+    DEFAULT_STEP_DELAY,
+    DEFAULT_TEMPERATURE,
+    MODEL_ACTOR,
+)
 from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncObserver, SplitEvent
 
 from ..protocol import AsyncAgent
@@ -36,12 +42,12 @@ class TaskerAgent(AsyncAgent):
         api_key: str | None = None,
         base_url: str | None = None,
         model: str = MODEL_ACTOR,
-        max_steps: int = 60,
-        temperature: float = 0.5,
-        reflection_interval: int = 4,
+        max_steps: int = DEFAULT_MAX_STEPS_TASKER,
+        temperature: float = DEFAULT_TEMPERATURE,
+        reflection_interval: int = DEFAULT_REFLECTION_INTERVAL,
         planner: Planner | None = None,
         step_observer: AsyncObserver | None = None,
-        step_delay: float = 0.3,
+        step_delay: float = DEFAULT_STEP_DELAY,
     ):
         """Initialize the tasker agent.
 

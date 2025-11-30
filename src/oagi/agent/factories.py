@@ -6,7 +6,16 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 from oagi.agent.tasker import TaskerAgent
-from oagi.constants import DEFAULT_MAX_STEPS, MODEL_ACTOR, MODEL_THINKER
+from oagi.constants import (
+    DEFAULT_MAX_STEPS,
+    DEFAULT_MAX_STEPS_TASKER,
+    DEFAULT_MAX_STEPS_THINKER,
+    DEFAULT_REFLECTION_INTERVAL_TASKER,
+    DEFAULT_STEP_DELAY,
+    DEFAULT_TEMPERATURE_LOW,
+    MODEL_ACTOR,
+    MODEL_THINKER,
+)
 from oagi.types import AsyncStepObserver
 
 from .default import AsyncDefaultAgent
@@ -20,9 +29,9 @@ def create_default_agent(
     base_url: str | None = None,
     model: str = MODEL_ACTOR,
     max_steps: int = DEFAULT_MAX_STEPS,
-    temperature: float = 0.1,
+    temperature: float = DEFAULT_TEMPERATURE_LOW,
     step_observer: AsyncStepObserver | None = None,
-    step_delay: float = 0.3,
+    step_delay: float = DEFAULT_STEP_DELAY,
 ) -> AsyncAgent:
     return AsyncDefaultAgent(
         api_key=api_key,
@@ -40,10 +49,10 @@ def create_thinker_agent(
     api_key: str | None = None,
     base_url: str | None = None,
     model: str = MODEL_THINKER,
-    max_steps: int = 100,
-    temperature: float = 0.1,
+    max_steps: int = DEFAULT_MAX_STEPS_THINKER,
+    temperature: float = DEFAULT_TEMPERATURE_LOW,
     step_observer: AsyncStepObserver | None = None,
-    step_delay: float = 0.3,
+    step_delay: float = DEFAULT_STEP_DELAY,
 ) -> AsyncAgent:
     return AsyncDefaultAgent(
         api_key=api_key,
@@ -61,11 +70,11 @@ def create_planner_agent(
     api_key: str | None = None,
     base_url: str | None = None,
     model: str = MODEL_ACTOR,
-    max_steps: int = 30,
-    temperature: float = 0.1,
-    reflection_interval: int = 20,
+    max_steps: int = DEFAULT_MAX_STEPS_TASKER,
+    temperature: float = DEFAULT_TEMPERATURE_LOW,
+    reflection_interval: int = DEFAULT_REFLECTION_INTERVAL_TASKER,
     step_observer: AsyncStepObserver | None = None,
-    step_delay: float = 0.3,
+    step_delay: float = DEFAULT_STEP_DELAY,
 ) -> AsyncAgent:
     tasker = TaskerAgent(
         api_key=api_key,

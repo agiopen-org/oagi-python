@@ -11,6 +11,13 @@ from functools import wraps
 import httpx
 from httpx import Response
 
+from ..constants import (
+    API_HEALTH_ENDPOINT,
+    API_V1_FILE_UPLOAD_ENDPOINT,
+    API_V1_GENERATE_ENDPOINT,
+    API_V2_MESSAGE_ENDPOINT,
+    HTTP_CLIENT_TIMEOUT,
+)
 from ..logging import get_logger
 from ..types import Image
 from ..types.models import GenerateResponse, LLMResponse, UploadFileResponse
@@ -46,7 +53,7 @@ class SyncClient(BaseClient[httpx.Client]):
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         super().__init__(base_url, api_key)
         self.client = httpx.Client(base_url=self.base_url)
-        self.upload_client = httpx.Client(timeout=60)  # client for uploading image
+        self.upload_client = httpx.Client(timeout=HTTP_CLIENT_TIMEOUT)
         logger.info(f"SyncClient initialized with base_url: {self.base_url}")
 
     def __enter__(self):
@@ -124,7 +131,10 @@ class SyncClient(BaseClient[httpx.Client]):
         # Make request
         try:
             response = self.client.post(
-                "/v2/message", json=payload, headers=headers, timeout=self.timeout
+                API_V2_MESSAGE_ENDPOINT,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout,
             )
             return self._process_response(response)
         except (httpx.TimeoutException, httpx.NetworkError) as e:
@@ -139,7 +149,7 @@ class SyncClient(BaseClient[httpx.Client]):
         """
         logger.debug("Making health check request")
         try:
-            response = self.client.get("/health")
+            response = self.client.get(API_HEALTH_ENDPOINT)
             response.raise_for_status()
             result = response.json()
             logger.debug("Health check successful")
@@ -161,12 +171,12 @@ class SyncClient(BaseClient[httpx.Client]):
         Returns:
             UploadFileResponse: The response from /v1/file/upload with uuid and presigned S3 URL
         """
-        logger.debug("Making API request to /v1/file/upload")
+        logger.debug(f"Making API request to {API_V1_FILE_UPLOAD_ENDPOINT}")
 
         try:
             headers = self._build_headers(api_version)
             response = self.client.get(
-                "/v1/file/upload", headers=headers, timeout=self.timeout
+                API_V1_FILE_UPLOAD_ENDPOINT, headers=headers, timeout=self.timeout
             )
             return self._process_upload_response(response)
         except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as e:
@@ -286,7 +296,10 @@ class SyncClient(BaseClient[httpx.Client]):
         # Make request
         try:
             response = self.client.post(
-                "/v1/generate", json=payload, headers=headers, timeout=self.timeout
+                API_V1_GENERATE_ENDPOINT,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout,
             )
             return self._process_generate_response(response)
         except (httpx.TimeoutException, httpx.NetworkError) as e:

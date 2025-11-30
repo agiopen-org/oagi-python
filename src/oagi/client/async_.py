@@ -10,6 +10,13 @@ from functools import wraps
 
 import httpx
 
+from ..constants import (
+    API_HEALTH_ENDPOINT,
+    API_V1_FILE_UPLOAD_ENDPOINT,
+    API_V1_GENERATE_ENDPOINT,
+    API_V2_MESSAGE_ENDPOINT,
+    HTTP_CLIENT_TIMEOUT,
+)
 from ..logging import get_logger
 from ..types import Image
 from ..types.models import GenerateResponse, LLMResponse, UploadFileResponse
@@ -41,7 +48,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         super().__init__(base_url, api_key)
         self.client = httpx.AsyncClient(base_url=self.base_url)
-        self.upload_client = httpx.AsyncClient(timeout=60)  # client for uploading image
+        self.upload_client = httpx.AsyncClient(timeout=HTTP_CLIENT_TIMEOUT)
         logger.info(f"AsyncClient initialized with base_url: {self.base_url}")
 
     async def __aenter__(self):
@@ -121,7 +128,10 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         # Make request
         try:
             response = await self.client.post(
-                "/v2/message", json=payload, headers=headers, timeout=self.timeout
+                API_V2_MESSAGE_ENDPOINT,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout,
             )
             return self._process_response(response)
         except (httpx.TimeoutException, httpx.NetworkError) as e:
@@ -136,7 +146,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         """
         logger.debug("Making async health check request")
         try:
-            response = await self.client.get("/health")
+            response = await self.client.get(API_HEALTH_ENDPOINT)
             response.raise_for_status()
             result = response.json()
             logger.debug("Async health check successful")
@@ -158,12 +168,12 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         Returns:
             UploadFileResponse: The response from /v1/file/upload with uuid and presigned S3 URL
         """
-        logger.debug("Making async API request to /v1/file/upload")
+        logger.debug(f"Making async API request to {API_V1_FILE_UPLOAD_ENDPOINT}")
 
         try:
             headers = self._build_headers(api_version)
             response = await self.client.get(
-                "/v1/file/upload", headers=headers, timeout=self.timeout
+                API_V1_FILE_UPLOAD_ENDPOINT, headers=headers, timeout=self.timeout
             )
             return self._process_upload_response(response)
         except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as e:
@@ -283,7 +293,10 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         # Make request
         try:
             response = await self.client.post(
-                "/v1/generate", json=payload, headers=headers, timeout=self.timeout
+                API_V1_GENERATE_ENDPOINT,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout,
             )
             return self._process_generate_response(response)
         except (httpx.TimeoutException, httpx.NetworkError) as e:

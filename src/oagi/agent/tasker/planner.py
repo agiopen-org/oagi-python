@@ -10,6 +10,7 @@ import json
 from typing import Any
 
 from ...client import AsyncClient
+from ...constants import DEFAULT_REFLECTION_INTERVAL
 from ...types import URL, Image
 from .memory import PlannerMemory
 from .models import Action, PlannerOutput, ReflectionOutput
@@ -175,7 +176,7 @@ class Planner:
         memory: PlannerMemory | None = None,
         todo_index: int | None = None,
         current_instruction: str | None = None,
-        reflection_interval: int = 4,
+        reflection_interval: int = DEFAULT_REFLECTION_INTERVAL,
     ) -> ReflectionOutput:
         """Reflect on recent actions and progress.
 

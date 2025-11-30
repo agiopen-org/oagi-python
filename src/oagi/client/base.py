@@ -11,6 +11,7 @@ from typing import Any, Generic, TypeVar
 
 import httpx
 
+from ..constants import API_KEY_HELP_URL, DEFAULT_BASE_URL, HTTP_CLIENT_TIMEOUT
 from ..exceptions import (
     APIError,
     AuthenticationError,
@@ -41,9 +42,7 @@ class BaseClient(Generic[HttpClientT]):
 
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         # Get from environment if not provided
-        self.base_url = (
-            base_url or os.getenv("OAGI_BASE_URL") or "https://api.agiopen.org"
-        )
+        self.base_url = base_url or os.getenv("OAGI_BASE_URL") or DEFAULT_BASE_URL
         self.api_key = api_key or os.getenv("OAGI_API_KEY")
 
         # Validate required configuration
@@ -51,11 +50,11 @@ class BaseClient(Generic[HttpClientT]):
             raise ConfigurationError(
                 "OAGI API key must be provided either as 'api_key' parameter or "
                 "OAGI_API_KEY environment variable. "
-                "Get your API key at https://developer.agiopen.org/api-keys"
+                f"Get your API key at {API_KEY_HELP_URL}"
             )
 
         self.base_url = self.base_url.rstrip("/")
-        self.timeout = 60
+        self.timeout = HTTP_CLIENT_TIMEOUT
         self.client: HttpClientT  # Will be set by subclasses
 
         logger.info(f"Client initialized with base_url: {self.base_url}")

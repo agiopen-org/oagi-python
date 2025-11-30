@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from ..constants import MODEL_ACTOR
+from ..constants import MODE_ACTOR, MODEL_ACTOR
 
 
 class Session:
@@ -19,7 +19,7 @@ class Session:
         self,
         session_id: str,
         instruction: str,
-        mode: str = "actor",
+        mode: str = MODE_ACTOR,
         model: str = MODEL_ACTOR,
         temperature: float = 0.0,
     ):
@@ -55,7 +55,7 @@ class SessionStore:
     def create_session(
         self,
         instruction: str,
-        mode: str = "actor",
+        mode: str = MODE_ACTOR,
         model: str = MODEL_ACTOR,
         temperature: float = 0.0,
         session_id: str | None = None,
