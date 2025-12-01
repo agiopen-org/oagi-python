@@ -16,6 +16,7 @@ from ..constants import (
     DEFAULT_TEMPERATURE,
     MODEL_ACTOR,
 )
+from ..handler import reset_handler
 from ..types import (
     ActionEvent,
     AsyncActionHandler,
@@ -67,6 +68,9 @@ class AsyncDefaultAgent:
         ) as self.actor:
             logger.info(f"Starting async task execution: {instruction}")
             await self.actor.init_task(instruction, max_steps=self.max_steps)
+
+            # Reset handler state at automation start
+            reset_handler(action_handler)
 
             for i in range(self.max_steps):
                 step_num = i + 1

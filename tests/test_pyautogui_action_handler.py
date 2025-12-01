@@ -11,8 +11,9 @@ from unittest.mock import patch
 
 import pytest
 
+from oagi import AsyncPyautoguiActionHandler
+from oagi.handler.capslock_manager import CapsLockManager
 from oagi.handler.pyautogui_action_handler import (
-    CapsLockManager,
     PyautoguiActionHandler,
     PyautoguiConfig,
 )
@@ -81,10 +82,12 @@ def test_hotkey_action(mock_pyautogui):
 
 
 def test_type_action(handler, mock_pyautogui):
-    action = Action(type=ActionType.TYPE, argument="Hello World", count=1)
-    handler([action])
+    # Mock platform as Linux to use pyautogui.typewrite fallback
+    with patch.object(sys, "platform", "linux"):
+        action = Action(type=ActionType.TYPE, argument="Hello World", count=1)
+        handler([action])
 
-    mock_pyautogui.typewrite.assert_called_once_with("Hello World")
+        mock_pyautogui.typewrite.assert_called_once_with("Hello World")
 
 
 @pytest.mark.parametrize(
@@ -141,6 +144,7 @@ class TestActionExecution:
 
     def test_multiple_actions(self, mock_pyautogui):
         # Disable macos_ctrl_to_cmd to test basic hotkey functionality
+        # Mock platform as Linux to use pyautogui.typewrite fallback
         config = PyautoguiConfig(macos_ctrl_to_cmd=False)
         handler = PyautoguiActionHandler(config=config)
         actions = [
@@ -148,7 +152,8 @@ class TestActionExecution:
             Action(type=ActionType.TYPE, argument="test", count=1),
             Action(type=ActionType.HOTKEY, argument="ctrl+s", count=1),
         ]
-        handler(actions)
+        with patch.object(sys, "platform", "linux"):
+            handler(actions)
 
         mock_pyautogui.click.assert_called_once()
         mock_pyautogui.typewrite.assert_called_once_with("test")
@@ -163,10 +168,12 @@ class TestInputValidation:
             handler([action])
 
     def test_type_with_quotes(self, handler, mock_pyautogui):
-        action = Action(type=ActionType.TYPE, argument='"Hello World"', count=1)
-        handler([action])
+        # Mock platform as Linux to use pyautogui.typewrite fallback
+        with patch.object(sys, "platform", "linux"):
+            action = Action(type=ActionType.TYPE, argument='"Hello World"', count=1)
+            handler([action])
 
-        mock_pyautogui.typewrite.assert_called_once_with("Hello World")
+            mock_pyautogui.typewrite.assert_called_once_with("Hello World")
 
 
 class TestCapsLockManager:
@@ -205,6 +212,25 @@ class TestCapsLockManager:
 
         assert session_manager.should_use_system_capslock() is False
         assert system_manager.should_use_system_capslock() is True
+
+    def test_reset_method(self):
+        manager = CapsLockManager(mode="session")
+
+        # Enable caps lock
+        manager.toggle()
+        assert manager.caps_enabled is True
+
+        # Reset should set caps_enabled to False
+        manager.reset()
+        assert manager.caps_enabled is False
+
+        # Toggle again and reset
+        manager.toggle()
+        manager.toggle()  # Back to True
+        manager.toggle()  # Now True again
+        assert manager.caps_enabled is True
+        manager.reset()
+        assert manager.caps_enabled is False
 
 
 class TestCornerCoordinatesHandling:
@@ -293,22 +319,24 @@ class TestCapsLockIntegration:
         config = PyautoguiConfig(capslock_mode="session")
         handler = PyautoguiActionHandler(config=config)
 
-        # Type without caps
-        type_action = Action(type=ActionType.TYPE, argument="test", count=1)
-        handler([type_action])
-        mock_pyautogui.typewrite.assert_called_with("test")
+        # Mock platform as Linux to use pyautogui.typewrite fallback
+        with patch.object(sys, "platform", "linux"):
+            # Type without caps
+            type_action = Action(type=ActionType.TYPE, argument="test", count=1)
+            handler([type_action])
+            mock_pyautogui.typewrite.assert_called_with("test")
 
-        # Toggle caps lock
-        caps_action = Action(type=ActionType.HOTKEY, argument="caps_lock", count=1)
-        handler([caps_action])
-        # In session mode, should not call pyautogui.hotkey for capslock
-        assert mock_pyautogui.hotkey.call_count == 0
+            # Toggle caps lock
+            caps_action = Action(type=ActionType.HOTKEY, argument="caps_lock", count=1)
+            handler([caps_action])
+            # In session mode, should not call pyautogui.hotkey for capslock
+            assert mock_pyautogui.hotkey.call_count == 0
 
-        # Type with caps enabled
-        mock_pyautogui.typewrite.reset_mock()
-        type_action = Action(type=ActionType.TYPE, argument="test", count=1)
-        handler([type_action])
-        mock_pyautogui.typewrite.assert_called_with("TEST")
+            # Type with caps enabled
+            mock_pyautogui.typewrite.reset_mock()
+            type_action = Action(type=ActionType.TYPE, argument="test", count=1)
+            handler([type_action])
+            mock_pyautogui.typewrite.assert_called_with("TEST")
 
     def test_caps_lock_system_mode(self, mock_pyautogui):
         config = PyautoguiConfig(capslock_mode="system")
@@ -320,11 +348,13 @@ class TestCapsLockIntegration:
         # In system mode, should call pyautogui.hotkey
         mock_pyautogui.hotkey.assert_called_once_with("capslock", interval=0.1)
 
-        # Type action should not transform text in system mode
-        mock_pyautogui.typewrite.reset_mock()
-        type_action = Action(type=ActionType.TYPE, argument="test", count=1)
-        handler([type_action])
-        mock_pyautogui.typewrite.assert_called_with("test")
+        # Mock platform as Linux to use pyautogui.typewrite fallback
+        with patch.object(sys, "platform", "linux"):
+            # Type action should not transform text in system mode
+            mock_pyautogui.typewrite.reset_mock()
+            type_action = Action(type=ActionType.TYPE, argument="test", count=1)
+            handler([type_action])
+            mock_pyautogui.typewrite.assert_called_with("test")
 
     def test_regular_hotkey_not_affected(self, mock_pyautogui):
         # Disable macos_ctrl_to_cmd to test basic hotkey functionality
@@ -381,3 +411,46 @@ class TestMacosCtrlToCmd:
         action = Action(type=ActionType.HOTKEY, argument="shift+tab", count=1)
         handler([action])
         mock_pyautogui.hotkey.assert_called_once_with("shift", "tab", interval=0.1)
+
+
+class TestHandlerReset:
+    def test_handler_reset_resets_capslock_state(self, mock_pyautogui):
+        config = PyautoguiConfig(capslock_mode="session")
+        handler = PyautoguiActionHandler(config=config)
+
+        # Enable caps lock via hotkey
+        caps_action = Action(type=ActionType.HOTKEY, argument="capslock", count=1)
+        handler([caps_action])
+        assert handler.caps_manager.caps_enabled is True
+
+        # Reset handler
+        handler.reset()
+        assert handler.caps_manager.caps_enabled is False
+
+    def test_finish_action_resets_handler(self, mock_pyautogui):
+        config = PyautoguiConfig(capslock_mode="session")
+        handler = PyautoguiActionHandler(config=config)
+
+        # Enable caps lock
+        caps_action = Action(type=ActionType.HOTKEY, argument="capslock", count=1)
+        handler([caps_action])
+        assert handler.caps_manager.caps_enabled is True
+
+        # FINISH action should reset handler
+        finish_action = Action(type=ActionType.FINISH, argument="", count=1)
+        handler([finish_action])
+        assert handler.caps_manager.caps_enabled is False
+
+
+class TestAsyncHandlerReset:
+    def test_async_handler_reset_delegates_to_sync_handler(self, mock_pyautogui):
+        config = PyautoguiConfig(capslock_mode="session")
+        handler = AsyncPyautoguiActionHandler(config=config)
+
+        # Enable caps lock on the underlying sync handler
+        handler.sync_handler.caps_manager.toggle()
+        assert handler.sync_handler.caps_manager.caps_enabled is True
+
+        # Reset via async handler
+        handler.reset()
+        assert handler.sync_handler.caps_manager.caps_enabled is False

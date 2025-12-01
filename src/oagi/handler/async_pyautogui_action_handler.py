@@ -29,6 +29,14 @@ class AsyncPyautoguiActionHandler:
         self.sync_handler = PyautoguiActionHandler(config=config)
         self.config = config or PyautoguiConfig()
 
+    def reset(self):
+        """Reset handler state.
+
+        Delegates to the underlying synchronous handler's reset method.
+        Called at automation start/end and when FINISH action is received.
+        """
+        self.sync_handler.reset()
+
     async def __call__(self, actions: list[Action]) -> None:
         """
         Execute actions asynchronously using a thread pool executor.

@@ -16,6 +16,7 @@ from oagi.constants import (
     DEFAULT_TEMPERATURE,
     MODEL_ACTOR,
 )
+from oagi.handler import reset_handler
 from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncObserver, SplitEvent
 
 from ..protocol import AsyncAgent
@@ -112,6 +113,9 @@ class TaskerAgent(AsyncAgent):
         Returns:
             True if all todos completed successfully, False otherwise
         """
+        # Reset handler state at automation start
+        reset_handler(action_handler)
+
         overall_success = True
 
         # Execute todos until none remain

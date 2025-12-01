@@ -13,48 +13,15 @@ from pydantic import BaseModel, Field
 
 from ..exceptions import check_optional_dependency
 from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
+from .capslock_manager import CapsLockManager
 
 check_optional_dependency("pyautogui", "PyautoguiActionHandler", "desktop")
 import pyautogui  # noqa: E402
 
 if sys.platform == "darwin":
     from . import _macos
-
-
-class CapsLockManager:
-    """Manages caps lock state for text transformation."""
-
-    def __init__(self, mode: str = "session"):
-        """Initialize caps lock manager.
-
-        Args:
-            mode: Either "session" (internal state) or "system" (OS-level)
-        """
-        self.mode = mode
-        self.caps_enabled = False
-
-    def toggle(self):
-        """Toggle caps lock state in session mode."""
-        if self.mode == "session":
-            self.caps_enabled = not self.caps_enabled
-
-    def transform_text(self, text: str) -> str:
-        """Transform text based on caps lock state.
-
-        Args:
-            text: Input text to transform
-
-        Returns:
-            Transformed text (uppercase if caps enabled in session mode)
-        """
-        if self.mode == "session" and self.caps_enabled:
-            # Transform letters to uppercase, preserve special characters
-            return "".join(c.upper() if c.isalpha() else c for c in text)
-        return text
-
-    def should_use_system_capslock(self) -> bool:
-        """Check if system-level caps lock should be used."""
-        return self.mode == "system"
+elif sys.platform == "win32":
+    from . import _windows
 
 
 class PyautoguiConfig(BaseModel):
@@ -110,6 +77,14 @@ class PyautoguiActionHandler:
         pyautogui.PAUSE = self.config.action_pause
         # Initialize caps lock manager
         self.caps_manager = CapsLockManager(mode=self.config.capslock_mode)
+
+    def reset(self):
+        """Reset handler state.
+
+        Called at automation start/end and when FINISH action is received.
+        Resets the internal capslock state.
+        """
+        self.caps_manager.reset()
 
     def _denormalize_coords(self, x: float, y: float) -> tuple[int, int]:
         """Convert coordinates from 0-1000 range to actual screen coordinates.
@@ -238,7 +213,14 @@ class PyautoguiActionHandler:
                 text = arg.strip("\"'")
                 # Apply caps lock transformation if needed
                 text = self.caps_manager.transform_text(text)
-                pyautogui.typewrite(text)
+                # Use platform-specific typing that ignores system capslock
+                if sys.platform == "darwin":
+                    _macos.typewrite_exact(text)
+                elif sys.platform == "win32":
+                    _windows.typewrite_exact(text)
+                else:
+                    # Fallback for other platforms
+                    pyautogui.typewrite(text)
 
             case ActionType.SCROLL:
                 x, y, direction = self._parse_scroll(arg)
@@ -251,8 +233,8 @@ class PyautoguiActionHandler:
                 pyautogui.scroll(scroll_amount)
 
             case ActionType.FINISH:
-                # Task completion - no action needed
-                pass
+                # Task completion - reset handler state
+                self.reset()
 
             case ActionType.WAIT:
                 # Wait for a short period

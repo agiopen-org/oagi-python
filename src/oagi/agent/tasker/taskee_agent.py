@@ -19,6 +19,7 @@ from oagi.constants import (
     DEFAULT_TEMPERATURE,
     MODEL_ACTOR,
 )
+from oagi.handler import reset_handler
 from oagi.types import (
     URL,
     ActionEvent,
@@ -121,6 +122,9 @@ class TaskeeAgent(AsyncAgent):
         Returns:
             True if successful, False otherwise
         """
+        # Reset handler state at todo execution start
+        reset_handler(action_handler)
+
         self.current_todo = instruction
         self.actions = []
         self.total_actions = 0
