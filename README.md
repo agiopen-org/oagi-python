@@ -73,6 +73,39 @@ config = PyautoguiConfig(
 action_handler = AsyncPyautoguiActionHandler(config=config)
 ```
 
+### Command Line Interface
+
+Run agents directly from the terminal:
+
+```bash
+# Run with actor model
+oagi agent run "Go to nasdaq.com, search for AAPL. Under More, go to Insider Activity" --model lux-actor-1
+
+# Run with thinker mode (uses lux-thinker-1 model with more steps)
+oagi agent run "Look up the store hours for the nearest Apple Store to zip code 23456 using the Apple Store Locator" --model lux-thinker-1
+
+# Run pre-configured tasker workflows (no instruction needed)
+oagi agent run --mode tasker:software_qa
+
+# List all available modes
+oagi agent modes
+
+# Check macOS permissions (screen recording & accessibility)
+oagi agent permission
+
+# Export execution history
+oagi agent run "Complete the form" --export html --export-file report.html
+```
+
+CLI options:
+- `--mode`: Agent mode (default: actor). Use `oagi agent modes` to list available modes
+- `--model`: Override the model (default: determined by mode)
+- `--max-steps`: Maximum steps (default: determined by mode)
+- `--temperature`: Sampling temperature (default: determined by mode)
+- `--step-delay`: Delay after each action before next screenshot (default: 0.3s)
+- `--export`: Export format (markdown, html, json)
+- `--export-file`: Output file path for export
+
 ### Image Processing
 
 Process and optimize images before sending to API:
