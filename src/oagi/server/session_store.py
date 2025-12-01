@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from ..constants import MODE_ACTOR, MODEL_ACTOR
+from ..constants import DEFAULT_TEMPERATURE_LOW, MODE_ACTOR, MODEL_ACTOR
 
 
 class Session:
@@ -21,7 +21,7 @@ class Session:
         instruction: str,
         mode: str = MODE_ACTOR,
         model: str = MODEL_ACTOR,
-        temperature: float = 0.0,
+        temperature: float = DEFAULT_TEMPERATURE_LOW,
     ):
         self.session_id: str = session_id
         self.instruction: str = instruction
@@ -57,7 +57,7 @@ class SessionStore:
         instruction: str,
         mode: str = MODE_ACTOR,
         model: str = MODEL_ACTOR,
-        temperature: float = 0.0,
+        temperature: float = DEFAULT_TEMPERATURE_LOW,
         session_id: str | None = None,
     ) -> str:
         if session_id is None:

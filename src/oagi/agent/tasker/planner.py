@@ -11,7 +11,7 @@ from typing import Any
 
 from ...client import AsyncClient
 from ...constants import DEFAULT_REFLECTION_INTERVAL
-from ...types import URL, Image
+from ...types import URL, Image, extract_uuid_from_url
 from .memory import PlannerMemory
 from .models import Action, PlannerOutput, ReflectionOutput
 
@@ -138,11 +138,16 @@ class Planner:
         # Ensure we have a client
         client = self._ensure_client()
 
-        # Upload screenshot if provided
+        # Get screenshot UUID - either extract from URL or upload
         screenshot_uuid = None
         if screenshot:
-            upload_response = await client.put_s3_presigned_url(screenshot)
-            screenshot_uuid = upload_response.uuid
+            # Check if screenshot is already a URL (already uploaded to S3)
+            if isinstance(screenshot, str):
+                screenshot_uuid = extract_uuid_from_url(screenshot)
+            # If not a URL or UUID extraction failed, upload the image
+            if not screenshot_uuid:
+                upload_response = await client.put_s3_presigned_url(screenshot)
+                screenshot_uuid = upload_response.uuid
 
         # Extract memory data if provided
         (
@@ -195,11 +200,16 @@ class Planner:
         # Ensure we have a client
         client = self._ensure_client()
 
-        # Upload screenshot if provided
+        # Get screenshot UUID - either extract from URL or upload
         result_screenshot_uuid = None
         if screenshot:
-            upload_response = await client.put_s3_presigned_url(screenshot)
-            result_screenshot_uuid = upload_response.uuid
+            # Check if screenshot is already a URL (already uploaded to S3)
+            if isinstance(screenshot, str):
+                result_screenshot_uuid = extract_uuid_from_url(screenshot)
+            # If not a URL or UUID extraction failed, upload the image
+            if not result_screenshot_uuid:
+                upload_response = await client.put_s3_presigned_url(screenshot)
+                result_screenshot_uuid = upload_response.uuid
 
         # Extract memory data if provided
         (

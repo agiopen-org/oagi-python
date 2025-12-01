@@ -29,6 +29,7 @@ from oagi.types import (
     Image,
     PlanEvent,
     StepEvent,
+    extract_uuid_from_url,
 )
 
 from ..protocol import AsyncAgent
@@ -260,11 +261,21 @@ class TaskeeAgent(AsyncAgent):
             # Capture screenshot
             screenshot = await image_provider()
 
-            # Upload screenshot first to get UUID (avoids re-upload in actor.step)
+            # Get screenshot UUID - either extract from URL or upload
             try:
-                upload_response = await client.put_s3_presigned_url(screenshot)
-                screenshot_uuid = upload_response.uuid
-                screenshot_url = upload_response.download_url
+                screenshot_uuid = None
+                screenshot_url = None
+
+                # Check if screenshot is already a URL (from SocketIOImageProvider)
+                if isinstance(screenshot, str):
+                    screenshot_uuid = extract_uuid_from_url(screenshot)
+                    screenshot_url = screenshot
+
+                # If not a URL or UUID extraction failed, upload the image
+                if not screenshot_uuid:
+                    upload_response = await client.put_s3_presigned_url(screenshot)
+                    screenshot_uuid = upload_response.uuid
+                    screenshot_url = upload_response.download_url
             except Exception as e:
                 logger.error(f"Error uploading screenshot: {e}")
                 self._record_action(

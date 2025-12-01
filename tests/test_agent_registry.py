@@ -8,7 +8,7 @@ from oagi.agent import (
     list_agent_modes,
 )
 from oagi.agent.registry import _agent_registry
-from oagi.constants import DEFAULT_MAX_STEPS, MODE_ACTOR, MODE_TASKER, MODEL_ACTOR
+from oagi.constants import DEFAULT_MAX_STEPS, MODE_ACTOR, MODEL_ACTOR
 from oagi.types import AsyncActionHandler, AsyncImageProvider
 
 
@@ -153,7 +153,8 @@ class TestAgentRegistry:
     def test_built_in_modes_registered(self):
         modes = list_agent_modes()
         assert MODE_ACTOR in modes
-        assert MODE_TASKER in modes or "tasker:cat" in modes
+        # Check that at least one tasker variant exists
+        assert any(m.startswith("tasker:") for m in modes)
 
     def test_create_built_in_actor_agent(self):
         agent = create_agent(
@@ -173,7 +174,7 @@ class TestAgentRegistry:
 
     def test_create_built_in_tasker_agent(self):
         agent = create_agent(
-            mode=MODE_TASKER,
+            mode="tasker:software_qa",
             api_key="test-key",
             base_url="test-url",
             model=MODEL_ACTOR,

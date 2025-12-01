@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from oagi.constants import MODE_ACTOR, MODEL_ACTOR
+from oagi.constants import DEFAULT_TEMPERATURE_LOW, MODE_ACTOR, MODEL_ACTOR
 from oagi.server.session_store import Session, SessionStore
 
 
@@ -64,7 +64,7 @@ def test_create_session_with_defaults(store):
 
     assert session.mode == MODE_ACTOR  # Default mode
     assert session.model == MODEL_ACTOR  # Default model
-    assert session.temperature == 0.0  # Default temperature
+    assert session.temperature == DEFAULT_TEMPERATURE_LOW
 
 
 def test_get_session_by_socket_id(store):

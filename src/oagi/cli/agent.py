@@ -17,12 +17,9 @@ from oagi.agent.observer import AsyncAgentObserver
 from oagi.constants import (
     API_KEY_HELP_URL,
     DEFAULT_BASE_URL,
-    DEFAULT_MAX_STEPS,
     DEFAULT_MAX_STEPS_THINKER,
     DEFAULT_STEP_DELAY,
-    DEFAULT_TEMPERATURE,
     MODE_ACTOR,
-    MODEL_ACTOR,
     MODEL_THINKER,
 )
 from oagi.exceptions import check_optional_dependency
@@ -40,22 +37,30 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         "run", help="Run an agent with the given instruction"
     )
     run_parser.add_argument(
-        "instruction", type=str, help="Task instruction for the agent to execute"
+        "instruction",
+        type=str,
+        nargs="?",
+        default="",
+        help="Task instruction for the agent to execute (optional for pre-configured modes)",
     )
     run_parser.add_argument(
-        "--model", type=str, help=f"Model to use (default: {MODEL_ACTOR})"
+        "--model", type=str, help="Model to use (default: determined by mode)"
     )
     run_parser.add_argument(
-        "--max-steps", type=int, help="Maximum number of steps (default: 20)"
+        "--max-steps",
+        type=int,
+        help="Maximum number of steps (default: determined by mode)",
     )
     run_parser.add_argument(
-        "--temperature", type=float, help="Sampling temperature (default: 0.5)"
+        "--temperature",
+        type=float,
+        help="Sampling temperature (default: determined by mode)",
     )
     run_parser.add_argument(
         "--mode",
         type=str,
         default=MODE_ACTOR,
-        help=f"Agent mode to use (default: {MODE_ACTOR}). Available modes: actor, planner",
+        help=f"Agent mode to use (default: {MODE_ACTOR}). Use 'oagi agent modes' to list available modes",
     )
     run_parser.add_argument(
         "--oagi-api-key", type=str, help="OAGI API key (default: OAGI_API_KEY env var)"
@@ -82,6 +87,9 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         help=f"Delay in seconds after each step before next screenshot (default: {DEFAULT_STEP_DELAY})",
     )
 
+    # agent modes command
+    agent_subparsers.add_parser("modes", help="List available agent modes")
+
     # agent permission command
     agent_subparsers.add_parser(
         "permission",
@@ -92,8 +100,20 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
 def handle_agent_command(args: argparse.Namespace) -> None:
     if args.agent_command == "run":
         run_agent(args)
+    elif args.agent_command == "modes":
+        list_modes()
     elif args.agent_command == "permission":
         check_permissions()
+
+
+def list_modes() -> None:
+    """List all available agent modes."""
+    from oagi.agent import list_agent_modes  # noqa: PLC0415
+
+    modes = list_agent_modes()
+    print("Available agent modes:")
+    for mode in modes:
+        print(f"  - {mode}")
 
 
 def check_permissions() -> None:
@@ -207,14 +227,6 @@ def run_agent(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     base_url = args.oagi_base_url or os.getenv("OAGI_BASE_URL", DEFAULT_BASE_URL)
-    model = args.model or MODEL_ACTOR
-    default_max_steps = (
-        DEFAULT_MAX_STEPS_THINKER if model == MODEL_THINKER else DEFAULT_MAX_STEPS
-    )
-    max_steps = args.max_steps or default_max_steps
-    temperature = (
-        args.temperature if args.temperature is not None else DEFAULT_TEMPERATURE
-    )
     mode = args.mode or MODE_ACTOR
     step_delay = args.step_delay if args.step_delay is not None else DEFAULT_STEP_DELAY
     export_format = args.export
@@ -233,26 +245,38 @@ def run_agent(args: argparse.Namespace) -> None:
 
     observer = CombinedObserver()
 
-    # Create agent with observer
-    agent = create_agent(
-        mode=mode,
-        api_key=api_key,
-        base_url=base_url,
-        model=model,
-        max_steps=max_steps,
-        temperature=temperature,
-        step_observer=observer,
-        step_delay=step_delay,
-    )
+    # Build agent kwargs - only pass explicitly provided values, let factory use defaults
+    agent_kwargs = {
+        "mode": mode,
+        "api_key": api_key,
+        "base_url": base_url,
+        "step_observer": observer,
+        "step_delay": step_delay,
+    }
+    if args.model:
+        agent_kwargs["model"] = args.model
+        # If thinker model specified without max_steps, use thinker's default
+        if args.model == MODEL_THINKER and not args.max_steps:
+            agent_kwargs["max_steps"] = DEFAULT_MAX_STEPS_THINKER
+    if args.max_steps:
+        agent_kwargs["max_steps"] = args.max_steps
+    if args.temperature is not None:
+        agent_kwargs["temperature"] = args.temperature
+
+    # Create agent
+    agent = create_agent(**agent_kwargs)
 
     # Create handlers
     action_handler = AsyncPyautoguiActionHandler()
     image_provider = AsyncScreenshotMaker()
 
-    print(f"Starting agent with instruction: {args.instruction}")
+    if args.instruction:
+        print(f"Starting agent with instruction: {args.instruction}")
+    else:
+        print(f"Starting agent with mode: {mode} (using pre-configured instruction)")
     print(
-        f"Mode: {mode}, Model: {model}, Max steps: {max_steps}, "
-        f"Temperature: {temperature}, Step delay: {step_delay}s"
+        f"Mode: {mode}, Model: {agent.model}, Max steps: {agent.max_steps}, "
+        f"Temperature: {agent.temperature}, Step delay: {step_delay}s"
     )
     print("-" * 60)
 

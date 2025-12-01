@@ -32,7 +32,7 @@ from .step_observer import (
     SplitEvent,
     StepEvent,
 )
-from .url import URL
+from .url import URL, extract_uuid_from_url
 
 __all__ = [
     "Action",
@@ -55,6 +55,7 @@ __all__ = [
     "ImageProvider",
     "AsyncImageProvider",
     "URL",
+    "extract_uuid_from_url",
     "parse_coords",
     "parse_drag_coords",
     "parse_scroll",

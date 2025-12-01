@@ -158,8 +158,8 @@ class SessionNamespace(socketio.AsyncNamespace):
             session_store.update_activity(session_id)
 
             logger.info(
-                f"Session {session_id} initialized with: {event_data.instruction} "
-                f"(mode={event_data.mode}, model={event_data.model})"
+                f"Session {session_id} initialized with: {session.instruction} "
+                f"(mode={session.mode}, model={session.model})"
             )
 
             # Create agent and wrappers
@@ -168,8 +168,8 @@ class SessionNamespace(socketio.AsyncNamespace):
                 api_key=self.config.oagi_api_key,
                 base_url=self.config.oagi_base_url,
                 max_steps=self.config.max_steps,
-                model=event_data.model,
-                temperature=event_data.temperature,
+                model=session.model,
+                temperature=session.temperature,
             )
 
             action_handler = SocketIOActionHandler(self, session)
