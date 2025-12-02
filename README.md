@@ -76,7 +76,7 @@ pip install oagi-core[server]   # Server support
 
 Set your API credentials:
 ```bash
-export OAGI_API_KEY="your-api-key" # get your API key from https://developer.openagi.org/
+export OAGI_API_KEY="your-api-key" # get your API key from https://developer.agiopen.org/
 # export OAGI_BASE_URL="https://api.agiopen.org/", # optional, defaults to production endpoint
 ```
 
