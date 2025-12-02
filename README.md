@@ -1,6 +1,51 @@
 # OAGI Python SDK
 
+[![PyPI version](https://img.shields.io/pypi/v/oagi-core)](https://pypi.org/project/oagi-core/)
+[![Python version](https://img.shields.io/pypi/pyversions/oagi-core)](https://pypi.org/project/oagi-core/)
+[![License](https://img.shields.io/github/license/agiopen-org/oagi-python)](https://github.com/agiopen-org/oagi-python/blob/main/LICENSE)
+[![Build status](https://img.shields.io/github/actions/workflow/status/agiopen-org/oagi-python/ci.yml?branch=main)](https://github.com/agiopen-org/oagi-python/actions/workflows/ci.yml)
+
 Python SDK for the OAGI API - vision-based task automation.
+
+## What is OAGI?
+
+OAGI is the Python SDK for **Lux**, the world's most advanced computer-use model from the OpenAGI Foundation. 
+
+**Computer Use** is AI's ability to operate human-facing software — not just through APIs, but by operating computers natively, just as human users do. It's a paradigm shift in what AI can do: not just generating, reasoning, or researching, but actually operating on your computer.
+
+Lux comes in three modes, giving you control over depth, speed, and style of execution:
+
+- **Tasker** — Strictly follows step-by-step instructions with ultra-stable, controllable execution
+- **Actor** — Ideal for immediate tasks, completing actions at near-instant speed
+- **Thinker** — Understands vague, complex goals, performing hour-long executions
+
+### Use Cases
+
+With Lux, possibilities are endless. Here are a few examples:
+
+- **Web Scraping & Data Crawl** — Navigate websites, sort results, and collect product information autonomously
+- **Software QA** — Automate repetitive testing tasks, navigate applications, perform test actions, and validate expected behaviors
+- **Financial Data Extraction** — Navigate to sites like NASDAQ and extract insider activity data
+- **Data Entry** — Enter accurate data across dashboards and forms
+- **Workflow Automation** — Chain together multi-step tasks across different applications
+
+## Table of Contents
+
+- [What is OAGI?](#what-is-oagi)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [Automated Task Execution](#automated-task-execution)
+  - [Command Line Interface](#command-line-interface)
+  - [Image Processing](#image-processing)
+  - [Manual Control with Actor](#manual-control-with-actor)
+- [Examples](#examples)
+- [Socket.IO Server (Optional)](#socketio-server-optional)
+  - [Installation](#installation-1)
+  - [Running the Server](#running-the-server)
+  - [Server Features](#server-features)
+  - [Client Integration](#client-integration)
+- [Documentation](#documentation)
+- [License](#license)
 
 ## Installation
 
@@ -229,6 +274,7 @@ See [`examples/socketio_client_example.py`](examples/socketio_client_example.py)
 
 ## Documentation
 
+For full Lux documentation and guides, visit the [OAGI Developer Documentation](https://developer.agiopen.org/docs/index).
 
 ## License
 
