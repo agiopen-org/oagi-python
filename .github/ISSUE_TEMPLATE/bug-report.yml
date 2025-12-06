@@ -1,0 +1,86 @@
+name: Bug report
+description: Report a problem installing or using the OpenAGI (oagi) Python SDK.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I have searched existing issues.
+          required: true
+        - label: I am using Python 3.10 or newer (per docs).
+          required: true
+        - label: I included the full error output/logs.
+          required: false
+  - type: input
+    id: version
+    attributes:
+      label: oagi package version
+      description: Output of `pip show oagi`.
+      placeholder: e.g. 0.11.0
+    validations:
+      required: true
+  - type: dropdown
+    id: python
+    attributes:
+      label: Python version (docs require 3.10+)
+      options:
+        - 3.10
+        - 3.11
+        - 3.12
+        - 3.13
+        - Other (>=3.10)
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: dropdown
+    id: installer
+    attributes:
+      label: How did you install? (docs recommend `pip install oagi`)
+      options:
+        - pip
+        - uv
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include exact commands and any virtual env/tooling used.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and logs
+      description: Paste full traceback/build logs if applicable.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Environment details, proxies, system architecture, etc.
+
