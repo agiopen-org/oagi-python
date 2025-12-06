@@ -1,0 +1,22 @@
+name: Question
+description: Ask a question about using the OAGI Python SDK.
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you need help with?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Relevant package/version info
+      description: e.g. oagi version, Python version.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What you tried, expected results, and any logs.
+
