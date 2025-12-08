@@ -11,7 +11,7 @@ from uuid import uuid4
 from ..constants import DEFAULT_MAX_STEPS
 from ..logging import get_logger
 from ..types import URL, Image, Step
-from ..types.models import LLMResponse
+from ..utils.prompt_builder import build_prompt
 
 logger = get_logger("task.base")
 
@@ -42,7 +42,7 @@ class BaseActor:
         task_desc: str,
         max_steps: int,
     ):
-        """Prepare task initialization (v2 API does not call server for init).
+        """Prepare task initialization.
 
         Args:
             task_desc: Task description
@@ -65,71 +65,112 @@ class BaseActor:
             )
         self.current_step += 1
 
-    def _prepare_step(
-        self,
-        screenshot: Image | URL | bytes,
-        instruction: str | None,
-        temperature: float | None,
-        prefix: str = "",
-    ) -> dict:
-        self._validate_and_increment_step()
-        self._log_step_execution(prefix=prefix)
-
-        return {
-            "model": self.model,
-            "task_description": self.task_description,
-            "task_id": self.task_id,
-            "instruction": instruction,
-            "messages_history": self.message_history,
-            "temperature": self._get_temperature(temperature),
-            **self._prepare_screenshot_kwargs(screenshot),
-        }
-
-    def _handle_step_error(self, error: Exception, prefix: str = ""):
-        logger.error(f"Error during {prefix}step execution: {error}")
-        raise
+    def _get_temperature(self, temperature: float | None) -> float | None:
+        return temperature if temperature is not None else self.temperature
 
     def _prepare_screenshot(self, screenshot: Image | bytes) -> bytes:
         if isinstance(screenshot, Image):
             return screenshot.read()
         return screenshot
 
-    def _get_temperature(self, temperature: float | None) -> float | None:
-        return temperature if temperature is not None else self.temperature
-
-    def _prepare_screenshot_kwargs(self, screenshot: Image | URL | bytes) -> dict:
+    def _get_screenshot_url(self, screenshot: Image | URL | bytes) -> str | None:
+        """Get screenshot URL if it's a string, otherwise return None."""
         if isinstance(screenshot, str):
-            return {"screenshot_url": screenshot}
-        return {"screenshot": self._prepare_screenshot(screenshot)}
+            return screenshot
+        return None
 
-    def _handle_response_message_history(self, response: LLMResponse):
-        if response.raw_output:
+    def _ensure_screenshot_url_sync(
+        self, screenshot: Image | URL | bytes, client
+    ) -> str:
+        """Get screenshot URL, uploading to S3 if needed (sync version).
+
+        Args:
+            screenshot: Screenshot as Image object, URL string, or raw bytes
+            client: SyncClient instance for S3 upload
+
+        Returns:
+            Screenshot URL (either direct or from S3 upload)
+        """
+        screenshot_url = self._get_screenshot_url(screenshot)
+        if screenshot_url is None:
+            screenshot_bytes = self._prepare_screenshot(screenshot)
+            upload_response = client.put_s3_presigned_url(screenshot_bytes)
+            screenshot_url = upload_response.download_url
+        return screenshot_url
+
+    async def _ensure_screenshot_url_async(
+        self, screenshot: Image | URL | bytes, client
+    ) -> str:
+        """Get screenshot URL, uploading to S3 if needed (async version).
+
+        Args:
+            screenshot: Screenshot as Image object, URL string, or raw bytes
+            client: AsyncClient instance for S3 upload
+
+        Returns:
+            Screenshot URL (either direct or from S3 upload)
+        """
+        screenshot_url = self._get_screenshot_url(screenshot)
+        if screenshot_url is None:
+            screenshot_bytes = self._prepare_screenshot(screenshot)
+            upload_response = await client.put_s3_presigned_url(screenshot_bytes)
+            screenshot_url = upload_response.download_url
+        return screenshot_url
+
+    def _add_user_message_to_history(
+        self, screenshot_url: str, prompt: str | None = None
+    ):
+        """Add user message with screenshot to message history.
+
+        Args:
+            screenshot_url: URL of the screenshot
+            prompt: Optional prompt text (for first message only)
+        """
+        content = []
+        if prompt:
+            content.append({"type": "text", "text": prompt})
+        content.append({"type": "image_url", "image_url": {"url": screenshot_url}})
+
+        self.message_history.append(
+            {
+                "role": "user",
+                "content": content,
+            }
+        )
+
+    def _add_assistant_message_to_history(self, raw_output: str):
+        """Add assistant response to message history.
+
+        Args:
+            raw_output: Raw model output string
+        """
+        if raw_output:
             self.message_history.append(
                 {
                     "role": "assistant",
-                    "content": [{"type": "text", "text": response.raw_output}],
+                    "content": raw_output,
                 }
             )
 
-    def _build_step_response(self, response: LLMResponse, prefix: str = "") -> Step:
-        # Update message history with assistant response
-        self._handle_response_message_history(response)
+    def _build_step_prompt(self) -> str | None:
+        """Build prompt for first message only."""
+        if len(self.message_history) == 0:
+            return build_prompt(self.task_description)
+        return None
 
-        result = Step(
-            reason=response.reason,
-            actions=response.actions,
-            stop=response.is_complete,
-        )
-
-        if response.is_complete:
+    def _log_step_completion(self, step: Step, prefix: str = "") -> None:
+        """Log step completion status."""
+        if step.stop:
             logger.info(f"{prefix}Task completed.")
         else:
-            logger.debug(f"{prefix}Step completed with {len(response.actions)} actions")
-
-        return result
+            logger.debug(f"{prefix}Step completed with {len(step.actions)} actions")
 
     def _log_step_execution(self, prefix: str = ""):
         logger.debug(f"Executing {prefix}step for task: '{self.task_description}'")
+
+    def _handle_step_error(self, error: Exception, prefix: str = ""):
+        logger.error(f"Error during {prefix}step execution: {error}")
+        raise
 
 
 class BaseAutoMode:

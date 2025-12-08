@@ -28,7 +28,6 @@ from oagi.types.models import (
     ErrorDetail,
     ErrorResponse,
     GenerateResponse,
-    LLMResponse,
     UploadFileResponse,
 )
 
@@ -116,7 +115,6 @@ __all__ = [
     # Configuration
     "ImageConfig",
     # Response models
-    "LLMResponse",
     "GenerateResponse",
     "UploadFileResponse",
     "ErrorResponse",

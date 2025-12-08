@@ -17,7 +17,6 @@ from .client import (
     ErrorDetail,
     ErrorResponse,
     GenerateResponse,
-    LLMResponse,
     UploadFileResponse,
     Usage,
 )
@@ -31,7 +30,6 @@ __all__ = [
     "ErrorResponse",
     "GenerateResponse",
     "ImageConfig",
-    "LLMResponse",
     "Step",
     "UploadFileResponse",
     "Usage",

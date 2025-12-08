@@ -27,9 +27,11 @@ from ..logging import get_logger
 from ..types.models import (
     ErrorResponse,
     GenerateResponse,
-    LLMResponse,
     UploadFileResponse,
+    Usage,
 )
+from ..types.models.step import Step
+from ..utils.output_parser import parse_raw_output
 
 logger = get_logger("client.base")
 
@@ -67,39 +69,65 @@ class BaseClient(Generic[HttpClientT]):
             headers["x-api-key"] = self.api_key
         return headers
 
-    def _build_payload(
+    @staticmethod
+    def _log_trace_id(response) -> None:
+        """Log trace IDs from response headers for debugging."""
+        logger.error(f"Request Id: {response.headers.get('x-request-id', '')}")
+        logger.error(f"Trace Id: {response.headers.get('x-trace-id', '')}")
+
+    def _build_chat_completion_kwargs(
         self,
         model: str,
-        messages_history: list,
-        task_description: str | None = None,
-        task_id: str | None = None,
+        messages: list,
         temperature: float | None = None,
-    ) -> dict[str, Any]:
-        """Build OpenAI-compatible request payload.
+    ) -> dict:
+        """Build kwargs dict for OpenAI chat completion call.
 
         Args:
-            model: Model to use
-            messages_history: OpenAI-compatible message history
-            task_description: Task description
-            task_id: Task ID for continuing session
-            temperature: Sampling temperature
+            model: Model to use for inference
+            messages: Full message history (OpenAI-compatible format)
+            temperature: Sampling temperature (0.0-2.0)
 
         Returns:
-            OpenAI-compatible request payload
+            Dict of kwargs for chat.completions.create()
         """
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": messages_history,
-        }
-
-        if task_description is not None:
-            payload["task_description"] = task_description
-        if task_id is not None:
-            payload["task_id"] = task_id
+        kwargs: dict = {"model": model, "messages": messages}
         if temperature is not None:
-            payload["temperature"] = temperature
+            kwargs["temperature"] = temperature
+        return kwargs
 
-        return payload
+    def _parse_chat_completion_response(
+        self, response
+    ) -> tuple[Step, str, Usage | None]:
+        """Extract and parse OpenAI chat completion response.
+
+        This is sync/async agnostic as it only processes the response object.
+
+        Args:
+            response: OpenAI ChatCompletion response object
+
+        Returns:
+            Tuple of (Step, raw_output, Usage)
+        """
+        raw_output = response.choices[0].message.content or ""
+        step = parse_raw_output(raw_output)
+
+        usage = None
+        if response.usage:
+            usage = Usage(
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+            )
+
+        return step, raw_output, usage
+
+    def _log_chat_completion_success(self, step: Step) -> None:
+        """Log successful chat completion."""
+        logger.info(
+            f"Chat completion successful - actions: {len(step.actions)}, "
+            f"stop: {step.stop}"
+        )
 
     def _handle_response_error(
         self, response: httpx.Response, response_data: dict
@@ -141,84 +169,6 @@ class BaseClient(Generic[HttpClientT]):
 
         return status_map.get(status_code, APIError)
 
-    def _log_request_info(self, model: str, task_description: Any, task_id: Any):
-        logger.info(f"Making API request to /v2/message with model: {model}")
-        logger.debug(
-            f"Request includes task_description: {task_description is not None}, "
-            f"task_id: {task_id is not None}"
-        )
-
-    def _build_user_message(
-        self, screenshot_url: str, instruction: str | None
-    ) -> dict[str, Any]:
-        """Build OpenAI-compatible user message with screenshot and optional instruction.
-
-        Args:
-            screenshot_url: URL of uploaded screenshot
-            instruction: Optional text instruction
-
-        Returns:
-            User message dict
-        """
-        content = [{"type": "image_url", "image_url": {"url": screenshot_url}}]
-        if instruction:
-            content.append({"type": "text", "text": instruction})
-        return {"role": "user", "content": content}
-
-    def _prepare_message_payload(
-        self,
-        model: str,
-        upload_file_response: UploadFileResponse | None,
-        task_description: str | None,
-        task_id: str | None,
-        instruction: str | None,
-        messages_history: list | None,
-        temperature: float | None,
-        api_version: str | None,
-        screenshot_url: str | None = None,
-    ) -> tuple[dict[str, str], dict[str, Any]]:
-        """Prepare headers and payload for /v2/message request.
-
-        Args:
-            model: Model to use
-            upload_file_response: Response from S3 upload (if screenshot was uploaded)
-            task_description: Task description
-            task_id: Task ID
-            instruction: Optional instruction
-            messages_history: Message history
-            temperature: Sampling temperature
-            api_version: API version
-            screenshot_url: Direct screenshot URL (alternative to upload_file_response)
-
-        Returns:
-            Tuple of (headers, payload)
-        """
-        # Use provided screenshot_url or get from upload_file_response
-        if screenshot_url is None:
-            if upload_file_response is None:
-                raise ValueError(
-                    "Either screenshot_url or upload_file_response must be provided"
-                )
-            screenshot_url = upload_file_response.download_url
-
-        # Build user message and append to history
-        if messages_history is None:
-            messages_history = []
-        user_message = self._build_user_message(screenshot_url, instruction)
-        messages_history.append(user_message)
-
-        # Build payload and headers
-        headers = self._build_headers(api_version)
-        payload = self._build_payload(
-            model=model,
-            messages_history=messages_history,
-            task_description=task_description,
-            task_id=task_id,
-            temperature=temperature,
-        )
-
-        return headers, payload
-
     def _parse_response_json(self, response: httpx.Response) -> dict[str, Any]:
         try:
             return response.json()
@@ -229,35 +179,6 @@ class BaseClient(Generic[HttpClientT]):
                 status_code=response.status_code,
                 response=response,
             )
-
-    def _process_response(self, response: httpx.Response) -> "LLMResponse":
-        response_data = self._parse_response_json(response)
-
-        # Check if it's an error response (non-200 status)
-        if response.status_code != 200:
-            self._handle_response_error(response, response_data)
-
-        # Parse successful response
-        result = LLMResponse(**response_data)
-
-        # Check if the response contains an error (even with 200 status)
-        if result.error:
-            logger.error(
-                f"API Error in response: [{result.error.code}]: {result.error.message}"
-            )
-            raise APIError(
-                result.error.message,
-                code=result.error.code,
-                status_code=200,
-                response=response,
-            )
-
-        logger.info(
-            f"API request successful - task_id: {result.task_id}, "
-            f"complete: {result.is_complete}"
-        )
-        logger.debug(f"Response included {len(result.actions)} actions")
-        return result
 
     def _process_upload_response(self, response: httpx.Response) -> UploadFileResponse:
         """Process response from /v1/file/upload endpoint.

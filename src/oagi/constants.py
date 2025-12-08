@@ -9,7 +9,6 @@
 # URLs & API Endpoints
 DEFAULT_BASE_URL = "https://api.agiopen.org"
 API_KEY_HELP_URL = "https://developer.agiopen.org/api-keys"
-API_V2_MESSAGE_ENDPOINT = "/v2/message"
 API_V1_FILE_UPLOAD_ENDPOINT = "/v1/file/upload"
 API_V1_GENERATE_ENDPOINT = "/v1/generate"
 API_HEALTH_ENDPOINT = "/health"

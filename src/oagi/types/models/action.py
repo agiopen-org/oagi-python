@@ -81,4 +81,7 @@ def parse_scroll(args_str: str) -> tuple[int, int, str] | None:
     match = re.match(r"(\d+),\s*(\d+),\s*(\w+)", args_str)
     if not match:
         return None
-    return int(match.group(1)), int(match.group(2)), match.group(3).lower()
+    direction = match.group(3).lower()
+    if direction not in ("up", "down"):
+        return None
+    return int(match.group(1)), int(match.group(2)), direction

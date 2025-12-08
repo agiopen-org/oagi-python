@@ -92,6 +92,9 @@ class TestParseScroll:
             "500, 300",
             "500",
             "500, 300,",
+            "500, 300, left",  # invalid direction
+            "500, 300, right",  # invalid direction
+            "500, 300, invalid_direction",  # invalid direction
         ],
     )
     def test_invalid_scroll(self, input_str):

@@ -10,8 +10,11 @@ import warnings
 
 from ..client import SyncClient
 from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
+from ..logging import get_logger
 from ..types import URL, Image, Step
 from .base import BaseActor
+
+logger = get_logger("task.sync")
 
 
 class Actor(BaseActor):
@@ -51,18 +54,30 @@ class Actor(BaseActor):
         """Send screenshot to the server and get the next actions.
 
         Args:
-            screenshot: Screenshot as Image object or raw bytes
-            instruction: Optional additional instruction for this step
+            screenshot: Screenshot as Image object, URL string, or raw bytes
+            instruction: Optional additional instruction for this step (currently unused)
             temperature: Sampling temperature for this step (overrides task default if provided)
 
         Returns:
             Step: The actions and reasoning for this step
         """
-        kwargs = self._prepare_step(screenshot, instruction, temperature)
+        self._validate_and_increment_step()
+        self._log_step_execution()
 
         try:
-            response = self.client.create_message(**kwargs)
-            return self._build_step_response(response)
+            screenshot_url = self._ensure_screenshot_url_sync(screenshot, self.client)
+            self._add_user_message_to_history(screenshot_url, self._build_step_prompt())
+
+            step, raw_output, usage = self.client.chat_completion(
+                model=self.model,
+                messages=self.message_history,
+                temperature=self._get_temperature(temperature),
+            )
+
+            self._add_assistant_message_to_history(raw_output)
+            self._log_step_completion(step)
+            return step
+
         except Exception as e:
             self._handle_step_error(e)
 

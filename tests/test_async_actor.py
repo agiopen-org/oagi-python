@@ -6,68 +6,63 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
 
 from oagi.task import AsyncActor
-from oagi.types import Action, ActionType, Step
+from oagi.types import Step
 
 
 @pytest_asyncio.fixture
 async def async_actor(api_env):
-    actor = AsyncActor(
-        base_url=api_env["base_url"],
-        api_key=api_env["api_key"],
-        model="vision-model-v1",
-    )
-    yield actor
-    await actor.close()
-
-
-@pytest.fixture
-def mock_llm_response():
-    response = Mock()
-    response.reason = "Test reason"
-    response.actions = [Action(type=ActionType.CLICK, argument="500, 300", count=1)]
-    response.is_complete = False
-    return response
+    with patch("oagi.client.async_.AsyncOpenAI"):
+        actor = AsyncActor(
+            base_url=api_env["base_url"],
+            api_key=api_env["api_key"],
+            model="vision-model-v1",
+        )
+        # Mock close methods as async
+        actor.client.openai_client.close = AsyncMock()
+        actor.client.http_client.aclose = AsyncMock()
+        actor.client.upload_client.aclose = AsyncMock()
+        yield actor
+        await actor.close()
 
 
 class TestAsyncActorInitialization:
     @pytest.mark.asyncio
-    async def test_init_task(self, async_actor, mock_llm_response):
-        # V2 API: init_task doesn't make API call, just sets description
+    async def test_init_task(self, async_actor):
         original_task_id = async_actor.task_id
 
         await async_actor.init_task("Test task description")
 
         assert async_actor.task_description == "Test task description"
-        # V2 API: task_id is regenerated on init_task to create a fresh task
         assert async_actor.task_id != original_task_id
         assert isinstance(async_actor.task_id, str)
-        assert len(async_actor.task_id) == 32  # UUID hex without dashes
+        assert len(async_actor.task_id) == 32
 
 
 class TestAsyncActorStep:
     @pytest.mark.asyncio
-    async def test_step_with_bytes(self, async_actor, mock_llm_response):
+    async def test_step_with_bytes(self, async_actor, sample_step, sample_usage_obj):
         async_actor.task_description = "Test task"
         async_actor.task_id = "task-123"
 
-        with patch.object(
-            async_actor.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            mock_create.return_value = mock_llm_response
+        async_actor.client.chat_completion = AsyncMock(
+            return_value=(sample_step, "raw output", sample_usage_obj)
+        )
+        async_actor.client.put_s3_presigned_url = AsyncMock(
+            return_value=AsyncMock(download_url="https://cdn.example.com/image.png")
+        )
 
-            screenshot_bytes = b"test-image-data"
-            result = await async_actor.step(screenshot_bytes)
+        result = await async_actor.step(b"test-image-data")
 
-            assert isinstance(result, Step)
-            assert result.reason == "Test reason"
-            assert len(result.actions) == 1
-            assert result.stop is False
+        assert isinstance(result, Step)
+        assert result.reason == sample_step.reason
+        assert len(result.actions) == 1
+        assert result.stop is False
 
     @pytest.mark.asyncio
     async def test_step_without_init(self, async_actor):
@@ -76,105 +71,120 @@ class TestAsyncActorStep:
         assert "Call init_task() first" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_step_with_instruction(self, async_actor, mock_llm_response):
+    async def test_step_with_instruction(
+        self, async_actor, sample_step, sample_usage_obj
+    ):
+        """Test that instruction parameter is accepted (though currently unused)."""
         async_actor.task_description = "Test task"
         async_actor.task_id = "task-123"
 
-        with patch.object(
-            async_actor.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            mock_create.return_value = mock_llm_response
+        async_actor.client.chat_completion = AsyncMock(
+            return_value=(sample_step, "raw output", sample_usage_obj)
+        )
+        async_actor.client.put_s3_presigned_url = AsyncMock(
+            return_value=AsyncMock(download_url="https://cdn.example.com/image.png")
+        )
 
-            await async_actor.step(b"test-image", instruction="Click the button")
+        result = await async_actor.step(b"test-image", instruction="Click the button")
 
-            # Verify instruction was passed
-            call_kwargs = mock_create.call_args.kwargs
-            assert call_kwargs["instruction"] == "Click the button"
+        # Verify chat_completion was called
+        async_actor.client.chat_completion.assert_called_once()
+        assert isinstance(result, Step)
+        assert not result.stop
 
     @pytest.mark.asyncio
-    async def test_step_task_complete(self, async_actor):
+    async def test_step_task_complete(
+        self, async_actor, completed_step, sample_usage_obj
+    ):
         async_actor.task_description = "Test task"
+        async_actor.task_id = "task-123"
 
-        complete_response = Mock()
-        complete_response.task_id = "task-123"
-        complete_response.reason = "Task completed"
-        complete_response.actions = []
-        complete_response.is_complete = True
+        async_actor.client.chat_completion = AsyncMock(
+            return_value=(completed_step, "completed output", sample_usage_obj)
+        )
+        async_actor.client.put_s3_presigned_url = AsyncMock(
+            return_value=AsyncMock(download_url="https://cdn.example.com/image.png")
+        )
 
-        with patch.object(
-            async_actor.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            mock_create.return_value = complete_response
+        result = await async_actor.step(b"test-image")
 
-            result = await async_actor.step(b"test-image")
-
-            assert result.stop is True
-            assert result.reason == "Task completed"
+        assert result.stop is True
+        assert result.reason == "The task has been completed successfully"
 
     @pytest.mark.asyncio
-    async def test_step_raises_error_when_max_steps_reached(self, async_actor):
-        mock_response = Mock()
-        mock_response.task_id = "task-123"
-        mock_response.reason = "Action taken"
-        mock_response.actions = []
-        mock_response.is_complete = False
-        mock_response.raw_output = "test"
+    async def test_step_raises_error_when_max_steps_reached(
+        self, async_actor, sample_step, sample_usage_obj
+    ):
+        async_actor.client.chat_completion = AsyncMock(
+            return_value=(sample_step, "raw output", sample_usage_obj)
+        )
+        async_actor.client.put_s3_presigned_url = AsyncMock(
+            return_value=AsyncMock(download_url="https://cdn.example.com/image.png")
+        )
+        await async_actor.init_task("Test task", max_steps=3)
 
-        with patch.object(
-            async_actor.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            mock_create.return_value = mock_response
-            await async_actor.init_task("Test task", max_steps=3)
+        # Execute 3 steps successfully
+        for _ in range(3):
+            await async_actor.step(b"test-image")
 
-            # Execute 3 steps successfully
-            for _ in range(3):
-                await async_actor.step(b"test-image")
-
-            # 4th step should raise error
-            with pytest.raises(ValueError, match="Max steps limit \\(3\\) reached"):
-                await async_actor.step(b"test-image")
+        # 4th step should raise error
+        with pytest.raises(ValueError, match="Max steps limit \\(3\\) reached"):
+            await async_actor.step(b"test-image")
 
 
 class TestAsyncActorContextManager:
     @pytest.mark.asyncio
     async def test_context_manager(self, api_env):
-        async with AsyncActor(
-            base_url=api_env["base_url"], api_key=api_env["api_key"]
-        ) as actor:
-            # V2 API: task_id is generated as UUID on init
-            assert actor.task_id is not None
-            assert isinstance(actor.task_id, str)
-            assert len(actor.task_id) == 32  # UUID hex without dashes
-            assert actor.task_description is None
+        with patch("oagi.client.async_.AsyncOpenAI"):
+            actor = AsyncActor(base_url=api_env["base_url"], api_key=api_env["api_key"])
+            # Mock close methods as async
+            actor.client.openai_client.close = AsyncMock()
+            actor.client.http_client.aclose = AsyncMock()
+            actor.client.upload_client.aclose = AsyncMock()
+
+            async with actor:
+                assert actor.task_id is not None
+                assert isinstance(actor.task_id, str)
+                assert len(actor.task_id) == 32
+                assert actor.task_description is None
 
 
 class TestAsyncActorTemperature:
     @pytest.mark.asyncio
-    async def test_async_task_temperature_fallback(self, api_env, mock_llm_response):
-        """Test that temperature fallback works: step temp -> actor temp -> None."""
-        actor = AsyncActor(
-            api_key=api_env["api_key"],
-            base_url=api_env["base_url"],
-            temperature=0.5,
-        )
-        actor.task_description = "Test task"
+    async def test_async_task_temperature_fallback(
+        self, api_env, sample_step, sample_usage_obj
+    ):
+        with patch("oagi.client.async_.AsyncOpenAI"):
+            actor = AsyncActor(
+                api_key=api_env["api_key"],
+                base_url=api_env["base_url"],
+                temperature=0.5,
+            )
+            actor.task_description = "Test task"
 
-        with patch.object(
-            actor.client, "create_message", new_callable=AsyncMock
-        ) as mock_create:
-            mock_create.return_value = mock_llm_response
+            # Mock close methods as async
+            actor.client.openai_client.close = AsyncMock()
+            actor.client.http_client.aclose = AsyncMock()
+            actor.client.upload_client.aclose = AsyncMock()
+
+            actor.client.chat_completion = AsyncMock(
+                return_value=(sample_step, "raw output", sample_usage_obj)
+            )
+            actor.client.put_s3_presigned_url = AsyncMock(
+                return_value=AsyncMock(download_url="https://cdn.example.com/image.png")
+            )
 
             # Step with override temperature
             await actor.step(b"screenshot_data", temperature=0.8)
 
             # Verify step temperature (0.8) is used
-            call_args = mock_create.call_args
+            call_args = actor.client.chat_completion.call_args
             assert call_args[1]["temperature"] == 0.8
 
             # Step without temperature - should use actor default (0.5)
             await actor.step(b"screenshot_data2")
 
-            call_args = mock_create.call_args
+            call_args = actor.client.chat_completion.call_args
             assert call_args[1]["temperature"] == 0.5
 
-        await actor.close()
+            await actor.close()

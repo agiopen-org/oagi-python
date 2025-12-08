@@ -6,380 +6,302 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import os
 from unittest.mock import AsyncMock, Mock, patch
 
-import httpx
 import pytest
 import pytest_asyncio
 
 from oagi.client import AsyncClient
+from oagi.constants import MODEL_ACTOR
 from oagi.exceptions import (
-    APIError,
-    AuthenticationError,
     ConfigurationError,
-    NetworkError,
-    RequestTimeoutError,
 )
-from oagi.types import ActionType
-from oagi.types.models import LLMResponse, UploadFileResponse
+from oagi.types import Step
+from oagi.types.models import (
+    UploadFileResponse,
+    Usage,
+)
 
 
 @pytest_asyncio.fixture
-async def async_client(api_env):
-    client = AsyncClient(base_url=api_env["base_url"], api_key=api_env["api_key"])
-    yield client
-    await client.close()
+async def test_client(api_env):
+    with patch("oagi.client.async_.AsyncOpenAI"):
+        client = AsyncClient(base_url=api_env["base_url"], api_key=api_env["api_key"])
+        yield client
 
 
 @pytest.fixture
-def mock_response_data():
-    return {
-        "id": "test-id",
-        "task_id": "task-123",
-        "object": "task.completion",
-        "created": 1234567890,
-        "model": "vision-model-v1",
-        "task_description": "Test task",
-        "is_complete": False,
-        "actions": [
-            {
-                "type": ActionType.CLICK,
-                "argument": "500, 300",
-                "count": 1,
-            }
+def create_client():
+    """Helper fixture to create and cleanup clients in tests."""
+
+    def _create_client(*args, **kwargs):
+        with patch("oagi.client.async_.AsyncOpenAI"):
+            client = AsyncClient(*args, **kwargs)
+            return client
+
+    yield _create_client
+
+
+class TestAsyncClientInit:
+    @pytest.mark.parametrize(
+        "env_vars,init_params,expected_base_url,expected_api_key",
+        [
+            # Test with parameters only
+            (
+                {},
+                {"base_url": "https://api.example.com", "api_key": "test-key"},
+                "https://api.example.com",
+                "test-key",
+            ),
+            # Test with environment variables only
+            (
+                {"OAGI_BASE_URL": "https://env.example.com", "OAGI_API_KEY": "env-key"},
+                {},
+                "https://env.example.com",
+                "env-key",
+            ),
+            # Test parameters override environment variables
+            (
+                {"OAGI_BASE_URL": "https://env.example.com", "OAGI_API_KEY": "env-key"},
+                {"base_url": "https://param.example.com", "api_key": "param-key"},
+                "https://param.example.com",
+                "param-key",
+            ),
         ],
-        "reason": "Test reason",
-        "usage": {
-            "prompt_tokens": 100,
-            "completion_tokens": 50,
-            "total_tokens": 150,
-        },
-    }
+    )
+    def test_init_configuration_sources(
+        self, env_vars, init_params, expected_base_url, expected_api_key, create_client
+    ):
+        for key, value in env_vars.items():
+            os.environ[key] = value
+
+        client = create_client(**init_params)
+        assert client.base_url == expected_base_url
+        assert client.api_key == expected_api_key
+
+    @pytest.mark.parametrize(
+        "missing_param,provided_param,error_message",
+        [
+            (
+                "api_key",
+                {"base_url": "https://api.example.com"},
+                "OAGI API key must be provided",
+            ),
+        ],
+    )
+    def test_init_missing_config_raises_error(
+        self, missing_param, provided_param, error_message
+    ):
+        with pytest.raises(ConfigurationError, match=error_message):
+            with patch("oagi.client.async_.AsyncOpenAI"):
+                AsyncClient(**provided_param)
+
+    def test_base_url_strips_trailing_slash(self, create_client):
+        client = create_client(base_url="https://api.example.com/", api_key="test-key")
+        assert client.base_url == "https://api.example.com"
 
 
-class TestAsyncClientInitialization:
+class TestAsyncClientChatCompletion:
     @pytest.mark.asyncio
-    async def test_init_with_params(self):
-        client = AsyncClient(base_url="https://api.test.com", api_key="test-key")
-        assert client.base_url == "https://api.test.com"
-        assert client.api_key == "test-key"
-        await client.close()
+    async def test_chat_completion_success(
+        self, test_client, sample_raw_output, sample_usage
+    ):
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = sample_raw_output
+        mock_response.usage = Mock(
+            prompt_tokens=sample_usage["prompt_tokens"],
+            completion_tokens=sample_usage["completion_tokens"],
+            total_tokens=sample_usage["total_tokens"],
+        )
+        test_client.openai_client.chat.completions.create = AsyncMock(
+            return_value=mock_response
+        )
+
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Test prompt"},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "https://example.com/screenshot.png"},
+                    },
+                ],
+            }
+        ]
+
+        step, raw_output, usage = await test_client.chat_completion(
+            model=MODEL_ACTOR,
+            messages=messages,
+        )
+
+        test_client.openai_client.chat.completions.create.assert_called_once()
+        assert isinstance(step, Step)
+        assert raw_output == sample_raw_output
+        assert isinstance(usage, Usage)
+        assert usage.prompt_tokens == sample_usage["prompt_tokens"]
 
     @pytest.mark.asyncio
-    async def test_init_from_env(self, api_env):
-        client = AsyncClient()
-        assert client.base_url == api_env["base_url"]
-        assert client.api_key == api_env["api_key"]
-        await client.close()
+    async def test_chat_completion_with_history(
+        self, test_client, sample_raw_output, sample_usage
+    ):
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = sample_raw_output
+        mock_response.usage = Mock(
+            prompt_tokens=sample_usage["prompt_tokens"],
+            completion_tokens=sample_usage["completion_tokens"],
+            total_tokens=sample_usage["total_tokens"],
+        )
+        test_client.openai_client.chat.completions.create = AsyncMock(
+            return_value=mock_response
+        )
+
+        messages = [
+            {"role": "user", "content": [{"type": "text", "text": "First message"}]},
+            {"role": "assistant", "content": "previous response"},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "https://example.com/screenshot.png"},
+                    }
+                ],
+            },
+        ]
+
+        step, raw_output, usage = await test_client.chat_completion(
+            model=MODEL_ACTOR,
+            messages=messages,
+        )
+
+        call_args = test_client.openai_client.chat.completions.create.call_args
+        sent_messages = call_args[1]["messages"]
+        assert len(sent_messages) == 3
 
     @pytest.mark.asyncio
-    async def test_init_missing_base_url(self, monkeypatch):
-        monkeypatch.delenv("OAGI_BASE_URL", raising=False)
-        client = AsyncClient(api_key="test-key")
-        assert client.base_url == "https://api.agiopen.org"
-        await client.close()
+    async def test_chat_completion_with_temperature(
+        self, test_client, sample_raw_output, sample_usage
+    ):
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = sample_raw_output
+        mock_response.usage = Mock(
+            prompt_tokens=sample_usage["prompt_tokens"],
+            completion_tokens=sample_usage["completion_tokens"],
+            total_tokens=sample_usage["total_tokens"],
+        )
+        test_client.openai_client.chat.completions.create = AsyncMock(
+            return_value=mock_response
+        )
+
+        messages = [{"role": "user", "content": "Test"}]
+
+        step, raw_output, usage = await test_client.chat_completion(
+            model=MODEL_ACTOR,
+            messages=messages,
+            temperature=0.7,
+        )
+
+        call_args = test_client.openai_client.chat.completions.create.call_args
+        assert call_args[1]["temperature"] == 0.7
+
+
+class TestAsyncClientS3Upload:
+    @pytest.mark.asyncio
+    async def test_get_s3_presigned_url(self, test_client, upload_file_response):
+        """Test getting S3 presigned URL."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = upload_file_response
+        test_client.http_client.get = AsyncMock(return_value=mock_response)
+
+        result = await test_client.get_s3_presigned_url()
+
+        assert isinstance(result, UploadFileResponse)
+        assert result.url == upload_file_response["url"]
+        assert result.download_url == upload_file_response["download_url"]
 
     @pytest.mark.asyncio
-    async def test_init_missing_api_key(self, monkeypatch):
-        monkeypatch.delenv("OAGI_API_KEY", raising=False)
-        with pytest.raises(ConfigurationError):
-            AsyncClient(base_url="https://api.test.com")
+    async def test_upload_to_s3(self, test_client):
+        """Test uploading to S3."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        test_client.upload_client.put = AsyncMock(return_value=mock_response)
+
+        # Should not raise
+        await test_client.upload_to_s3(
+            url="https://s3.amazonaws.com/presigned-url",
+            content=b"image bytes",
+        )
+
+        test_client.upload_client.put.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_put_s3_presigned_url(self, test_client, upload_file_response):
+        """Test combined get URL and upload."""
+        # Mock get presigned URL
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = upload_file_response
+        test_client.http_client.get = AsyncMock(return_value=mock_get_response)
+
+        # Mock S3 upload
+        mock_put_response = Mock()
+        mock_put_response.status_code = 200
+        mock_put_response.raise_for_status.return_value = None
+        test_client.upload_client.put = AsyncMock(return_value=mock_put_response)
+
+        result = await test_client.put_s3_presigned_url(screenshot=b"image bytes")
+
+        assert isinstance(result, UploadFileResponse)
+        assert result.download_url == upload_file_response["download_url"]
+
+
+class TestAsyncClientHealthCheck:
+    @pytest.mark.asyncio
+    async def test_health_check_success(self, test_client):
+        """Test successful health check."""
+        mock_response = Mock()
+        mock_response.json.return_value = {"status": "healthy"}
+        mock_response.raise_for_status.return_value = None
+        test_client.http_client.get = AsyncMock(return_value=mock_response)
+
+        result = await test_client.health_check()
+
+        assert result == {"status": "healthy"}
 
 
 class TestAsyncClientContextManager:
     @pytest.mark.asyncio
     async def test_context_manager(self, api_env):
-        async with AsyncClient() as client:
-            assert client.base_url == api_env["base_url"]
-            assert client.api_key == api_env["api_key"]
+        """Test client can be used as async context manager."""
+        with patch("oagi.client.async_.AsyncOpenAI") as mock_openai:
+            mock_openai_instance = Mock()
+            mock_openai_instance.close = AsyncMock()
+            mock_openai.return_value = mock_openai_instance
 
-
-class TestAsyncClientCreateMessage:
-    @pytest.mark.asyncio
-    async def test_create_message_success(
-        self,
-        async_client,
-        mock_response_data,
-        mock_upload_response,
-        upload_file_response,
-    ):
-        # Mock S3 upload flow
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_upload_response
-
-            with patch.object(async_client, "upload_client") as mock_upload_client:
-                mock_s3_response = Mock()
-                mock_s3_response.raise_for_status = AsyncMock()
-                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
-
-                with patch.object(
-                    async_client.client, "post", new_callable=AsyncMock
-                ) as mock_post:
-                    mock_response = Mock()
-                    mock_response.status_code = 200
-                    mock_response.json.return_value = mock_response_data
-                    mock_post.return_value = mock_response
-
-                    result = await async_client.create_message(
-                        model="vision-model-v1",
-                        screenshot=b"image_data",
-                        task_description="Test task",
-                    )
-
-                    assert isinstance(result, LLMResponse)
-                    assert len(result.actions) == 1
-                    assert result.actions[0].type == ActionType.CLICK
-
-                    # Verify S3 upload flow
-                    mock_get.assert_called_once()
-                    mock_upload_client.put.assert_called_once()
-
-                    # Verify /v2/message call with OpenAI format
-                    call_args = mock_post.call_args
-                    assert call_args[0][0] == "/v2/message"
-                    payload = call_args[1]["json"]
-                    assert "messages" in payload
-                    assert payload["messages"][0]["role"] == "user"
+            async with AsyncClient(
+                base_url=api_env["base_url"], api_key=api_env["api_key"]
+            ) as client:
+                # Mock the httpx clients' aclose methods
+                client.http_client.aclose = AsyncMock()
+                client.upload_client.aclose = AsyncMock()
+                assert client.api_key == api_env["api_key"]
 
     @pytest.mark.asyncio
-    async def test_create_message_with_temperature(
-        self, async_client, mock_response_data, mock_upload_response
-    ):
-        # Mock S3 upload flow
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_upload_response
+    async def test_close_closes_all_clients(self, test_client):
+        """Test close() closes all underlying clients."""
+        test_client.openai_client.close = AsyncMock()
+        test_client.http_client.aclose = AsyncMock()
+        test_client.upload_client.aclose = AsyncMock()
 
-            with patch.object(async_client, "upload_client") as mock_upload_client:
-                mock_s3_response = Mock()
-                mock_s3_response.raise_for_status = AsyncMock()
-                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
+        await test_client.close()
 
-                with patch.object(
-                    async_client.client, "post", new_callable=AsyncMock
-                ) as mock_post:
-                    mock_response = Mock()
-                    mock_response.status_code = 200
-                    mock_response.json.return_value = mock_response_data
-                    mock_post.return_value = mock_response
-
-                    await async_client.create_message(
-                        model="vision-model-v1",
-                        screenshot=b"base64-data",
-                        task_description="Test task",
-                        temperature=0.5,
-                    )
-
-                    # Verify temperature is included in payload
-                    mock_post.assert_called_once()
-                    call_args = mock_post.call_args
-                    payload = call_args[1]["json"]
-                    assert payload["temperature"] == 0.5
-
-    @pytest.mark.asyncio
-    async def test_create_message_timeout(self, async_client, mock_upload_response):
-        # Mock S3 upload flow (succeeds)
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_upload_response
-
-            with patch.object(async_client, "upload_client") as mock_upload_client:
-                mock_s3_response = Mock()
-                mock_s3_response.raise_for_status = AsyncMock()
-                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
-
-                # /v2/message call times out
-                with patch.object(
-                    async_client.client, "post", new_callable=AsyncMock
-                ) as mock_post:
-                    mock_post.side_effect = httpx.TimeoutException("Timeout")
-
-                    with pytest.raises(RequestTimeoutError):
-                        await async_client.create_message(
-                            model="vision-model-v1",
-                            screenshot=b"image_data",
-                            task_description="Test",
-                        )
-
-    @pytest.mark.asyncio
-    async def test_create_message_network_error(
-        self, async_client, mock_upload_response
-    ):
-        # Mock S3 upload flow (succeeds)
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_upload_response
-
-            with patch.object(async_client, "upload_client") as mock_upload_client:
-                mock_s3_response = Mock()
-                mock_s3_response.raise_for_status = AsyncMock()
-                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
-
-                # /v2/message call has network error
-                with patch.object(
-                    async_client.client, "post", new_callable=AsyncMock
-                ) as mock_post:
-                    mock_post.side_effect = httpx.NetworkError("Network error")
-
-                    with pytest.raises(NetworkError):
-                        await async_client.create_message(
-                            model="vision-model-v1",
-                            screenshot=b"image-data",
-                            task_description="Test",
-                        )
-
-    @pytest.mark.asyncio
-    async def test_create_message_api_error(self, async_client, mock_upload_response):
-        # Mock S3 upload flow (succeeds)
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_upload_response
-
-            with patch.object(async_client, "upload_client") as mock_upload_client:
-                mock_s3_response = Mock()
-                mock_s3_response.raise_for_status = AsyncMock()
-                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
-
-                # /v2/message returns error
-                with patch.object(
-                    async_client.client, "post", new_callable=AsyncMock
-                ) as mock_post:
-                    mock_response = Mock()
-                    mock_response.status_code = 401
-                    mock_response.json.return_value = {
-                        "error": {"code": "unauthorized", "message": "Invalid API key"}
-                    }
-                    mock_post.return_value = mock_response
-
-                    with pytest.raises(AuthenticationError) as exc_info:
-                        await async_client.create_message(
-                            model="vision-model-v1",
-                            screenshot=b"image-data",
-                            task_description="Test",
-                        )
-                    assert "Invalid API key" in str(exc_info.value)
-
-
-class TestAsyncClientHealthCheck:
-    @pytest.mark.asyncio
-    async def test_health_check_success(self, async_client):
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"status": "healthy"}
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
-
-            result = await async_client.health_check()
-            assert result == {"status": "healthy"}
-
-    @pytest.mark.asyncio
-    async def test_health_check_failure(self, async_client):
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_response = Mock()
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "Error", request=Mock(), response=Mock()
-            )
-            mock_get.return_value = mock_response
-
-            with pytest.raises(httpx.HTTPStatusError):
-                await async_client.health_check()
-
-
-class TestAsyncClientS3Upload:
-    @pytest.mark.asyncio
-    async def test_get_s3_presigned_url_success(
-        self, async_client, mock_upload_response, upload_file_response
-    ):
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_upload_response
-
-            result = await async_client.get_s3_presigned_url(api_version="v1.2")
-
-            assert isinstance(result, UploadFileResponse)
-            assert result.url == upload_file_response["url"]
-            assert result.uuid == upload_file_response["uuid"]
-            mock_get.assert_called_once_with(
-                "/v1/file/upload",
-                headers={"x-api-key": "test-key", "x-api-version": "v1.2"},
-                timeout=60,
-            )
-
-    @pytest.mark.asyncio
-    async def test_upload_to_s3_success(self, async_client):
-        with patch.object(async_client, "upload_client") as mock_upload_client:
-            mock_response = Mock()
-            mock_response.raise_for_status = AsyncMock()
-            mock_upload_client.put = AsyncMock(return_value=mock_response)
-
-            await async_client.upload_to_s3(
-                url="https://s3.amazonaws.com/test", content=b"test content"
-            )
-
-            mock_upload_client.put.assert_called_once_with(
-                url="https://s3.amazonaws.com/test", content=b"test content"
-            )
-            mock_response.raise_for_status.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_put_s3_presigned_url_success(
-        self, async_client, mock_upload_response, upload_file_response
-    ):
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_upload_response
-
-            with patch.object(async_client, "upload_client") as mock_upload_client:
-                mock_s3_response = Mock()
-                mock_s3_response.raise_for_status = AsyncMock()
-                mock_upload_client.put = AsyncMock(return_value=mock_s3_response)
-
-                result = await async_client.put_s3_presigned_url(
-                    screenshot=b"test screenshot", api_version="v1.2"
-                )
-
-                assert isinstance(result, UploadFileResponse)
-                assert result.url == upload_file_response["url"]
-                # Verify it called get presigned URL
-                mock_get.assert_called_once()
-                # Verify it uploaded to S3
-                mock_upload_client.put.assert_called_once_with(
-                    url=upload_file_response["url"], content=b"test screenshot"
-                )
-
-    @pytest.mark.asyncio
-    async def test_get_s3_presigned_url_insufficient_balance_error(self, async_client):
-        """Test that 402 responses return clear error messages about insufficient balance."""
-        mock_response = Mock()
-        mock_response.status_code = 402
-        mock_response.json.return_value = {
-            "error": {
-                "code": "insufficient_balance",
-                "message": "Please add funds to continue.",
-            }
-        }
-
-        with patch.object(
-            async_client.client, "get", new_callable=AsyncMock
-        ) as mock_get:
-            mock_get.return_value = mock_response
-
-            with pytest.raises(APIError) as exc_info:
-                await async_client.get_s3_presigned_url()
-
-            assert exc_info.value.status_code == 402
-            assert exc_info.value.code == "insufficient_balance"
-            assert "Please add funds to continue" in str(exc_info.value)
+        test_client.openai_client.close.assert_called_once()
+        test_client.http_client.aclose.assert_called_once()
+        test_client.upload_client.aclose.assert_called_once()

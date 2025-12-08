@@ -13,7 +13,7 @@ import pytest
 from oagi.constants import MODEL_ACTOR
 from oagi.task import Actor
 from oagi.types import ActionType, Step
-from oagi.types.models import LLMResponse
+from oagi.types.models import UploadFileResponse
 
 
 @pytest.fixture
@@ -22,12 +22,23 @@ def actor(mock_sync_client):
     return Actor(api_key="test-key", base_url="https://test.example.com")
 
 
+@pytest.fixture
+def mock_upload_file_response():
+    """Mock UploadFileResponse for S3 upload."""
+    return UploadFileResponse(
+        url="https://s3.amazonaws.com/presigned-url",
+        uuid="test-uuid-123",
+        expires_at=1677652888,
+        file_expires_at=1677739288,
+        download_url="https://cdn.example.com/test-uuid-123",
+    )
+
+
 class TestActorInit:
     def test_init_with_parameters(self, mock_sync_client):
         actor = Actor(api_key="test-key", base_url="https://test.example.com")
         assert actor.api_key == "test-key"
         assert actor.base_url == "https://test.example.com"
-        # V2 API: task_id is generated as UUID on init
         assert actor.task_id is not None
         assert isinstance(actor.task_id, str)
         assert len(actor.task_id) == 32  # UUID hex without dashes
@@ -67,82 +78,119 @@ class TestActorInit:
 
 
 class TestActorInitTask:
-    def test_init_task_success(self, actor, sample_llm_response):
-        # V2 API: init_task() no longer makes API call, just sets description
+    def test_init_task_success(self, actor):
         original_task_id = actor.task_id
 
         actor.init_task("Test task description", max_steps=10)
 
         assert actor.task_description == "Test task description"
-        # V2 API: task_id is regenerated on init_task to create a fresh task
+        # task_id is regenerated on init_task to create a fresh task
         assert actor.task_id != original_task_id
         assert isinstance(actor.task_id, str)
         assert len(actor.task_id) == 32  # UUID hex without dashes
 
-        # V2 API: No API call in init_task
-        actor.client.create_message.assert_not_called()
-
 
 class TestActorStep:
-    def test_step_with_image_object(self, actor, mock_image, sample_llm_response):
+    def test_step_with_image_object(
+        self,
+        actor,
+        mock_image,
+        sample_step,
+        sample_usage_obj,
+        mock_upload_file_response,
+    ):
         actor.task_description = "Test task"
         actor.task_id = "existing-task"
-        actor.client.create_message.return_value = sample_llm_response
+
+        # Setup mocks
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
         result = actor.step(mock_image)
 
         # Verify Image.read() was called
         mock_image.read.assert_called_once()
 
-        # Verify API call - V2 uses bytes directly, messages_history instead of last_task_id/history_steps
-        call_args = actor.client.create_message.call_args
+        # Verify S3 upload was called
+        actor.client.put_s3_presigned_url.assert_called_once()
+
+        # Verify chat_completion was called with messages
+        actor.client.chat_completion.assert_called_once()
+        call_args = actor.client.chat_completion.call_args
         assert call_args[1]["model"] == MODEL_ACTOR
-        assert call_args[1]["screenshot"] == b"fake image bytes"
-        assert call_args[1]["task_description"] == "Test task"
-        assert call_args[1]["task_id"] == "existing-task"
-        assert call_args[1]["instruction"] is None
-        assert (
-            "messages_history" in call_args[1]
-        )  # History is passed (tested in TestTaskHistory)
+        assert "messages" in call_args[1]
         assert call_args[1]["temperature"] is None
 
         # Verify returned Step
         assert isinstance(result, Step)
-        assert result.reason == "Need to click button and type text"
-        assert len(result.actions) == 2
-        assert result.actions[0].type == ActionType.CLICK
-        assert result.actions[1].type == ActionType.TYPE
         assert result.stop is False
 
-        # V2 API: Verify message_history was updated with assistant response
-        assert len(actor.message_history) == 1
-        assert actor.message_history[0]["role"] == "assistant"
+        # Verify message_history was updated (user + assistant)
+        assert len(actor.message_history) == 2
+        assert actor.message_history[0]["role"] == "user"
+        assert actor.message_history[1]["role"] == "assistant"
 
-    def test_step_with_bytes_directly(self, actor, sample_llm_response):
+    def test_step_with_bytes_directly(
+        self, actor, sample_step, sample_usage_obj, mock_upload_file_response
+    ):
         actor.task_description = "Test task"
         original_task_id = actor.task_id
-        actor.client.create_message.return_value = sample_llm_response
+
+        # Setup mocks
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
         image_bytes = b"raw image bytes"
-
         result = actor.step(image_bytes)
 
-        # Verify API call - V2 uses bytes directly
-        call_args = actor.client.create_message.call_args
+        # Verify S3 upload was called
+        actor.client.put_s3_presigned_url.assert_called_once_with(image_bytes)
+
+        # Verify chat_completion was called with messages
+        call_args = actor.client.chat_completion.call_args
         assert call_args[1]["model"] == MODEL_ACTOR
-        assert call_args[1]["screenshot"] == image_bytes
-        assert call_args[1]["task_description"] == "Test task"
-        assert call_args[1]["task_id"] == original_task_id
-        assert call_args[1]["instruction"] is None
-        assert "messages_history" in call_args[1]
+        assert "messages" in call_args[1]
         assert call_args[1]["temperature"] is None
 
-        # V2 API: task_id doesn't change (stays same UUID)
+        # task_id doesn't change
         assert actor.task_id == original_task_id
 
         # Verify returned Step
         assert isinstance(result, Step)
         assert result.stop is False
+
+    def test_step_with_url_directly(self, actor, sample_step, sample_usage_obj):
+        """Test that step with URL skips S3 upload."""
+        actor.task_description = "Test task"
+
+        # Setup mocks
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
+
+        screenshot_url = "https://cdn.example.com/screenshot.png"
+        result = actor.step(screenshot_url)
+
+        # Verify S3 upload was NOT called (URL used directly)
+        actor.client.put_s3_presigned_url.assert_not_called()
+
+        # Verify chat_completion was called with messages containing the URL
+        actor.client.chat_completion.assert_called_once()
+        # After step: message_history has 2 (user + assistant)
+        assert len(actor.message_history) == 2
+        assert screenshot_url in str(actor.message_history[0])  # URL in user message
+
+        assert isinstance(result, Step)
 
     def test_step_without_init_task_raises_error(self, actor):
         with pytest.raises(
@@ -150,37 +198,44 @@ class TestActorStep:
         ):
             actor.step(b"image bytes")
 
-    def test_step_with_completed_response(self, actor, completed_llm_response):
+    def test_step_with_completed_response(
+        self, actor, completed_step, sample_usage_obj, mock_upload_file_response
+    ):
         actor.task_description = "Test task"
         actor.task_id = "task-456"
-        actor.client.create_message.return_value = completed_llm_response
+
+        # Setup mocks
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            completed_step,
+            "<|think_start|>done<|think_end|>\n<|action_start|>finish()<|action_end|>",
+            sample_usage_obj,
+        )
 
         result = actor.step(b"image bytes")
 
         assert result.stop is True
-        assert result.reason == "Task completed successfully"
-        assert len(result.actions) == 0
+        assert result.reason == "The task has been completed successfully"
+        assert len(result.actions) == 1
+        assert result.actions[0].type == ActionType.FINISH
 
-    def test_step_updates_changed_task_id(self, actor, sample_llm_response):
-        # V2 API: task_id is client-side UUID and doesn't change
+    def test_step_handles_exception(self, actor, mock_upload_file_response):
         actor.task_description = "Test task"
-        original_task_id = actor.task_id
-        actor.client.create_message.return_value = sample_llm_response
-
-        actor.step(b"image bytes")
-
-        # V2 API: task_id stays the same
-        assert actor.task_id == original_task_id
-
-    def test_step_handles_exception(self, actor):
-        actor.task_description = "Test task"
-        actor.client.create_message.side_effect = Exception("API Error")
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.side_effect = Exception("API Error")
 
         with pytest.raises(Exception, match="API Error"):
             actor.step(b"image bytes")
 
-    def test_step_raises_error_when_max_steps_reached(self, actor, sample_llm_response):
-        actor.client.create_message.return_value = sample_llm_response
+    def test_step_raises_error_when_max_steps_reached(
+        self, actor, sample_step, sample_usage_obj, mock_upload_file_response
+    ):
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
         actor.init_task("Test task", max_steps=3)
 
         # Execute 3 steps successfully
@@ -191,23 +246,25 @@ class TestActorStep:
         with pytest.raises(ValueError, match="Max steps limit \\(3\\) reached"):
             actor.step(b"image bytes")
 
-    def test_step_with_instruction(self, actor, sample_llm_response):
+    def test_step_with_instruction(
+        self, actor, sample_step, sample_usage_obj, mock_upload_file_response
+    ):
+        """Test that instruction parameter is accepted (though currently unused)."""
         actor.task_description = "Test task"
         actor.task_id = "existing-task"
-        actor.client.create_message.return_value = sample_llm_response
+
+        # Setup mocks
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
         result = actor.step(b"image bytes", instruction="Click the submit button")
 
-        # Verify API call includes instruction
-        call_args = actor.client.create_message.call_args
-        assert call_args[1]["model"] == MODEL_ACTOR
-        assert call_args[1]["screenshot"] == b"image bytes"
-        assert call_args[1]["task_description"] == "Test task"
-        assert call_args[1]["task_id"] == "existing-task"
-        assert call_args[1]["instruction"] == "Click the submit button"
-        assert "messages_history" in call_args[1]
-        assert call_args[1]["temperature"] is None
-
+        # Verify chat_completion was called
+        actor.client.chat_completion.assert_called_once()
         assert isinstance(result, Step)
         assert not result.stop
 
@@ -237,204 +294,210 @@ class TestActorContextManager:
 
 
 class TestActorIntegrationScenarios:
-    def test_full_workflow(self, actor, sample_llm_response, completed_llm_response):
+    def test_full_workflow(
+        self,
+        actor,
+        sample_step,
+        completed_step,
+        sample_usage_obj,
+        mock_upload_file_response,
+    ):
         """Test a complete workflow from init to completion."""
-        # Initialize task - V2 doesn't make API call
+        # Initialize task
         actor.init_task("Complete workflow test")
         task_id_after_init = actor.task_id
 
         assert actor.task_description == "Complete workflow test"
 
+        # Setup mocks
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+
         # First step - in progress
-        actor.client.create_message.return_value = sample_llm_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
         step1 = actor.step(b"screenshot1")
         assert not step1.stop
-        assert len(step1.actions) == 2
-        # V2: task_id stays the same across steps (doesn't change unless init_task called again)
+        assert len(step1.actions) == 1
+        # task_id stays the same across steps
         assert actor.task_id == task_id_after_init
 
         # Second step - completed
-        actor.client.create_message.return_value = completed_llm_response
+        actor.client.chat_completion.return_value = (
+            completed_step,
+            "<|think_start|>done<|think_end|>\n<|action_start|>finish()<|action_end|>",
+            sample_usage_obj,
+        )
         step2 = actor.step(b"screenshot2")
         assert step2.stop
-        assert len(step2.actions) == 0
+        assert len(step2.actions) == 1
         assert actor.task_id == task_id_after_init
-
-    def test_task_id_persistence_across_steps(self, actor, sample_llm_response):
-        """Test that task_id is maintained across multiple steps (V2 uses UUID)."""
-        actor.task_description = "Test task"
-        original_task_id = actor.task_id
-        actor.client.create_message.return_value = sample_llm_response
-
-        # First step
-        actor.step(b"screenshot1")
-        assert actor.task_id == original_task_id
-
-        # Second step - uses same task_id
-        actor.step(b"screenshot2")
-
-        # Verify both calls used the same task_id
-        calls = actor.client.create_message.call_args_list
-        assert calls[0][1]["task_id"] == original_task_id
-        assert calls[1][1]["task_id"] == original_task_id
 
 
 class TestActorHistory:
-    """Test Task class message history functionality (V2 API)."""
+    """Test Actor class message history functionality."""
 
     def test_init_task_initializes_empty_history(self, actor):
         """Test that init_task starts with empty message history."""
         actor.init_task("Test task", max_steps=5)
 
-        # V2 API: message_history starts empty
         assert actor.message_history == []
         assert actor.task_description == "Test task"
 
-    def test_step_updates_message_history(self, actor, sample_llm_response):
-        """Test that step updates message_history with assistant response."""
+    def test_step_updates_message_history(
+        self, actor, sample_step, sample_usage_obj, mock_upload_file_response
+    ):
+        """Test that step updates message_history with user and assistant messages."""
         actor.task_description = "Test task"
-        actor.client.create_message.return_value = sample_llm_response
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
         # First step
         actor.step(b"screenshot1")
 
-        # Verify message_history was updated with assistant response
-        assert len(actor.message_history) == 1
-        assert actor.message_history[0]["role"] == "assistant"
+        # Verify message_history was updated with user + assistant messages
+        assert len(actor.message_history) == 2
+        assert actor.message_history[0]["role"] == "user"
+        assert actor.message_history[1]["role"] == "assistant"
         assert "content" in actor.message_history[0]
-        assert actor.message_history[0]["content"][0]["type"] == "text"
+        assert "content" in actor.message_history[1]
 
-    def test_step_accumulates_history_across_steps(self, actor, sample_llm_response):
+    def test_step_accumulates_history_across_steps(
+        self, actor, sample_step, sample_usage_obj, mock_upload_file_response
+    ):
         """Test that message_history accumulates across multiple steps."""
         actor.task_description = "Test task"
-        actor.client.create_message.return_value = sample_llm_response
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
-        # First step
+        # First step adds user + assistant messages
         actor.step(b"screenshot1")
-        assert len(actor.message_history) == 1
-
-        # Second step
-        actor.step(b"screenshot2")
         assert len(actor.message_history) == 2
 
-        # Both should be assistant messages
-        assert all(msg["role"] == "assistant" for msg in actor.message_history)
+        # Second step adds another user + assistant
+        actor.step(b"screenshot2")
+        assert len(actor.message_history) == 4
 
-    def test_step_sends_accumulated_history(self, actor, sample_llm_response):
-        """Test that step sends accumulated message_history to API."""
-        actor.task_description = "Test task"
-        actor.client.create_message.return_value = sample_llm_response
+        # Should alternate user/assistant
+        assert actor.message_history[0]["role"] == "user"
+        assert actor.message_history[1]["role"] == "assistant"
+        assert actor.message_history[2]["role"] == "user"
+        assert actor.message_history[3]["role"] == "assistant"
 
-        # Add some history manually
-        existing_history = [
-            {
-                "role": "assistant",
-                "content": [{"type": "text", "text": "Previous response"}],
-            }
-        ]
-        actor.message_history = existing_history.copy()
-
-        # Capture history length before the call
-        history_len_before = len(actor.message_history)
-
-        # Call step
-        actor.step(b"screenshot_data")
-
-        # Verify message_history was passed and then updated (should be longer now)
-        assert len(actor.message_history) == history_len_before + 1
-        assert actor.message_history[0] == existing_history[0]  # Old history preserved
-
-    def test_step_without_history(self, actor, sample_llm_response):
-        """Test step method on first interaction (no history yet)."""
-        actor.task_description = "Test task"
-        task_id = actor.task_id
-        actor.client.create_message.return_value = sample_llm_response
-
-        # Verify history is empty before the call
-        assert len(actor.message_history) == 0
-
-        result = actor.step(b"screenshot_data")
-
-        # Verify API call was made
-        call_args = actor.client.create_message.call_args
-        assert call_args[1]["model"] == MODEL_ACTOR
-        assert call_args[1]["screenshot"] == b"screenshot_data"
-        assert call_args[1]["task_description"] == "Test task"
-        assert call_args[1]["task_id"] == task_id
-        assert call_args[1]["instruction"] is None
-        assert "messages_history" in call_args[1]
-        assert call_args[1]["temperature"] is None
-
-        # Verify history was updated after the call
-        assert len(actor.message_history) == 1
-
-        # Verify result
-        assert isinstance(result, Step)
-        assert not result.stop
-        assert len(result.actions) == 2
-
-    def test_step_only_appends_when_raw_output_exists(
-        self, actor, api_response_completed
+    def test_step_only_appends_assistant_when_raw_output_exists(
+        self, actor, sample_step, sample_usage_obj, mock_upload_file_response
     ):
-        """Test that message_history only updates when raw_output is present."""
+        """Test that assistant message only added when raw_output is present."""
         actor.task_description = "Test task"
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
 
-        # Create response without raw_output
-        response_without_raw = api_response_completed.copy()
-        response_without_raw["raw_output"] = None
-        response_obj = LLMResponse(**response_without_raw)
-        actor.client.create_message.return_value = response_obj
+        # Return empty raw_output
+        actor.client.chat_completion.return_value = (sample_step, "", sample_usage_obj)
 
         actor.step(b"screenshot")
 
-        # History should not be updated when raw_output is None
-        assert len(actor.message_history) == 0
+        # User message is always added, but assistant message skipped when empty
+        assert len(actor.message_history) == 1
+        assert actor.message_history[0]["role"] == "user"
 
 
 class TestActorTemperature:
-    def test_task_with_default_temperature(self, mock_sync_client, sample_llm_response):
+    def test_task_with_default_temperature(
+        self, mock_sync_client, sample_step, sample_usage_obj
+    ):
         """Test that actor uses default temperature when provided."""
+        mock_upload_response = UploadFileResponse(
+            url="https://s3.amazonaws.com/presigned-url",
+            uuid="test-uuid-123",
+            expires_at=1677652888,
+            file_expires_at=1677739288,
+            download_url="https://cdn.example.com/test-uuid-123",
+        )
+
         actor = Actor(
             api_key="test-key",
             base_url="https://test.example.com",
             temperature=0.5,
         )
         actor.task_description = "Test task"
-        actor.client.create_message.return_value = sample_llm_response
+        actor.client.put_s3_presigned_url.return_value = mock_upload_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
         actor.step(b"screenshot_data")
 
-        # Verify temperature is passed to create_message
-        call_args = actor.client.create_message.call_args
+        # Verify temperature is passed to chat_completion
+        call_args = actor.client.chat_completion.call_args
         assert call_args[1]["temperature"] == 0.5
 
     def test_step_temperature_overrides_task_default(
-        self, mock_sync_client, sample_llm_response
+        self, mock_sync_client, sample_step, sample_usage_obj
     ):
         """Test that step temperature overrides actor default."""
+        mock_upload_response = UploadFileResponse(
+            url="https://s3.amazonaws.com/presigned-url",
+            uuid="test-uuid-123",
+            expires_at=1677652888,
+            file_expires_at=1677739288,
+            download_url="https://cdn.example.com/test-uuid-123",
+        )
+
         actor = Actor(
             api_key="test-key",
             base_url="https://test.example.com",
             temperature=0.5,
         )
         actor.task_description = "Test task"
-        actor.client.create_message.return_value = sample_llm_response
+        actor.client.put_s3_presigned_url.return_value = mock_upload_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
         # Call step with different temperature
         actor.step(b"screenshot_data", temperature=0.9)
 
         # Verify step temperature (0.9) is used, not actor default (0.5)
-        call_args = actor.client.create_message.call_args
+        call_args = actor.client.chat_completion.call_args
         assert call_args[1]["temperature"] == 0.9
 
-    def test_step_without_any_temperature(self, mock_sync_client, sample_llm_response):
+    def test_step_without_any_temperature(
+        self, mock_sync_client, sample_step, sample_usage_obj
+    ):
         """Test that when no temperature is provided, None is passed."""
+        mock_upload_response = UploadFileResponse(
+            url="https://s3.amazonaws.com/presigned-url",
+            uuid="test-uuid-123",
+            expires_at=1677652888,
+            file_expires_at=1677739288,
+            download_url="https://cdn.example.com/test-uuid-123",
+        )
+
         actor = Actor(api_key="test-key", base_url="https://test.example.com")
         actor.task_description = "Test task"
-        actor.client.create_message.return_value = sample_llm_response
+        actor.client.put_s3_presigned_url.return_value = mock_upload_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "<|think_start|>test<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>",
+            sample_usage_obj,
+        )
 
         actor.step(b"screenshot_data")
 
-        # Verify temperature is None (worker will use its default)
-        call_args = actor.client.create_message.call_args
+        # Verify temperature is None (model will use its default)
+        call_args = actor.client.chat_completion.call_args
         assert call_args[1]["temperature"] is None

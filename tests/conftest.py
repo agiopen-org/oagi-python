@@ -12,9 +12,8 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
-from oagi.constants import MODEL_ACTOR
-from oagi.types import Action, ActionType
-from oagi.types.models import LLMResponse
+from oagi.types import Action, ActionType, Step
+from oagi.types.models import Usage
 
 
 @pytest.fixture(autouse=True)
@@ -86,6 +85,12 @@ def sample_usage():
 
 
 @pytest.fixture
+def sample_usage_obj(sample_usage):
+    """Sample Usage object."""
+    return Usage(**sample_usage)
+
+
+@pytest.fixture
 def upload_file_response():
     """Sample UploadFileResponse for S3 upload."""
     return {
@@ -116,72 +121,35 @@ def mock_s3_upload_response():
 
 
 @pytest.fixture
-def api_response_data(sample_action, sample_usage):
-    """Standard API response data structure."""
-    return {
-        "id": "test-123",
-        "task_id": "task-456",
-        "object": "task.completion",
-        "created": 1677652288,
-        "model": MODEL_ACTOR,
-        "task_description": "Test task",
-        "is_complete": False,
-        "actions": [
-            {
-                "type": sample_action.type.value,
-                "argument": sample_action.argument,
-                "count": sample_action.count,
-            }
-        ],
-        "reason": "Need to perform the action",
-        "raw_output": "I need to click the button at coordinates 300, 150",
-        "usage": sample_usage,
-    }
+def sample_raw_output():
+    """Sample raw output from the model."""
+    return "<|think_start|>Need to click the button at coordinates 300, 150<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>"
 
 
 @pytest.fixture
-def api_response_completed(sample_usage):
-    """API response for completed task."""
-    return {
-        "id": "test-123",
-        "task_id": "task-456",
-        "object": "task.completion",
-        "created": 1677652288,
-        "model": MODEL_ACTOR,
-        "task_description": "Test task",
-        "is_complete": True,
-        "actions": [],
-        "reason": "Task completed successfully",
-        "raw_output": "The task has been completed successfully",
-        "usage": sample_usage,
-    }
+def sample_raw_output_completed():
+    """Sample raw output for completed task."""
+    return "<|think_start|>The task has been completed successfully<|think_end|>\n<|action_start|>finish()<|action_end|>"
 
 
 @pytest.fixture
-def api_response_init_task(sample_usage):
-    """API response for task initialization (V2 doesn't use this but kept for compatibility)."""
-    return {
-        "id": "test-123",
-        "task_id": "task-456",
-        "object": "task.completion",
-        "created": 1677652288,
-        "model": MODEL_ACTOR,
-        "task_description": "Test task",
-        "is_complete": False,
-        "actions": [],
-        "reason": "Task initialized",
-        "raw_output": "Task has been initialized",
-        "usage": sample_usage,
-    }
+def sample_step(sample_action):
+    """Sample Step object for testing."""
+    return Step(
+        reason="Need to click the button at coordinates 300, 150",
+        actions=[sample_action],
+        stop=False,
+    )
 
 
 @pytest.fixture
-def mock_success_response(api_response_data):
-    """Mock successful HTTP response."""
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = api_response_data
-    return mock_response
+def completed_step():
+    """Sample completed Step object for testing."""
+    return Step(
+        reason="The task has been completed successfully",
+        actions=[Action(type=ActionType.FINISH, argument="", count=1)],
+        stop=True,
+    )
 
 
 @pytest.fixture
@@ -261,26 +229,28 @@ def mock_image_class():
 
 
 @pytest.fixture
-def sample_llm_response(api_response_data):
-    """Create a sample LLMResponse for testing."""
-    # Add additional fields that might not be in api_response_data
-    response_data = api_response_data.copy()
-    response_data["reason"] = "Need to click button and type text"
-
-    # Add a second action for more comprehensive testing
-    response_data["actions"] = [
-        {"type": ActionType.CLICK.value, "argument": "100, 200", "count": 1},
-        {"type": ActionType.TYPE.value, "argument": "hello", "count": 1},
-    ]
-
-    return LLMResponse(**response_data)
+def mock_openai_response(sample_raw_output, sample_usage):
+    """Create a mock OpenAI chat completion response."""
+    mock_response = Mock()
+    mock_response.choices = [Mock()]
+    mock_response.choices[0].message.content = sample_raw_output
+    mock_response.usage = Mock(
+        prompt_tokens=sample_usage["prompt_tokens"],
+        completion_tokens=sample_usage["completion_tokens"],
+        total_tokens=sample_usage["total_tokens"],
+    )
+    return mock_response
 
 
 @pytest.fixture
-def completed_llm_response(api_response_completed):
-    """Create a completed LLMResponse for testing."""
-    # Add additional fields that might not be in api_response_completed
-    response_data = api_response_completed.copy()
-    response_data["reason"] = "Task completed successfully"
-
-    return LLMResponse(**response_data)
+def mock_openai_response_completed(sample_raw_output_completed, sample_usage):
+    """Create a mock OpenAI chat completion response for completed task."""
+    mock_response = Mock()
+    mock_response.choices = [Mock()]
+    mock_response.choices[0].message.content = sample_raw_output_completed
+    mock_response.usage = Mock(
+        prompt_tokens=sample_usage["prompt_tokens"],
+        completion_tokens=sample_usage["completion_tokens"],
+        total_tokens=sample_usage["total_tokens"],
+    )
+    return mock_response

@@ -9,7 +9,7 @@
 import logging
 import os
 from io import StringIO
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -17,8 +17,6 @@ from oagi import Actor
 from oagi.client import SyncClient
 from oagi.exceptions import ConfigurationError
 from oagi.logging import get_logger
-
-from .conftest import MockImage
 
 
 @pytest.fixture
@@ -207,31 +205,20 @@ class TestLoggingIntegration:
         assert any("oagi.sync_client" in record.name for record in caplog.records)
 
     @pytest.mark.parametrize(
-        "log_level,task_desc,should_have_step,expected_messages,unexpected_messages",
+        "log_level,task_desc,max_steps,expected_messages,unexpected_messages",
         [
             (
                 "INFO",
                 "Test task",
-                False,
+                3,
                 ["Task initialized: 'Test task' (max_steps: 3)"],
-                [],
-            ),
-            (
-                "DEBUG",
-                "Debug test",
-                True,
-                [
-                    "Executing step for task",
-                    "Making API request to /v2/message",
-                    "Request includes task_description: True",
-                ],
                 [],
             ),
             (
                 "ERROR",
                 "Error test",
-                "error",
-                ["Error during step execution"],
+                20,
+                [],
                 ["Task initialized", "SyncClient initialized"],
             ),
         ],
@@ -239,102 +226,28 @@ class TestLoggingIntegration:
     @pytest.mark.usefixtures("clean_logging_state")
     def test_task_logging_levels(
         self,
-        mock_httpx_client_class,
-        mock_httpx_client,
         api_env,
-        api_response_init_task,
-        http_status_error,
         caplog,
         log_level,
         task_desc,
-        should_have_step,
+        max_steps,
         expected_messages,
         unexpected_messages,
         set_log_level,
     ):
         set_log_level(log_level)
 
-        mock_response = self._create_mock_response(api_response_init_task, task_desc)
-        self._setup_mock_client_behavior(
-            mock_httpx_client, mock_response, should_have_step, http_status_error
-        )
-
         with caplog.at_level(getattr(logging, log_level), logger="oagi"):
-            self._execute_task_scenario(task_desc, log_level, should_have_step)
+            with patch("oagi.client.sync.OpenAI"):
+                task = Actor()
+                task.init_task(task_desc, max_steps=max_steps)
+                task.close()
 
-        self._assert_log_messages(caplog.text, expected_messages, unexpected_messages)
-
-    def _create_mock_response(self, api_response_init_task, task_desc):
-        """Helper to create mock HTTP response."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        response_data = api_response_init_task.copy()
-        response_data["task_description"] = task_desc
-        mock_response.json.return_value = response_data
-        return mock_response
-
-    def _setup_mock_client_behavior(
-        self, mock_httpx_client, mock_response, should_have_step, http_status_error
-    ):
-        """Helper to setup mock client behavior based on test scenario."""
-        # V2 API: Mock S3 upload flow
-        mock_upload_response = Mock()
-        mock_upload_response.status_code = 200
-        mock_upload_response.json.return_value = {
-            "url": "https://s3.amazonaws.com/presigned-url",
-            "uuid": "test-uuid-123",
-            "expires_at": 1677652888,
-            "file_expires_at": 1677739288,
-            "download_url": "https://cdn.example.com/test-uuid-123",
-        }
-        mock_httpx_client.get.return_value = mock_upload_response
-
-        mock_s3_response = Mock()
-        mock_s3_response.status_code = 200
-        mock_s3_response.raise_for_status = Mock()
-
-        if should_have_step == "error":
-            # V2 API: Make the POST call fail immediately
-            mock_httpx_client.post.side_effect = http_status_error
-        else:
-            mock_httpx_client.post.return_value = mock_response
-
-    def _execute_task_scenario(self, task_desc, log_level, should_have_step):
-        """Helper to execute the task scenario."""
-        task = Actor()
-
-        if log_level == "INFO":
-            task.init_task(task_desc, max_steps=3)
-        else:
-            task.init_task(task_desc)
-
-        if should_have_step == "error":
-            try:
-                # V2 API: Mock upload_client for S3 upload
-                with patch.object(task.client, "upload_client") as mock_upload_client:
-                    mock_s3_response = Mock()
-                    mock_s3_response.raise_for_status = Mock()
-                    mock_upload_client.put.return_value = mock_s3_response
-                    task.step(MockImage())
-            except Exception:
-                pass  # Expected to fail
-        elif should_have_step:
-            # V2 API: Mock upload_client for S3 upload
-            with patch.object(task.client, "upload_client") as mock_upload_client:
-                mock_s3_response = Mock()
-                mock_s3_response.raise_for_status = Mock()
-                mock_upload_client.put.return_value = mock_s3_response
-                task.step(MockImage())
-
-        task.close()
-
-    def _assert_log_messages(self, log_text, expected_messages, unexpected_messages):
-        """Helper to assert expected and unexpected messages in logs."""
         for msg in expected_messages:
-            assert msg in log_text, f"Expected '{msg}' in logs"
+            assert msg in caplog.text, f"Expected '{msg}' in logs"
 
         for msg in unexpected_messages:
-            assert msg not in log_text, f"Did not expect '{msg}' in logs"
+            assert msg not in caplog.text, f"Did not expect '{msg}' in logs"
 
     @pytest.mark.usefixtures("clean_logging_state")
     def test_no_logging_with_invalid_config(self, caplog, set_log_level):

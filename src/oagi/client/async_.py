@@ -9,17 +9,18 @@
 from functools import wraps
 
 import httpx
+from openai import AsyncOpenAI
 
 from ..constants import (
     API_HEALTH_ENDPOINT,
     API_V1_FILE_UPLOAD_ENDPOINT,
     API_V1_GENERATE_ENDPOINT,
-    API_V2_MESSAGE_ENDPOINT,
     HTTP_CLIENT_TIMEOUT,
 )
 from ..logging import get_logger
 from ..types import Image
-from ..types.models import GenerateResponse, LLMResponse, UploadFileResponse
+from ..types.models import GenerateResponse, UploadFileResponse, Usage
+from ..types.models.step import Step
 from .base import BaseClient
 
 logger = get_logger("async_client")
@@ -35,8 +36,7 @@ def async_log_trace_on_failure(func):
         except Exception as e:
             # Try to get response from the exception if it has one
             if (response := getattr(e, "response", None)) is not None:
-                logger.error(f"Request Id: {response.headers.get('x-request-id', '')}")
-                logger.error(f"Trace Id: {response.headers.get('x-trace-id', '')}")
+                BaseClient._log_trace_id(response)
             raise
 
     return wrapper
@@ -47,95 +47,57 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
 
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         super().__init__(base_url, api_key)
-        self.client = httpx.AsyncClient(base_url=self.base_url)
+
+        # OpenAI client for chat completions
+        self.openai_client = AsyncOpenAI(
+            api_key=self.api_key,
+            base_url=f"{self.base_url}/v1",
+        )
+
+        # httpx clients for S3 uploads and other endpoints
+        self.http_client = httpx.AsyncClient(base_url=self.base_url)
         self.upload_client = httpx.AsyncClient(timeout=HTTP_CLIENT_TIMEOUT)
+
         logger.info(f"AsyncClient initialized with base_url: {self.base_url}")
 
     async def __aenter__(self):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.client.aclose()
-        await self.upload_client.aclose()
+        await self.close()
 
     async def close(self):
-        """Close the underlying httpx async clients."""
-        await self.client.aclose()
+        """Close the underlying async clients."""
+        await self.openai_client.close()
+        await self.http_client.aclose()
         await self.upload_client.aclose()
 
-    @async_log_trace_on_failure
-    async def create_message(
+    async def chat_completion(
         self,
         model: str,
-        screenshot: bytes | None = None,
-        screenshot_url: str | None = None,
-        task_description: str | None = None,
-        task_id: str | None = None,
-        instruction: str | None = None,
-        messages_history: list | None = None,
+        messages: list,
         temperature: float | None = None,
-        api_version: str | None = None,
-    ) -> "LLMResponse":
+    ) -> tuple[Step, str, Usage | None]:
         """
-        Call the /v2/message endpoint to analyze task and screenshot
+        Call OpenAI-compatible /v1/chat/completions endpoint.
 
         Args:
-            model: The model to use for task analysis
-            screenshot: Screenshot image bytes (mutually exclusive with screenshot_url)
-            screenshot_url: Direct URL to screenshot (mutually exclusive with screenshot)
-            task_description: Description of the task (required for new sessions)
-            task_id: Task ID for continuing existing task
-            instruction: Additional instruction when continuing a session
-            messages_history: OpenAI-compatible chat message history
-            temperature: Sampling temperature (0.0-2.0) for LLM inference
-            api_version: API version header
+            model: Model to use for inference
+            messages: Full message history (OpenAI-compatible format)
+            temperature: Sampling temperature (0.0-2.0)
 
         Returns:
-            LLMResponse: The response from the API
-
-        Raises:
-            ValueError: If both or neither screenshot and screenshot_url are provided
-            httpx.HTTPStatusError: For HTTP error responses
+            Tuple of (Step, raw_output, Usage)
+            - Step: Parsed actions and reasoning
+            - raw_output: Raw model output string (for message history)
+            - Usage: Token usage statistics (or None if not available)
         """
-        # Validate that exactly one is provided
-        if (screenshot is None) == (screenshot_url is None):
-            raise ValueError(
-                "Exactly one of 'screenshot' or 'screenshot_url' must be provided"
-            )
-
-        self._log_request_info(model, task_description, task_id)
-
-        # Upload screenshot to S3 if bytes provided, otherwise use URL directly
-        upload_file_response = None
-        if screenshot is not None:
-            upload_file_response = await self.put_s3_presigned_url(
-                screenshot, api_version
-            )
-
-        # Prepare message payload
-        headers, payload = self._prepare_message_payload(
-            model=model,
-            upload_file_response=upload_file_response,
-            task_description=task_description,
-            task_id=task_id,
-            instruction=instruction,
-            messages_history=messages_history,
-            temperature=temperature,
-            api_version=api_version,
-            screenshot_url=screenshot_url,
-        )
-
-        # Make request
-        try:
-            response = await self.client.post(
-                API_V2_MESSAGE_ENDPOINT,
-                json=payload,
-                headers=headers,
-                timeout=self.timeout,
-            )
-            return self._process_response(response)
-        except (httpx.TimeoutException, httpx.NetworkError) as e:
-            self._handle_upload_http_errors(e)
+        logger.info(f"Making async chat completion request with model: {model}")
+        kwargs = self._build_chat_completion_kwargs(model, messages, temperature)
+        response = await self.openai_client.chat.completions.create(**kwargs)
+        step, raw_output, usage = self._parse_chat_completion_response(response)
+        self._log_chat_completion_success(step)
+        return step, raw_output, usage
 
     async def health_check(self) -> dict:
         """
@@ -146,7 +108,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         """
         logger.debug("Making async health check request")
         try:
-            response = await self.client.get(API_HEALTH_ENDPOINT)
+            response = await self.http_client.get(API_HEALTH_ENDPOINT)
             response.raise_for_status()
             result = response.json()
             logger.debug("Async health check successful")
@@ -172,7 +134,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
 
         try:
             headers = self._build_headers(api_version)
-            response = await self.client.get(
+            response = await self.http_client.get(
                 API_V1_FILE_UPLOAD_ENDPOINT, headers=headers, timeout=self.timeout
             )
             return self._process_upload_response(response)
@@ -292,7 +254,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
 
         # Make request
         try:
-            response = await self.client.post(
+            response = await self.http_client.post(
                 API_V1_GENERATE_ENDPOINT,
                 json=payload,
                 headers=headers,

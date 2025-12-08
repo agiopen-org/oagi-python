@@ -6,26 +6,18 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-import logging
 import os
 from unittest.mock import Mock, patch
 
-import httpx
 import pytest
 
 from oagi.client import SyncClient
 from oagi.constants import MODEL_ACTOR
 from oagi.exceptions import (
-    APIError,
-    AuthenticationError,
     ConfigurationError,
-    RequestTimeoutError,
 )
-from oagi.types import Action, ActionType
+from oagi.types import Step
 from oagi.types.models import (
-    ErrorDetail,
-    ErrorResponse,
-    LLMResponse,
     UploadFileResponse,
     Usage,
 )
@@ -33,9 +25,10 @@ from oagi.types.models import (
 
 @pytest.fixture
 def test_client(api_env):
-    client = SyncClient(base_url=api_env["base_url"], api_key=api_env["api_key"])
-    yield client
-    client.close()
+    with patch("oagi.client.sync.OpenAI"):
+        client = SyncClient(base_url=api_env["base_url"], api_key=api_env["api_key"])
+        yield client
+        client.close()
 
 
 @pytest.fixture
@@ -44,9 +37,10 @@ def create_client():
     clients = []
 
     def _create_client(*args, **kwargs):
-        client = SyncClient(*args, **kwargs)
-        clients.append(client)
-        return client
+        with patch("oagi.client.sync.OpenAI"):
+            client = SyncClient(*args, **kwargs)
+            clients.append(client)
+            return client
 
     yield _create_client
 
@@ -54,7 +48,7 @@ def create_client():
         client.close()
 
 
-class TestSyncClient:
+class TestSyncClientInit:
     @pytest.mark.parametrize(
         "env_vars,init_params,expected_base_url,expected_api_key",
         [
@@ -99,505 +93,188 @@ class TestSyncClient:
                 {"base_url": "https://api.example.com"},
                 "OAGI API key must be provided",
             ),
-            (
-                "both",
-                {},
-                "OAGI API key must be provided",
-            ),
         ],
     )
-    def test_init_missing_configuration_raises_error(
+    def test_init_missing_config_raises_error(
         self, missing_param, provided_param, error_message
     ):
         with pytest.raises(ConfigurationError, match=error_message):
-            SyncClient(**provided_param)
+            with patch("oagi.client.sync.OpenAI"):
+                SyncClient(**provided_param)
 
-    def test_init_default_base_url(self, create_client):
-        """Test that base_url defaults to prod URL if not provided."""
-        # Ensure OAGI_BASE_URL is not set
-        if "OAGI_BASE_URL" in os.environ:
-            del os.environ["OAGI_BASE_URL"]
-
-        client = create_client(api_key="test-key")
-        assert client.base_url == "https://api.agiopen.org"
-
-    def test_base_url_trailing_slash_stripped(self, create_client):
+    def test_base_url_strips_trailing_slash(self, create_client):
         client = create_client(base_url="https://api.example.com/", api_key="test-key")
         assert client.base_url == "https://api.example.com"
 
-    def test_context_manager_support(self):
-        with SyncClient(
-            base_url="https://api.example.com", api_key="test-key"
-        ) as client:
-            assert client.base_url == "https://api.example.com"
 
-    def test_create_message_success_with_basic_parameters(
-        self,
-        mock_httpx_client,
-        mock_success_response,
-        test_client,
-        mock_upload_response,
-        mock_s3_upload_response,
-        upload_file_response,
+class TestSyncClientChatCompletion:
+    def test_chat_completion_success(
+        self, test_client, sample_raw_output, sample_usage
     ):
-        # Mock S3 upload flow
-        mock_httpx_client.get.return_value = mock_upload_response
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
-            mock_httpx_client.post.return_value = mock_success_response
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = sample_raw_output
+        mock_response.usage = Mock(
+            prompt_tokens=sample_usage["prompt_tokens"],
+            completion_tokens=sample_usage["completion_tokens"],
+            total_tokens=sample_usage["total_tokens"],
+        )
+        test_client.openai_client.chat.completions.create.return_value = mock_response
 
-            response = test_client.create_message(
-                model="vision-model-v1",
-                screenshot=b"iVBORw0KGgo...",
-                task_description="Test task",
-            )
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Test prompt"},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "https://example.com/screenshot.png"},
+                    },
+                ],
+            }
+        ]
 
-            self._assert_successful_llm_response(response)
-            # Verify S3 presigned URL was requested
-            mock_httpx_client.get.assert_called_once()
-            # Verify upload to S3 happened
-            mock_upload_client.put.assert_called_once_with(
-                url=upload_file_response["url"], content=b"iVBORw0KGgo..."
-            )
-            # Verify /v2/message endpoint was called with OpenAI format
-            self._assert_v2_api_call_made(
-                mock_httpx_client,
-                {
-                    "model": "vision-model-v1",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": upload_file_response["download_url"]
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                    "task_description": "Test task",
-                },
-            )
+        step, raw_output, usage = test_client.chat_completion(
+            model=MODEL_ACTOR,
+            messages=messages,
+        )
 
-    def test_create_message_with_all_optional_parameters(
-        self,
-        mock_httpx_client,
-        test_client,
-        api_response_completed,
-        mock_upload_response,
-        mock_s3_upload_response,
-        upload_file_response,
+        test_client.openai_client.chat.completions.create.assert_called_once()
+        assert isinstance(step, Step)
+        assert raw_output == sample_raw_output
+        assert isinstance(usage, Usage)
+        assert usage.prompt_tokens == sample_usage["prompt_tokens"]
+
+    def test_chat_completion_with_history(
+        self, test_client, sample_raw_output, sample_usage
     ):
-        completed_response = Mock()
-        completed_response.status_code = 200
-        completed_response.json.return_value = api_response_completed
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = sample_raw_output
+        mock_response.usage = Mock(
+            prompt_tokens=sample_usage["prompt_tokens"],
+            completion_tokens=sample_usage["completion_tokens"],
+            total_tokens=sample_usage["total_tokens"],
+        )
+        test_client.openai_client.chat.completions.create.return_value = mock_response
 
-        # Mock S3 upload flow
-        mock_httpx_client.get.return_value = mock_upload_response
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
-            mock_httpx_client.post.return_value = completed_response
-
-            test_client.create_message(
-                model="vision-model-v1",
-                screenshot=b"screenshot_data",
-                task_description="Test task",
-                task_id="existing-task",
-                instruction="Click submit button",
-                messages_history=[],
-                api_version="v1.2",
-            )
-
-            expected_headers = {"x-api-key": "test-key", "x-api-version": "v1.2"}
-            self._assert_v2_api_call_made(
-                mock_httpx_client,
-                {
-                    "model": "vision-model-v1",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": upload_file_response["download_url"]
-                                    },
-                                },
-                                {"type": "text", "text": "Click submit button"},
-                            ],
-                        }
-                    ],
-                    "task_description": "Test task",
-                    "task_id": "existing-task",
-                },
-                expected_headers,
-            )
-
-    def test_create_message_with_temperature(
-        self,
-        mock_httpx_client,
-        test_client,
-        mock_success_response,
-        mock_upload_response,
-        mock_s3_upload_response,
-        upload_file_response,
-    ):
-        # Mock S3 upload flow
-        mock_httpx_client.get.return_value = mock_upload_response
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
-            mock_httpx_client.post.return_value = mock_success_response
-
-            test_client.create_message(
-                model="vision-model-v1",
-                screenshot=b"screenshot_data",
-                task_description="Test task",
-                temperature=0.7,
-            )
-
-            self._assert_v2_api_call_made(
-                mock_httpx_client,
-                {
-                    "model": "vision-model-v1",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": upload_file_response["download_url"]
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                    "task_description": "Test task",
-                    "temperature": 0.7,
-                },
-            )
-
-    @pytest.mark.parametrize(
-        "error_setup,expected_exception,error_message",
-        [
-            # Authentication error from API response
-            ("api_error", AuthenticationError, "Invalid API key"),
-            # Non-JSON response error
-            ("non_json_error", APIError, "Invalid response format"),
-            # Timeout error during /v2/message call
-            ("timeout_error", RequestTimeoutError, "Request timed out"),
-        ],
-    )
-    def test_create_message_error_scenarios(
-        self,
-        mock_httpx_client,
-        test_client,
-        error_setup,
-        expected_exception,
-        error_message,
-        mock_upload_response,
-        mock_s3_upload_response,
-    ):
-        # Mock S3 upload flow (succeeds in all cases)
-        mock_httpx_client.get.return_value = mock_upload_response
-
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
-
-            if error_setup == "api_error":
-                mock_response = Mock()
-                mock_response.status_code = 401
-                mock_response.json.return_value = {
-                    "error": {
-                        "code": "authentication_error",
-                        "message": "Invalid API key",
+        messages = [
+            {"role": "user", "content": [{"type": "text", "text": "First message"}]},
+            {"role": "assistant", "content": "previous response"},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "https://example.com/screenshot.png"},
                     }
-                }
-                mock_httpx_client.post.return_value = mock_response
-            elif error_setup == "non_json_error":
-                mock_response = Mock()
-                mock_response.status_code = 500
-                mock_response.json.side_effect = ValueError("Not JSON")
-                mock_httpx_client.post.return_value = mock_response
-            elif error_setup == "timeout_error":
-                mock_httpx_client.post.side_effect = httpx.TimeoutException(
-                    "Request timed out"
-                )
+                ],
+            },
+        ]
 
-            with pytest.raises(expected_exception, match=error_message):
-                test_client.create_message(
-                    model="vision-model-v1",
-                    screenshot=b"test_screenshot",
-                    task_description="Test task",
-                )
+        step, raw_output, usage = test_client.chat_completion(
+            model=MODEL_ACTOR,
+            messages=messages,
+        )
 
-    def test_health_check_success(self, mock_httpx_client, test_client):
+        call_args = test_client.openai_client.chat.completions.create.call_args
+        sent_messages = call_args[1]["messages"]
+        assert len(sent_messages) == 3
+
+    def test_chat_completion_with_temperature(
+        self, test_client, sample_raw_output, sample_usage
+    ):
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = sample_raw_output
+        mock_response.usage = Mock(
+            prompt_tokens=sample_usage["prompt_tokens"],
+            completion_tokens=sample_usage["completion_tokens"],
+            total_tokens=sample_usage["total_tokens"],
+        )
+        test_client.openai_client.chat.completions.create.return_value = mock_response
+
+        messages = [{"role": "user", "content": "Test"}]
+
+        step, raw_output, usage = test_client.chat_completion(
+            model=MODEL_ACTOR,
+            messages=messages,
+            temperature=0.7,
+        )
+
+        call_args = test_client.openai_client.chat.completions.create.call_args
+        assert call_args[1]["temperature"] == 0.7
+
+
+class TestSyncClientS3Upload:
+    def test_get_s3_presigned_url(self, test_client, upload_file_response):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = upload_file_response
+        test_client.http_client.get = Mock(return_value=mock_response)
+
+        result = test_client.get_s3_presigned_url()
+
+        assert isinstance(result, UploadFileResponse)
+        assert result.url == upload_file_response["url"]
+        assert result.download_url == upload_file_response["download_url"]
+
+    def test_upload_to_s3(self, test_client):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        test_client.upload_client.put = Mock(return_value=mock_response)
+
+        test_client.upload_to_s3(
+            url="https://s3.amazonaws.com/presigned-url",
+            content=b"image bytes",
+        )
+
+        test_client.upload_client.put.assert_called_once()
+
+    def test_put_s3_presigned_url(self, test_client, upload_file_response):
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = upload_file_response
+        test_client.http_client.get = Mock(return_value=mock_get_response)
+
+        mock_put_response = Mock()
+        mock_put_response.status_code = 200
+        mock_put_response.raise_for_status.return_value = None
+        test_client.upload_client.put = Mock(return_value=mock_put_response)
+
+        result = test_client.put_s3_presigned_url(screenshot=b"image bytes")
+
+        assert isinstance(result, UploadFileResponse)
+        assert result.download_url == upload_file_response["download_url"]
+
+
+class TestSyncClientHealthCheck:
+    def test_health_check_success(self, test_client):
         mock_response = Mock()
         mock_response.json.return_value = {"status": "healthy"}
-        mock_httpx_client.get.return_value = mock_response
+        mock_response.raise_for_status.return_value = None
+        test_client.http_client.get = Mock(return_value=mock_response)
 
         result = test_client.health_check()
 
         assert result == {"status": "healthy"}
-        mock_httpx_client.get.assert_called_once_with("/health")
-        mock_response.raise_for_status.assert_called_once()
-
-    def test_health_check_service_unavailable_error(
-        self, mock_httpx_client, test_client
-    ):
-        mock_response = Mock()
-        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "503 Service Unavailable", request=Mock(), response=mock_response
-        )
-        mock_httpx_client.get.return_value = mock_response
-
-        with pytest.raises(httpx.HTTPStatusError, match="503 Service Unavailable"):
-            test_client.health_check()
-
-    def test_get_s3_presigned_url_success(
-        self, mock_httpx_client, test_client, mock_upload_response, upload_file_response
-    ):
-        mock_httpx_client.get.return_value = mock_upload_response
-
-        result = test_client.get_s3_presigned_url(api_version="v1.2")
-
-        assert isinstance(result, UploadFileResponse)
-        assert result.url == upload_file_response["url"]
-        assert result.uuid == upload_file_response["uuid"]
-        mock_httpx_client.get.assert_called_once_with(
-            "/v1/file/upload",
-            headers={"x-api-key": "test-key", "x-api-version": "v1.2"},
-            timeout=60,
-        )
-
-    def test_upload_to_s3_success(self, test_client, mock_s3_upload_response):
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
-
-            test_client.upload_to_s3(
-                url="https://s3.amazonaws.com/test", content=b"test content"
-            )
-
-            mock_upload_client.put.assert_called_once_with(
-                url="https://s3.amazonaws.com/test", content=b"test content"
-            )
-            mock_s3_upload_response.raise_for_status.assert_called_once()
-
-    def test_put_s3_presigned_url_success(
-        self,
-        mock_httpx_client,
-        test_client,
-        mock_upload_response,
-        mock_s3_upload_response,
-        upload_file_response,
-    ):
-        mock_httpx_client.get.return_value = mock_upload_response
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
-
-            result = test_client.put_s3_presigned_url(
-                screenshot=b"test screenshot", api_version="v1.2"
-            )
-
-            assert isinstance(result, UploadFileResponse)
-            assert result.url == upload_file_response["url"]
-            # Verify it called get presigned URL
-            mock_httpx_client.get.assert_called_once()
-            # Verify it uploaded to S3
-            mock_upload_client.put.assert_called_once_with(
-                url=upload_file_response["url"], content=b"test screenshot"
-            )
-
-    def test_get_s3_presigned_url_insufficient_balance_error(
-        self, mock_httpx_client, test_client
-    ):
-        """Test that 402 responses return clear error messages about insufficient balance."""
-        mock_response = Mock()
-        mock_response.status_code = 402
-        mock_response.json.return_value = {
-            "error": {
-                "code": "insufficient_balance",
-                "message": "Please add funds to continue.",
-            }
-        }
-        mock_httpx_client.get.return_value = mock_response
-
-        with pytest.raises(APIError) as exc_info:
-            test_client.get_s3_presigned_url()
-
-        assert exc_info.value.status_code == 402
-        assert exc_info.value.code == "insufficient_balance"
-        assert "Please add funds to continue" in str(exc_info.value)
-
-    def _assert_successful_llm_response(self, response):
-        """Helper method to verify successful LLM response structure."""
-        assert isinstance(response, LLMResponse)
-        assert response.id == "test-123"
-        assert response.task_id == "task-456"
-        assert response.model == "lux-actor-1"
-        assert response.task_description == "Test task"
-        assert not response.is_complete
-        assert len(response.actions) == 1
-        assert response.actions[0].type == ActionType.CLICK
-        assert response.actions[0].argument == "300, 150"  # Match conftest.py fixture
-        assert response.usage.total_tokens == 150
-
-    def _assert_api_call_made(self, mock_client, expected_json, expected_headers=None):
-        """Helper method to verify API call was made correctly (V1 API)."""
-        if expected_headers is None:
-            expected_headers = {"x-api-key": "test-key"}
-
-        mock_client.post.assert_called_once_with(
-            "/v1/message",
-            json=expected_json,
-            headers=expected_headers,
-            timeout=60,
-        )
-
-    def _assert_v2_api_call_made(
-        self, mock_client, expected_json, expected_headers=None
-    ):
-        """Helper method to verify V2 API call was made correctly."""
-        if expected_headers is None:
-            expected_headers = {"x-api-key": "test-key"}
-
-        mock_client.post.assert_called_once_with(
-            "/v2/message",
-            json=expected_json,
-            headers=expected_headers,
-            timeout=60,
-        )
 
 
-class TestTraceLogging:
-    @pytest.mark.parametrize(
-        "trace_headers,expected_logs",
-        [
-            # Response with trace headers
-            (
-                {"x-request-id": "req-123", "x-trace-id": "trace-456"},
-                ["Request Id: req-123", "Trace Id: trace-456"],
-            ),
-            # Response with empty headers
-            ({}, ["Request Id: ", "Trace Id: "]),
-        ],
-    )
-    def test_trace_logging_with_http_error_response(
-        self,
-        mock_httpx_client,
-        test_client,
-        caplog,
-        trace_headers,
-        expected_logs,
-        mock_upload_response,
-        mock_s3_upload_response,
-    ):
-        # Mock S3 upload flow (succeeds)
-        mock_httpx_client.get.return_value = mock_upload_response
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
+class TestSyncClientContextManager:
+    def test_context_manager(self, api_env):
+        with patch("oagi.client.sync.OpenAI"):
+            with SyncClient(
+                base_url=api_env["base_url"], api_key=api_env["api_key"]
+            ) as client:
+                assert client.api_key == api_env["api_key"]
 
-            # /v2/message returns error
-            mock_response = Mock()
-            mock_response.headers = trace_headers
+    def test_close_closes_all_clients(self, test_client):
+        test_client.http_client.close = Mock()
+        test_client.upload_client.close = Mock()
 
-            error = httpx.HTTPStatusError(
-                "Server error", request=Mock(), response=mock_response
-            )
-            error.response = mock_response
-            mock_httpx_client.post.side_effect = error
+        test_client.close()
 
-            with caplog.at_level(logging.ERROR, logger="oagi.sync_client"):
-                with pytest.raises(httpx.HTTPStatusError):
-                    test_client.create_message(
-                        model="test-model", screenshot=b"test-screenshot"
-                    )
-
-            for expected_log in expected_logs:
-                assert expected_log in caplog.text
-
-    def test_trace_logging_without_response_attribute(
-        self,
-        mock_httpx_client,
-        test_client,
-        caplog,
-        mock_upload_response,
-        mock_s3_upload_response,
-    ):
-        # Mock S3 upload flow (succeeds)
-        mock_httpx_client.get.return_value = mock_upload_response
-        with patch.object(test_client, "upload_client") as mock_upload_client:
-            mock_upload_client.put.return_value = mock_s3_upload_response
-
-            # /v2/message raises ValueError (no response attribute)
-            error = ValueError("Some error")
-            mock_httpx_client.post.side_effect = error
-
-            with caplog.at_level(logging.ERROR, logger="oagi.sync_client"):
-                with pytest.raises(ValueError):
-                    test_client.create_message(
-                        model="test-model", screenshot=b"test-screenshot"
-                    )
-
-            assert "Request Id:" not in caplog.text
-            assert "Trace Id:" not in caplog.text
-
-
-class TestDataModels:
-    def test_usage_model_properties(self):
-        usage = Usage(prompt_tokens=100, completion_tokens=50, total_tokens=150)
-        assert usage.prompt_tokens == 100
-        assert usage.completion_tokens == 50
-        assert usage.total_tokens == 150
-
-    @pytest.mark.parametrize(
-        "error_data,expected_code,expected_message",
-        [
-            (
-                {"code": "test_error", "message": "Test message"},
-                "test_error",
-                "Test message",
-            ),
-            (None, None, None),
-        ],
-    )
-    def test_error_response_model_scenarios(
-        self, error_data, expected_code, expected_message
-    ):
-        if error_data is None:
-            error_response = ErrorResponse(error=None)
-            assert error_response.error is None
-        else:
-            error_detail = ErrorDetail(**error_data)
-            error_response = ErrorResponse(error=error_detail)
-            assert error_response.error.code == expected_code
-            assert error_response.error.message == expected_message
-
-    def test_llm_response_model_complete_structure(self):
-        action = Action(type=ActionType.CLICK, argument="100, 200", count=1)
-        usage = Usage(prompt_tokens=100, completion_tokens=50, total_tokens=150)
-
-        response = LLMResponse(
-            id="test-123",
-            task_id="task-456",
-            created=1677652288,
-            model=MODEL_ACTOR,
-            task_description="Test task",
-            is_complete=False,
-            actions=[action],
-            usage=usage,
-        )
-
-        assert response.id == "test-123"
-        assert response.task_id == "task-456"
-        assert response.object == "task.completion"  # default value
-        assert response.created == 1677652288
-        assert response.model == MODEL_ACTOR
-        assert response.task_description == "Test task"
-        assert not response.is_complete
-        assert len(response.actions) == 1
-        assert response.actions[0].type == ActionType.CLICK
-        assert response.usage.total_tokens == 150
-        assert response.error is None
+        test_client.openai_client.close.assert_called_once()
+        test_client.http_client.close.assert_called_once()
+        test_client.upload_client.close.assert_called_once()
