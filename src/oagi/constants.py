@@ -43,3 +43,6 @@ DEFAULT_TEMPERATURE_LOW = 0.1
 
 # Timeout Values
 HTTP_CLIENT_TIMEOUT = 60
+
+# Retry Configuration
+DEFAULT_MAX_RETRIES = 2

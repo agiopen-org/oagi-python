@@ -11,7 +11,12 @@ from typing import Any, Generic, TypeVar
 
 import httpx
 
-from ..constants import API_KEY_HELP_URL, DEFAULT_BASE_URL, HTTP_CLIENT_TIMEOUT
+from ..constants import (
+    API_KEY_HELP_URL,
+    DEFAULT_BASE_URL,
+    DEFAULT_MAX_RETRIES,
+    HTTP_CLIENT_TIMEOUT,
+)
 from ..exceptions import (
     APIError,
     AuthenticationError,
@@ -42,7 +47,12 @@ HttpClientT = TypeVar("HttpClientT")
 class BaseClient(Generic[HttpClientT]):
     """Base class with shared business logic for sync/async clients."""
 
-    def __init__(self, base_url: str | None = None, api_key: str | None = None):
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+    ):
         # Get from environment if not provided
         self.base_url = base_url or os.getenv("OAGI_BASE_URL") or DEFAULT_BASE_URL
         self.api_key = api_key or os.getenv("OAGI_API_KEY")
@@ -57,6 +67,7 @@ class BaseClient(Generic[HttpClientT]):
 
         self.base_url = self.base_url.rstrip("/")
         self.timeout = HTTP_CLIENT_TIMEOUT
+        self.max_retries = max_retries
         self.client: HttpClientT  # Will be set by subclasses
 
         logger.info(f"Client initialized with base_url: {self.base_url}")

@@ -9,11 +9,13 @@
 from functools import wraps
 
 import httpx
+from httpx import HTTPTransport
 from openai import OpenAI
 
 from ..constants import (
     API_V1_FILE_UPLOAD_ENDPOINT,
     API_V1_GENERATE_ENDPOINT,
+    DEFAULT_MAX_RETRIES,
     HTTP_CLIENT_TIMEOUT,
 )
 from ..logging import get_logger
@@ -44,18 +46,27 @@ def log_trace_on_failure(func):
 class SyncClient(BaseClient[httpx.Client]):
     """Synchronous HTTP client for the OAGI API."""
 
-    def __init__(self, base_url: str | None = None, api_key: str | None = None):
-        super().__init__(base_url, api_key)
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+    ):
+        super().__init__(base_url, api_key, max_retries)
 
-        # OpenAI client for chat completions
+        # OpenAI client for chat completions (with retries)
         self.openai_client = OpenAI(
             api_key=self.api_key,
             base_url=f"{self.base_url}/v1",
+            max_retries=self.max_retries,
         )
 
-        # httpx clients for S3 uploads and other endpoints
-        self.http_client = httpx.Client(base_url=self.base_url)
-        self.upload_client = httpx.Client(timeout=HTTP_CLIENT_TIMEOUT)
+        # httpx clients for S3 uploads and other endpoints (with retries)
+        transport = HTTPTransport(retries=self.max_retries)
+        self.http_client = httpx.Client(transport=transport, base_url=self.base_url)
+        self.upload_client = httpx.Client(
+            transport=transport, timeout=HTTP_CLIENT_TIMEOUT
+        )
 
         logger.info(f"SyncClient initialized with base_url: {self.base_url}")
 
