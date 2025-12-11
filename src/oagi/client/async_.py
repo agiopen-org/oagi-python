@@ -89,6 +89,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         model: str,
         messages: list,
         temperature: float | None = None,
+        task_id: str | None = None,
     ) -> tuple[Step, str, Usage | None]:
         """
         Call OpenAI-compatible /v1/chat/completions endpoint.
@@ -97,6 +98,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             model: Model to use for inference
             messages: Full message history (OpenAI-compatible format)
             temperature: Sampling temperature (0.0-2.0)
+            task_id: Optional task ID for multi-turn conversations
 
         Returns:
             Tuple of (Step, raw_output, Usage)
@@ -105,11 +107,11 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             - Usage: Token usage statistics (or None if not available)
         """
         logger.info(f"Making async chat completion request with model: {model}")
-        kwargs = self._build_chat_completion_kwargs(model, messages, temperature)
+        kwargs = self._build_chat_completion_kwargs(
+            model, messages, temperature, task_id
+        )
         response = await self.openai_client.chat.completions.create(**kwargs)
-        step, raw_output, usage = self._parse_chat_completion_response(response)
-        self._log_chat_completion_success(step)
-        return step, raw_output, usage
+        return self._parse_chat_completion_response(response)
 
     async def get_s3_presigned_url(
         self,

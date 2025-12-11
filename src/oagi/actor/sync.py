@@ -72,6 +72,7 @@ class Actor(BaseActor):
                 model=self.model,
                 messages=self.message_history,
                 temperature=self._get_temperature(temperature),
+                task_id=self.task_id,
             )
 
             self._add_assistant_message_to_history(raw_output)

@@ -91,6 +91,7 @@ class BaseClient(Generic[HttpClientT]):
         model: str,
         messages: list,
         temperature: float | None = None,
+        task_id: str | None = None,
     ) -> dict:
         """Build kwargs dict for OpenAI chat completion call.
 
@@ -98,6 +99,7 @@ class BaseClient(Generic[HttpClientT]):
             model: Model to use for inference
             messages: Full message history (OpenAI-compatible format)
             temperature: Sampling temperature (0.0-2.0)
+            task_id: Optional task ID for multi-turn conversations
 
         Returns:
             Dict of kwargs for chat.completions.create()
@@ -105,12 +107,14 @@ class BaseClient(Generic[HttpClientT]):
         kwargs: dict = {"model": model, "messages": messages}
         if temperature is not None:
             kwargs["temperature"] = temperature
+        if task_id is not None:
+            kwargs["extra_body"] = {"task_id": task_id}
         return kwargs
 
     def _parse_chat_completion_response(
         self, response
     ) -> tuple[Step, str, Usage | None]:
-        """Extract and parse OpenAI chat completion response.
+        """Extract and parse OpenAI chat completion response, and log success.
 
         This is sync/async agnostic as it only processes the response object.
 
@@ -123,6 +127,9 @@ class BaseClient(Generic[HttpClientT]):
         raw_output = response.choices[0].message.content or ""
         step = parse_raw_output(raw_output)
 
+        # Extract task_id from response (custom field from OAGI API)
+        task_id = getattr(response, "task_id", None)
+
         usage = None
         if response.usage:
             usage = Usage(
@@ -131,14 +138,19 @@ class BaseClient(Generic[HttpClientT]):
                 total_tokens=response.usage.total_tokens,
             )
 
-        return step, raw_output, usage
-
-    def _log_chat_completion_success(self, step: Step) -> None:
-        """Log successful chat completion."""
-        logger.info(
-            f"Chat completion successful - actions: {len(step.actions)}, "
-            f"stop: {step.stop}"
+        # Log success with task_id and usage
+        usage_str = (
+            f", tokens: {usage.prompt_tokens}+{usage.completion_tokens}"
+            if usage
+            else ""
         )
+        task_str = f"task_id: {task_id}, " if task_id else ""
+        logger.info(
+            f"Chat completion successful - {task_str}actions: {len(step.actions)}, "
+            f"stop: {step.stop}{usage_str}"
+        )
+
+        return step, raw_output, usage
 
     def _handle_response_error(
         self, response: httpx.Response, response_data: dict
