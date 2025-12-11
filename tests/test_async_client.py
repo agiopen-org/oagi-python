@@ -262,20 +262,6 @@ class TestAsyncClientS3Upload:
         assert result.download_url == upload_file_response["download_url"]
 
 
-class TestAsyncClientHealthCheck:
-    @pytest.mark.asyncio
-    async def test_health_check_success(self, test_client):
-        """Test successful health check."""
-        mock_response = Mock()
-        mock_response.json.return_value = {"status": "healthy"}
-        mock_response.raise_for_status.return_value = None
-        test_client.http_client.get = AsyncMock(return_value=mock_response)
-
-        result = await test_client.health_check()
-
-        assert result == {"status": "healthy"}
-
-
 class TestAsyncClientContextManager:
     @pytest.mark.asyncio
     async def test_context_manager(self, api_env):

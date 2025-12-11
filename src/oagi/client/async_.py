@@ -12,7 +12,6 @@ import httpx
 from openai import AsyncOpenAI
 
 from ..constants import (
-    API_HEALTH_ENDPOINT,
     API_V1_FILE_UPLOAD_ENDPOINT,
     API_V1_GENERATE_ENDPOINT,
     HTTP_CLIENT_TIMEOUT,
@@ -98,24 +97,6 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         step, raw_output, usage = self._parse_chat_completion_response(response)
         self._log_chat_completion_success(step)
         return step, raw_output, usage
-
-    async def health_check(self) -> dict:
-        """
-        Call the /health endpoint for health check
-
-        Returns:
-            dict: Health check response
-        """
-        logger.debug("Making async health check request")
-        try:
-            response = await self.http_client.get(API_HEALTH_ENDPOINT)
-            response.raise_for_status()
-            result = response.json()
-            logger.debug("Async health check successful")
-            return result
-        except httpx.HTTPStatusError as e:
-            logger.warning(f"Async health check failed: {e}")
-            raise
 
     async def get_s3_presigned_url(
         self,
