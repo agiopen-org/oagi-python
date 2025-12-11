@@ -393,7 +393,11 @@ class BaseClient(Generic[HttpClientT]):
         # Parse successful response
         result = GenerateResponse(**response_data)
 
+        # Capture request_id from response header
+        result.request_id = response.headers.get("X-Request-ID")
+
         logger.info(
             f"Generate request successful - tokens: {result.prompt_tokens}+{result.completion_tokens}, "
+            f"request_id: {result.request_id}"
         )
         return result

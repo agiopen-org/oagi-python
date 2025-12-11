@@ -49,3 +49,4 @@ class GenerateResponse(BaseModel):
         deprecated=True,
         description="This field is deprecated",
     )
+    request_id: str | None = None

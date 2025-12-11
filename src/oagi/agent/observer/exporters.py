@@ -98,6 +98,8 @@ def export_to_markdown(
             case StepEvent():
                 lines.append(f"\n## Step {event.step_num}\n")
                 lines.append(f"**Time:** {timestamp}\n")
+                if event.task_id:
+                    lines.append(f"**Task ID:** `{event.task_id}`\n")
 
                 if isinstance(event.image, bytes):
                     if images_dir:
@@ -159,6 +161,8 @@ def export_to_markdown(
                 }
                 phase_title = phase_titles.get(event.phase, event.phase.capitalize())
                 lines.append(f"\n### {phase_title} ({timestamp})\n")
+                if event.request_id:
+                    lines.append(f"**Request ID:** `{event.request_id}`\n")
 
                 if event.image:
                     if isinstance(event.image, bytes):
@@ -227,6 +231,7 @@ def _convert_events_for_html(events: list[ObserverEvent]) -> list[dict]:
                         "reason": event.step.reason,
                         "actions": actions_list,
                         "stop": event.step.stop,
+                        "task_id": event.task_id,
                     }
                 )
 
@@ -275,6 +280,7 @@ def _convert_events_for_html(events: list[ObserverEvent]) -> list[dict]:
                         "image": image_data,
                         "reasoning": event.reasoning,
                         "result": event.result,
+                        "request_id": event.request_id,
                     }
                 )
 

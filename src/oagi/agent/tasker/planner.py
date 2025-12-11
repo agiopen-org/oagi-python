@@ -122,7 +122,7 @@ class Planner:
         screenshot: Image | URL | None = None,
         memory: PlannerMemory | None = None,
         todo_index: int | None = None,
-    ) -> PlannerOutput:
+    ) -> tuple[PlannerOutput, str | None]:
         """Generate initial plan for a todo.
 
         Args:
@@ -133,7 +133,7 @@ class Planner:
             todo_index: Optional todo index for formatting internal context
 
         Returns:
-            PlannerOutput with instruction, reasoning, and optional subtodos
+            Tuple of (PlannerOutput, request_id) where request_id is from API response
         """
         # Ensure we have a client
         client = self._ensure_client()
@@ -170,8 +170,8 @@ class Planner:
             current_screenshot=screenshot_uuid,
         )
 
-        # Parse response
-        return self._parse_planner_output(response.response)
+        # Parse response and return with request_id
+        return self._parse_planner_output(response.response), response.request_id
 
     async def reflect(
         self,
@@ -182,7 +182,7 @@ class Planner:
         todo_index: int | None = None,
         current_instruction: str | None = None,
         reflection_interval: int = DEFAULT_REFLECTION_INTERVAL,
-    ) -> ReflectionOutput:
+    ) -> tuple[ReflectionOutput, str | None]:
         """Reflect on recent actions and progress.
 
         Args:
@@ -195,7 +195,7 @@ class Planner:
             reflection_interval: Window size for recent actions/screenshots
 
         Returns:
-            ReflectionOutput with continuation decision and reasoning
+            Tuple of (ReflectionOutput, request_id) where request_id is from API response
         """
         # Ensure we have a client
         client = self._ensure_client()
@@ -260,8 +260,8 @@ class Planner:
             prior_notes=prior_notes,
         )
 
-        # Parse response
-        return self._parse_reflection_output(response.response)
+        # Parse response and return with request_id
+        return self._parse_reflection_output(response.response), response.request_id
 
     async def summarize(
         self,
@@ -269,7 +269,7 @@ class Planner:
         context: dict[str, Any],
         memory: PlannerMemory | None = None,
         todo_index: int | None = None,
-    ) -> str:
+    ) -> tuple[str, str | None]:
         """Generate execution summary.
 
         Args:
@@ -279,7 +279,7 @@ class Planner:
             todo_index: Optional todo index for formatting internal context
 
         Returns:
-            String summary of the execution
+            Tuple of (summary string, request_id) where request_id is from API response
         """
         # Ensure we have a client
         client = self._ensure_client()
@@ -314,9 +314,11 @@ class Planner:
         # Parse response and extract summary
         try:
             result = json.loads(response.response)
-            return result.get("task_summary", response.response)
+            summary = result.get("task_summary", response.response)
         except json.JSONDecodeError:
-            return response.response
+            summary = response.response
+
+        return summary, response.request_id
 
     def _format_execution_notes(self, context: dict[str, Any]) -> str:
         """Format execution history notes.

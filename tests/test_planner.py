@@ -51,7 +51,7 @@ class TestPlanner:
         )
 
         screenshot = b"fake_image_bytes"
-        result = await planner.initial_plan(
+        result, request_id = await planner.initial_plan(
             todo="Click button",
             context={},
             screenshot=screenshot,
@@ -62,6 +62,7 @@ class TestPlanner:
         assert isinstance(result, PlannerOutput)
         assert result.instruction == "Click on button"
         assert result.reasoning == "Start with clicking"
+        assert request_id is None  # No request_id in mock response
         mock_client.put_s3_presigned_url.assert_called_once_with(screenshot)
         mock_client.call_worker.assert_called_once()
 
@@ -74,7 +75,7 @@ class TestPlanner:
             cost=0.0,
         )
 
-        result = await planner.initial_plan(
+        result, request_id = await planner.initial_plan(
             todo="Type something",
             context={"task_description": "Test"},
             screenshot=None,
@@ -82,6 +83,7 @@ class TestPlanner:
 
         assert result.instruction == "Type text"
         assert result.reasoning == "No visual needed"
+        assert request_id is None
         mock_client.put_s3_presigned_url.assert_not_called()
 
     @pytest.mark.asyncio
@@ -113,7 +115,7 @@ class TestPlanner:
             cost=0.0,
         )
 
-        result = await planner.reflect(
+        result, request_id = await planner.reflect(
             actions=actions,
             context={},
             screenshot=b"screenshot",
@@ -125,6 +127,7 @@ class TestPlanner:
         assert isinstance(result, ReflectionOutput)
         assert result.success_assessment is True
         assert result.reasoning == "Task completed"
+        assert request_id is None
 
     @pytest.mark.asyncio
     async def test_reflect_pivot_decision(self, planner, mock_client):
@@ -135,7 +138,7 @@ class TestPlanner:
             cost=0.0,
         )
 
-        result = await planner.reflect(
+        result, request_id = await planner.reflect(
             actions=[],
             context={"current_todo": "Test todo"},
             screenshot=None,
@@ -144,6 +147,7 @@ class TestPlanner:
         assert result.continue_current is False
         assert result.new_instruction == "Try different approach"
         assert result.success_assessment is False
+        assert request_id is None
 
     @pytest.mark.asyncio
     async def test_summarize(self, planner, mock_client, memory):
@@ -154,7 +158,7 @@ class TestPlanner:
             cost=0.0,
         )
 
-        result = await planner.summarize(
+        result, request_id = await planner.summarize(
             execution_history=[],
             context={},
             memory=memory,
@@ -162,6 +166,7 @@ class TestPlanner:
         )
 
         assert result == "Successfully completed the task"
+        assert request_id is None
 
     @pytest.mark.asyncio
     async def test_parse_planner_output_valid_json(self, planner):

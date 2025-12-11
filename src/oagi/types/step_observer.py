@@ -35,6 +35,7 @@ class StepEvent(BaseEvent):
     step_num: int
     image: bytes | str
     step: Step
+    task_id: str | None = None
 
 
 class ActionEvent(BaseEvent):
@@ -68,6 +69,7 @@ class PlanEvent(BaseEvent):
     image: bytes | str | None = None
     reasoning: str
     result: str | None = None
+    request_id: str | None = None
 
 
 ObserverEvent = ImageEvent | StepEvent | ActionEvent | LogEvent | SplitEvent | PlanEvent

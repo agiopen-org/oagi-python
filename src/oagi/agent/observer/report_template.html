@@ -46,6 +46,19 @@
             font-size: 0.9em;
         }
 
+        .task-id, .request-id {
+            color: #666;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .task-id code, .request-id code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
         .screenshot-container {
             position: relative;
             display: inline-block;
@@ -339,6 +352,9 @@
                     html += '<div class="step">';
                     html += `<h2>Step ${event.step_num}</h2>`;
                     html += `<span class="timestamp">${timestamp}</span>`;
+                    if (event.task_id) {
+                        html += ` <span class="task-id">Task ID: <code>${event.task_id}</code></span>`;
+                    }
 
                     if (event.image) {
                         const actionsJson = JSON.stringify(event.action_coords || []).replace(/"/g, '&quot;');
@@ -409,6 +425,9 @@
                     html += '<div class="plan">';
                     html += `<h3>${phaseTitle}</h3>`;
                     html += `<span class="timestamp">${timestamp}</span>`;
+                    if (event.request_id) {
+                        html += ` <span class="request-id">Request ID: <code>${event.request_id}</code></span>`;
+                    }
 
                     if (event.image) {
                         html += '<div class="screenshot-container">';

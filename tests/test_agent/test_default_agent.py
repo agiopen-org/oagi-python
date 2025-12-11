@@ -112,6 +112,7 @@ class TestAsyncDefaultAgent:
 
         with patch("oagi.agent.default.AsyncActor") as mock_actor_class:
             mock_actor = AsyncMock()
+            mock_actor.task_id = "test-task-id-123"  # Add task_id for StepEvent
             mock_actor_class.return_value.__aenter__ = AsyncMock(
                 return_value=mock_actor
             )

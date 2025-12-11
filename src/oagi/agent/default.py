@@ -93,6 +93,7 @@ class AsyncDefaultAgent:
                             step_num=step_num,
                             image=_serialize_image(image),
                             step=step,
+                            task_id=self.actor.task_id,
                         )
                     )
 

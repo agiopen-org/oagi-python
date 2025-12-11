@@ -200,7 +200,7 @@ class TaskeeAgent(AsyncAgent):
         context = self._get_context()
 
         # Generate plan using LLM planner
-        plan_output = await self.planner.initial_plan(
+        plan_output, request_id = await self.planner.initial_plan(
             self.current_todo,
             context,
             screenshot,
@@ -224,6 +224,7 @@ class TaskeeAgent(AsyncAgent):
                     image=_serialize_image(screenshot),
                     reasoning=plan_output.reasoning,
                     result=plan_output.instruction,
+                    request_id=request_id,
                 )
             )
 
@@ -309,6 +310,7 @@ class TaskeeAgent(AsyncAgent):
                         step_num=self.total_actions + 1,
                         image=_serialize_image(screenshot),
                         step=step,
+                        task_id=self.actor.task_id,
                     )
                 )
 
@@ -393,7 +395,7 @@ class TaskeeAgent(AsyncAgent):
         recent_actions = self.actions[-self.since_reflection :]
 
         # Reflect using planner
-        reflection = await self.planner.reflect(
+        reflection, request_id = await self.planner.reflect(
             recent_actions,
             context,
             screenshot,
@@ -424,6 +426,7 @@ class TaskeeAgent(AsyncAgent):
                     image=_serialize_image(screenshot),
                     reasoning=reflection.reasoning,
                     result=decision,
+                    request_id=request_id,
                 )
             )
 
@@ -456,7 +459,7 @@ class TaskeeAgent(AsyncAgent):
         context = self._get_context()
         context["current_todo"] = self.current_todo
 
-        summary = await self.planner.summarize(
+        summary, request_id = await self.planner.summarize(
             self.actions,
             context,
             memory=self.external_memory,
@@ -478,6 +481,7 @@ class TaskeeAgent(AsyncAgent):
                     image=None,
                     reasoning=summary,
                     result=None,
+                    request_id=request_id,
                 )
             )
 
