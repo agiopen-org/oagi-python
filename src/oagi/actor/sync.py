@@ -14,7 +14,7 @@ from ..logging import get_logger
 from ..types import URL, Image, Step
 from .base import BaseActor
 
-logger = get_logger("task.sync")
+logger = get_logger("actor.sync")
 
 
 class Actor(BaseActor):

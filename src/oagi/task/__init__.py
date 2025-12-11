@@ -6,16 +6,30 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-from .async_ import AsyncActor, AsyncTask
-from .async_short import AsyncShortTask
-from .short import ShortTask
-from .sync import Actor, Task
+"""Deprecated: Use oagi.actor instead. This module will be removed in a future version."""
+
+import warnings
+
+from oagi.actor import (
+    Actor,
+    AsyncActor,
+    AsyncShortTask,
+    AsyncTask,
+    ShortTask,
+    Task,
+)
+
+warnings.warn(
+    "oagi.task is deprecated, use oagi.actor instead",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 __all__ = [
     "Actor",
     "AsyncActor",
-    "Task",  # Deprecated: Use Actor instead
-    "AsyncTask",  # Deprecated: Use AsyncActor instead
-    "ShortTask",  # Deprecated
-    "AsyncShortTask",  # Deprecated
+    "Task",
+    "AsyncTask",
+    "ShortTask",
+    "AsyncShortTask",
 ]

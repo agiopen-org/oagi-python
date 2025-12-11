@@ -10,18 +10,18 @@ import warnings
 
 from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..logging import get_logger
-from ..types import AsyncActionHandler, AsyncImageProvider
-from .async_ import AsyncActor
+from ..types import ActionHandler, ImageProvider
 from .base import BaseAutoMode
+from .sync import Actor
 
-logger = get_logger("async_short_task")
+logger = get_logger("short_actor")
 
 
-class AsyncShortTask(AsyncActor, BaseAutoMode):
+class ShortTask(Actor, BaseAutoMode):
     """Deprecated: This class is deprecated and will be removed in a future version.
 
-    Async task implementation with automatic mode for short-duration tasks.
-    Please use AsyncActor directly with custom automation logic instead.
+    Task implementation with automatic mode for short-duration tasks.
+    Please use Actor directly with custom automation logic instead.
     """
 
     def __init__(
@@ -32,8 +32,8 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
         temperature: float | None = None,
     ):
         warnings.warn(
-            "AsyncShortTask is deprecated and will be removed in a future version. "
-            "Please use AsyncActor with custom automation logic instead.",
+            "ShortTask is deprecated and will be removed in a future version. "
+            "Please use Actor with custom automation logic instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -41,12 +41,12 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
             api_key=api_key, base_url=base_url, model=model, temperature=temperature
         )
 
-    async def auto_mode(
+    def auto_mode(
         self,
         task_desc: str,
         max_steps: int = DEFAULT_MAX_STEPS,
-        executor: AsyncActionHandler = None,
-        image_provider: AsyncImageProvider = None,
+        executor: ActionHandler = None,
+        image_provider: ImageProvider = None,
         temperature: float | None = None,
     ) -> bool:
         """Run the task in automatic mode with the provided executor and image provider.
@@ -54,24 +54,24 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
         Args:
             task_desc: Task description
             max_steps: Maximum number of steps
-            executor: Async handler to execute actions
-            image_provider: Async provider for screenshots
+            executor: Handler to execute actions
+            image_provider: Provider for screenshots
             temperature: Sampling temperature for all steps (overrides task default if provided)
         """
-        self._log_auto_mode_start(task_desc, max_steps, prefix="async ")
+        self._log_auto_mode_start(task_desc, max_steps)
 
-        await self.init_task(task_desc, max_steps=max_steps)
+        self.init_task(task_desc, max_steps=max_steps)
 
         for i in range(max_steps):
-            self._log_auto_mode_step(i + 1, max_steps, prefix="async ")
-            image = await image_provider()
-            step = await self.step(image, temperature=temperature)
+            self._log_auto_mode_step(i + 1, max_steps)
+            image = image_provider()
+            step = self.step(image, temperature=temperature)
             if executor:
-                self._log_auto_mode_actions(len(step.actions), prefix="async ")
-                await executor(step.actions)
+                self._log_auto_mode_actions(len(step.actions))
+                executor(step.actions)
             if step.stop:
-                self._log_auto_mode_completion(i + 1, prefix="async ")
+                self._log_auto_mode_completion(i + 1)
                 return True
 
-        self._log_auto_mode_max_steps(max_steps, prefix="async ")
+        self._log_auto_mode_max_steps(max_steps)
         return False

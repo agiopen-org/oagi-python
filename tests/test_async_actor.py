@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import pytest_asyncio
 
-from oagi.task import AsyncActor
+from oagi.actor import AsyncActor
 from oagi.types import Step
 
 

@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 import pytest
 
+from oagi.actor import Actor
 from oagi.constants import MODEL_ACTOR
-from oagi.task import Actor
 from oagi.types import ActionType, Step
 from oagi.types.models import UploadFileResponse
 

@@ -8,6 +8,7 @@
 import importlib
 from typing import TYPE_CHECKING
 
+from oagi.actor import Actor, AsyncActor, AsyncShortTask, AsyncTask, ShortTask, Task
 from oagi.client import AsyncClient, SyncClient
 from oagi.exceptions import (
     APIError,
@@ -22,7 +23,6 @@ from oagi.exceptions import (
     ValidationError,
     check_optional_dependency,
 )
-from oagi.task import Actor, AsyncActor, AsyncShortTask, AsyncTask, ShortTask, Task
 from oagi.types import ImageConfig
 from oagi.types.models import (
     ErrorDetail,

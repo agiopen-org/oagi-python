@@ -199,7 +199,7 @@ def http_status_error(mock_server_error):
 @pytest.fixture
 def mock_sync_client():
     """Create a mock SyncClient for task tests."""
-    with patch("oagi.task.sync.SyncClient") as MockClient:
+    with patch("oagi.actor.sync.SyncClient") as MockClient:
         mock_instance = Mock()
         mock_instance.api_key = "test-key"
         mock_instance.base_url = "https://test.example.com"

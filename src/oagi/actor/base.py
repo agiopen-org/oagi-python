@@ -18,7 +18,7 @@ from ..logging import get_logger
 from ..types import URL, Image, Step
 from ..utils.prompt_builder import build_prompt
 
-logger = get_logger("task.base")
+logger = get_logger("actor.base")
 
 
 class BaseActor:

@@ -14,7 +14,7 @@ from ..logging import get_logger
 from ..types import URL, Image, Step
 from .base import BaseActor
 
-logger = get_logger("task.async")
+logger = get_logger("actor.async")
 
 
 class AsyncActor(BaseActor):
