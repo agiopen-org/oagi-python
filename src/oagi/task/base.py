@@ -8,7 +8,12 @@
 
 from uuid import uuid4
 
-from ..constants import DEFAULT_MAX_STEPS
+from ..constants import (
+    DEFAULT_MAX_STEPS,
+    MAX_STEPS_ACTOR,
+    MAX_STEPS_THINKER,
+    MODEL_THINKER,
+)
 from ..logging import get_logger
 from ..types import URL, Image, Step
 from ..utils.prompt_builder import build_prompt
@@ -37,6 +42,24 @@ class BaseActor:
         self.api_key: str | None = None
         self.base_url: str | None = None
 
+    def _validate_max_steps(self, max_steps: int) -> int:
+        """Validate and cap max_steps based on model type.
+
+        Args:
+            max_steps: Requested maximum number of steps
+
+        Returns:
+            Validated max_steps (capped to model limit if exceeded)
+        """
+        limit = MAX_STEPS_THINKER if self.model == MODEL_THINKER else MAX_STEPS_ACTOR
+        if max_steps > limit:
+            logger.warning(
+                f"max_steps ({max_steps}) exceeds limit for model '{self.model}'. "
+                f"Capping to {limit}."
+            )
+            return limit
+        return max_steps
+
     def _prepare_init_task(
         self,
         task_desc: str,
@@ -51,9 +74,9 @@ class BaseActor:
         self.task_id = uuid4().hex
         self.task_description = task_desc
         self.message_history = []
-        self.max_steps = max_steps
+        self.max_steps = self._validate_max_steps(max_steps)
         self.current_step = 0
-        logger.info(f"Task initialized: '{task_desc}' (max_steps: {max_steps})")
+        logger.info(f"Task initialized: '{task_desc}' (max_steps: {self.max_steps})")
 
     def _validate_and_increment_step(self):
         if not self.task_description:
