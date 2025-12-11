@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oagi-core"
-version = "0.11.0"
+version = "0.12.0"
 description = "Official API of OpenAGI Foundation"
 readme = "README.md"
 license = { file = "LICENSE" }
