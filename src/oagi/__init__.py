@@ -6,7 +6,10 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 import importlib
+import importlib.metadata
 from typing import TYPE_CHECKING
+
+__version__ = importlib.metadata.version("oagi-core")
 
 from oagi.actor import Actor, AsyncActor, AsyncShortTask, AsyncTask, ShortTask, Task
 from oagi.client import AsyncClient, SyncClient
@@ -98,6 +101,8 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
+    # Version
+    "__version__",
     # Core sync classes
     "Actor",
     "AsyncActor",
