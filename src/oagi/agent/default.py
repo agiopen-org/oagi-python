@@ -16,7 +16,7 @@ from ..constants import (
     DEFAULT_TEMPERATURE,
     MODEL_ACTOR,
 )
-from ..handler import reset_handler
+from ..handler.utils import reset_handler
 from ..types import (
     ActionEvent,
     AsyncActionHandler,

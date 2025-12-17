@@ -16,7 +16,7 @@ from oagi.constants import (
     DEFAULT_TEMPERATURE,
     MODEL_ACTOR,
 )
-from oagi.handler import reset_handler
+from oagi.handler.utils import reset_handler
 from oagi.types import AsyncActionHandler, AsyncImageProvider, AsyncObserver, SplitEvent
 
 from ..protocol import AsyncAgent
