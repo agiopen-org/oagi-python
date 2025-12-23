@@ -33,6 +33,7 @@ desktop = [
     "pyautogui>=0.9.54",
     "pyobjc-framework-Quartz>=8.0; sys_platform == 'darwin'",
     "pyobjc-framework-ApplicationServices>=8.0; sys_platform == 'darwin'",
+    "screeninfo>=0.8.1"
 ]
 server = [
     "fastapi[standard]>=0.100.0",

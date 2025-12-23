@@ -206,14 +206,25 @@ def _warn_missing_permissions() -> None:
 
 def run_agent(args: argparse.Namespace) -> None:
     # Check if desktop extras are installed
-    check_optional_dependency("pyautogui", "Agent execution", "desktop")
     check_optional_dependency("PIL", "Agent execution", "desktop")
 
-    # Warn about missing macOS permissions (non-blocking)
-    _warn_missing_permissions()
-
-    from oagi import AsyncPyautoguiActionHandler, AsyncScreenshotMaker  # noqa: PLC0415
+    from oagi import AsyncScreenshotMaker  # noqa: PLC0415
     from oagi.agent import create_agent  # noqa: PLC0415
+    from oagi.handler.wayland_support import is_wayland_display_server  # noqa: PLC0415
+
+    # Select appropriate action handler based on display server
+    if is_wayland_display_server():
+        check_optional_dependency("screeninfo", "Agent execution (Wayland)", "desktop")
+        from oagi import AsyncYdotoolActionHandler  # noqa: PLC0415
+
+        action_handler = AsyncYdotoolActionHandler()
+    else:
+        check_optional_dependency("pyautogui", "Agent execution", "desktop")
+        # Warn about missing macOS permissions (non-blocking)
+        _warn_missing_permissions()
+        from oagi import AsyncPyautoguiActionHandler  # noqa: PLC0415
+
+        action_handler = AsyncPyautoguiActionHandler()
 
     # Get configuration
     api_key = args.oagi_api_key or os.getenv("OAGI_API_KEY")
@@ -266,8 +277,7 @@ def run_agent(args: argparse.Namespace) -> None:
     # Create agent
     agent = create_agent(**agent_kwargs)
 
-    # Create handlers
-    action_handler = AsyncPyautoguiActionHandler()
+    # Create image provider
     image_provider = AsyncScreenshotMaker()
 
     if args.instruction:

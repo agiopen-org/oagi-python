@@ -10,6 +10,8 @@ import io
 
 from ..exceptions import check_optional_dependency
 from ..types.models.image_config import ImageConfig
+from .wayland_support import is_wayland_display_server
+from .wayland_support import screenshot as wayland_screenshot
 
 check_optional_dependency("PIL", "PILImage", "desktop")
 from PIL import Image as PILImageLib  # noqa: E402
@@ -39,6 +41,10 @@ class PILImage:
     @classmethod
     def from_screenshot(cls, config: ImageConfig | None = None) -> "PILImage":
         """Create PILImage from screenshot."""
+        # Use flameshot by default in Wayland display environment
+        if is_wayland_display_server():
+            return cls(wayland_screenshot(), config)
+
         # Lazy import to avoid DISPLAY issues in headless environments
         check_optional_dependency("pyautogui", "PILImage.from_screenshot()", "desktop")
         import pyautogui  # noqa: PLC0415

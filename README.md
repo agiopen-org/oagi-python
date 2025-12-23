@@ -38,6 +38,7 @@ With Lux, possibilities are endless. Here are a few examples:
   - [Command Line Interface](#command-line-interface)
   - [Image Processing](#image-processing)
   - [Manual Control with Actor](#manual-control-with-actor)
+  - [Run On System With Wayland](#run-on-system-with-wayland)
 - [Examples](#examples)
 - [Socket.IO Server (Optional)](#socketio-server-optional)
   - [Installation](#installation-1)
@@ -193,6 +194,45 @@ async def main():
             await action_handler(step.actions)
 
 asyncio.run(main())
+```
+
+### Run On System With Wayland
+The SDK includes support for desktop automation on systems with Wayland display, such as Ubuntu/Debain. It leverages `ydotool` and `flameshot` for mouse/keyboard actions and screenshot capture respectively. Please install these two tools on your system in advance and ensure `ydotoold` server is running in the background when running the script.
+
+Refer to [ydotool](https://github.com/ReimuNotMoe/ydotool) and [flameshot](https://flameshot.org/#download) for installation instructions. Disable mouse acceleration for more precise mouse control. (In GNOME, run `gsettings set org.gnome.desktop.peripherals.mouse accel-profile 'flat'`)
+
+Run tasks automatically with screenshot capture and action execution:
+```python
+import asyncio
+from oagi import AsyncDefaultAgent, AsyncYdotoolActionHandler, AsyncScreenshotMaker
+
+async def main():
+    agent = AsyncDefaultAgent(max_steps=10)
+    completed = await agent.execute(
+        "Search weather on Google",
+        action_handler=AsyncYdotoolActionHandler(),    # Executes mouse/keyboard actions, based on 'ydotool'
+        image_provider=AsyncScreenshotMaker(),         # Captures screenshots, based on 'flameshot'
+    )
+    return completed
+
+asyncio.run(main())
+```
+
+Configure Ydotool behavior with custom settings:
+
+```python
+from oagi import AsyncYdotoolActionHandler, YdotoolConfig
+
+# Customize action behavior
+config = YdotoolConfig(
+    scroll_amount=50,        # Larger scroll steps (default: 20)
+    wait_duration=2.0,       # Longer waits (default: 1.0)
+    action_pause=1.0,        # More pause between actions (default: 0.5)
+    capslock_mode="session", # Caps lock mode: 'session' or 'system' (default: 'session')
+    socket_address="/tmp/ydotool.sock"  # Customized Socket address for ydotool (ydotool uses 'YDOTOOL_SOCKET' environment variable by default)
+)
+
+action_handler = AsyncYdotoolActionHandler(config=config)
 ```
 
 ## Examples

@@ -65,6 +65,22 @@ _LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
     "create_app": ("oagi.server.main", "socketio", "server"),
     "ServerConfig": ("oagi.server.config", "pydantic_settings", "server"),
     "sio": ("oagi.server.socketio_server", "socketio", "server"),
+    # Wayland handlers
+    "AsyncYdotoolActionHandler": (
+        "oagi.handler.async_ydotool_action_handler",
+        "screeninfo",
+        "desktop",
+    ),
+    "YdotoolActionHandler": (
+        "oagi.handler.ydotool_action_handler",
+        "screeninfo",
+        "desktop",
+    ),
+    "YdotoolConfig": (
+        "oagi.handler.ydotool_action_handler",
+        "screeninfo",
+        "desktop",
+    ),
 }
 
 if TYPE_CHECKING:
@@ -73,12 +89,14 @@ if TYPE_CHECKING:
     from oagi.agent.tasker import TaskerAgent
     from oagi.handler.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
     from oagi.handler.async_screenshot_maker import AsyncScreenshotMaker
+    from oagi.handler.async_ydotool_action_handler import AsyncYdotoolActionHandler
     from oagi.handler.pil_image import PILImage
     from oagi.handler.pyautogui_action_handler import (
         PyautoguiActionHandler,
         PyautoguiConfig,
     )
     from oagi.handler.screenshot_maker import ScreenshotMaker
+    from oagi.handler.ydotool_action_handler import YdotoolActionHandler, YdotoolConfig
     from oagi.server.config import ServerConfig
     from oagi.server.main import create_app
     from oagi.server.socketio_server import sio
@@ -148,4 +166,8 @@ __all__ = [
     "create_app",
     "ServerConfig",
     "sio",
+    # Lazy imports - Wayland handler classes
+    "AsyncYdotoolActionHandler",
+    "YdotoolActionHandler",
+    "YdotoolConfig",
 ]
