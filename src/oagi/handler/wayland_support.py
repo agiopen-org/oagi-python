@@ -93,7 +93,7 @@ class Ydotool:
         # Check the permission to access the socket address
         socket_address = (
             self.socket_address
-            or os.environ.get("YDOOTOOL_SOCKET", "")
+            or os.environ.get("YDOTOOL_SOCKET", "")
             or f"/run/user/{os.getuid()}/.ydotool_socket"
         )
         if not os.access(socket_address, os.W_OK) or not os.path.exists(socket_address):
@@ -141,7 +141,7 @@ class Ydotool:
         # Env with socket address
         env = os.environ.copy()
         if self.socket_address:
-            env["YDOOTOOL_SOCKET"] = self.socket_address
+            env["YDOTOOL_SOCKET"] = self.socket_address
         # Run ydotool command
         res = subprocess.run(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env

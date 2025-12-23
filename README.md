@@ -229,7 +229,7 @@ config = YdotoolConfig(
     wait_duration=2.0,       # Longer waits (default: 1.0)
     action_pause=1.0,        # More pause between actions (default: 0.5)
     capslock_mode="session", # Caps lock mode: 'session' or 'system' (default: 'session')
-    socket_address="/tmp/ydotoold.sock"  # Customized Socket address for ydotool (ydotool uses 'YDOOTOOL_SOCKET' environment variable by default)
+    socket_address="/tmp/ydotool.sock"  # Customized Socket address for ydotool (ydotool uses 'YDOTOOL_SOCKET' environment variable by default)
 )
 
 action_handler = AsyncYdotoolActionHandler(config=config)
