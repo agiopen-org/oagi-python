@@ -73,6 +73,11 @@ _LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
         "screeninfo",
         "desktop",
     ),
+    "YdotoolConfig": (
+        "oagi.handler.ydotool_action_handler",
+        "screeninfo",
+        "desktop",
+    ),
 }
 
 if TYPE_CHECKING:

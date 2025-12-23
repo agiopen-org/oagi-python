@@ -40,7 +40,7 @@ def get_screen_size() -> tuple[int, int]:
     monitors = get_monitors()
     if monitors:
         return monitors[0].width, monitors[0].height
-    return None
+    raise Exception("No monitor found, cannot get the screen size info")
 
 
 def screenshot() -> Image:
@@ -111,8 +111,8 @@ class Ydotool:
         ).stdout.strip()
         if accel_profile and accel_profile != "'flat'":
             logger.warning(
-                f"Mouse Acceleration is not disabled, current accel-profile is {accel_profile}). Ydotool may not work as expected.",
-                "Please disable mouse acceleration by running 'gsettings set org.gnome.desktop.peripherals.mouse accel-profile 'flat''",
+                f"Mouse Acceleration is not disabled, current accel-profile is {accel_profile}). Ydotool may not work as expected."
+                + "Please disable mouse acceleration by running 'gsettings set org.gnome.desktop.peripherals.mouse accel-profile 'flat''",
             )
 
     def _get_keycode(self, key_char: str) -> int:
@@ -131,7 +131,7 @@ class Ydotool:
         """
         Run ydotool command; e.g., ["click", "500", "300"] => ydotool click 500 300
         """
-        if interval := (time.time() - self.last_action_time) / 1000 < self.action_pause:
+        if (interval := (time.time() - self.last_action_time)) < self.action_pause:
             time.sleep(interval)
         if count > 1:
             args.extend(["--repeat", str(count)])
