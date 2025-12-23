@@ -503,18 +503,18 @@ sdist = { url = "https://files.pythonhosted.org/packages/28/fa/b2ba8229b9381e8f6
 
 [[package]]
 name = "oagi"
-version = "0.12.1"
+version = "0.13.0"
 source = { editable = "." }
 dependencies = [
     { name = "oagi-core", extra = ["desktop", "server"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "oagi-core", extras = ["desktop", "server"], specifier = "==0.12.0" }]
+requires-dist = [{ name = "oagi-core", extras = ["desktop", "server"], specifier = "==0.12.1" }]
 
 [[package]]
 name = "oagi-core"
-version = "0.12.0"
+version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -522,9 +522,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/20/431fe40c681194886fa51b841929a6be4d614409817f048ab88fab1ef4f8/oagi_core-0.12.0.tar.gz", hash = "sha256:3ffd93f217bac5357fd28442a65c679a3b1891e52419f833dd7d2bbd48015d7a", size = 286697, upload-time = "2025-12-11T10:56:26.121Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/70/0977d856ebfb2af41b1d4804f902ef1f8b929de6663ea9a97d879051a6da/oagi_core-0.12.1.tar.gz", hash = "sha256:d04a73849709833b16c55e24edc06f8f17a58d3389ef8849a66c9d7e93183863", size = 297360, upload-time = "2025-12-17T06:46:59.237Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/fb/4474f6f2dcb4ee9ac1699d437b5b133be695a919108b50e9ace92e763e9f/oagi_core-0.12.0-py3-none-any.whl", hash = "sha256:37c67c2b96a13166dd4fa89828e967fdd23f0eb871ec1b22acef8bf4ce777c8a", size = 99904, upload-time = "2025-12-11T10:56:24.684Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/4c/29d774abb3b1dc1cff021021a941caa2926fffd1b9effd0845e9b1fb5afd/oagi_core-0.12.1-py3-none-any.whl", hash = "sha256:32d7638c701990e42d1d4e3c6cee6530b99aed61eea2d36eb5bba1d6cb12ff38", size = 100565, upload-time = "2025-12-17T06:46:57.868Z" },
 ]
 
 [package.optional-dependencies]
