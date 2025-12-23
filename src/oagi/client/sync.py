@@ -19,6 +19,7 @@ from ..constants import (
     HTTP_CLIENT_TIMEOUT,
 )
 from ..logging import get_logger
+from ..platform_info import get_sdk_headers
 from ..types import Image
 from ..types.models import GenerateResponse, UploadFileResponse, Usage
 from ..types.models.step import Step
@@ -54,16 +55,22 @@ class SyncClient(BaseClient[httpx.Client]):
     ):
         super().__init__(base_url, api_key, max_retries)
 
+        # Get SDK headers for all clients
+        sdk_headers = get_sdk_headers()
+
         # OpenAI client for chat completions (with retries)
         self.openai_client = OpenAI(
             api_key=self.api_key,
             base_url=f"{self.base_url}/v1",
             max_retries=self.max_retries,
+            default_headers=sdk_headers,
         )
 
         # httpx clients for S3 uploads and other endpoints (with retries)
         transport = HTTPTransport(retries=self.max_retries)
-        self.http_client = httpx.Client(transport=transport, base_url=self.base_url)
+        self.http_client = httpx.Client(
+            transport=transport, base_url=self.base_url, headers=sdk_headers
+        )
         self.upload_client = httpx.Client(
             transport=transport, timeout=HTTP_CLIENT_TIMEOUT
         )

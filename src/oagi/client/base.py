@@ -29,6 +29,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..logging import get_logger
+from ..platform_info import get_sdk_headers
 from ..types.models import (
     ErrorResponse,
     GenerateResponse,
@@ -73,7 +74,7 @@ class BaseClient(Generic[HttpClientT]):
         logger.info(f"Client initialized with base_url: {self.base_url}")
 
     def _build_headers(self, api_version: str | None = None) -> dict[str, str]:
-        headers: dict[str, str] = {}
+        headers = get_sdk_headers()
         if api_version:
             headers["x-api-version"] = api_version
         if self.api_key:
