@@ -10,8 +10,8 @@ from uuid import uuid4
 
 from ..constants import (
     DEFAULT_MAX_STEPS,
-    MAX_STEPS_ACTOR,
-    MAX_STEPS_THINKER,
+    MAX_STEPS_ALLOWED_ACTOR,
+    MAX_STEPS_ALLOWED_THINKER,
     MODEL_THINKER,
 )
 from ..logging import get_logger
@@ -51,7 +51,11 @@ class BaseActor:
         Returns:
             Validated max_steps (capped to model limit if exceeded)
         """
-        limit = MAX_STEPS_THINKER if self.model == MODEL_THINKER else MAX_STEPS_ACTOR
+        limit = (
+            MAX_STEPS_ALLOWED_THINKER
+            if self.model == MODEL_THINKER
+            else MAX_STEPS_ALLOWED_ACTOR
+        )
         if max_steps > limit:
             logger.warning(
                 f"max_steps ({max_steps}) exceeds limit for model '{self.model}'. "
