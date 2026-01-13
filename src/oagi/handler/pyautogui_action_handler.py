@@ -11,6 +11,8 @@ import time
 
 from pydantic import BaseModel, Field
 
+from oagi.handler.screen_manager import Screen
+
 from ..exceptions import check_optional_dependency
 from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
 from .capslock_manager import CapsLockManager
@@ -77,6 +79,8 @@ class PyautoguiActionHandler:
         pyautogui.PAUSE = self.config.action_pause
         # Initialize caps lock manager
         self.caps_manager = CapsLockManager(mode=self.config.capslock_mode)
+        # The origin position of coordinates (the top-left corner of the target screen)
+        self.origin_x, self.origin_y = 0, 0
 
     def reset(self):
         """Reset handler state.
@@ -85,6 +89,15 @@ class PyautoguiActionHandler:
         Resets the internal capslock state.
         """
         self.caps_manager.reset()
+
+    def set_target_screen(self, screen: Screen):
+        """Set the target screen for the action handler.
+
+        Args:
+            screen (Screen): The screen object to set as the target.
+        """
+        self.screen_width, self.screen_height = screen.width, screen.height
+        self.origin_x, self.origin_y = screen.x, screen.y
 
     def _denormalize_coords(self, x: float, y: float) -> tuple[int, int]:
         """Convert coordinates from 0-1000 range to actual screen coordinates.
@@ -106,6 +119,10 @@ class PyautoguiActionHandler:
             screen_y = 1
         elif screen_y > self.screen_height - 1:
             screen_y = self.screen_height - 1
+
+        # Add origin offset to convert relative to top-left corner
+        screen_x += self.origin_x
+        screen_y += self.origin_y
 
         return screen_x, screen_y
 

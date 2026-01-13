@@ -8,6 +8,8 @@
 
 import asyncio
 
+from oagi.handler.screen_manager import Screen
+
 from ..types import Action
 from .pyautogui_action_handler import PyautoguiActionHandler, PyautoguiConfig
 
@@ -28,6 +30,14 @@ class AsyncPyautoguiActionHandler:
         """
         self.sync_handler = PyautoguiActionHandler(config=config)
         self.config = config or PyautoguiConfig()
+
+    def set_target_screen(self, screen: Screen):
+        """Set the target screen for the action handler.
+
+        Args:
+            screen (Screen): The screen object to set as the target.
+        """
+        self.sync_handler.set_target_screen(screen)
 
     def reset(self):
         """Reset handler state.

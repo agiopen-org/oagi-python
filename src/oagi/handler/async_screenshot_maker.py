@@ -8,6 +8,8 @@
 
 import asyncio
 
+from oagi.handler.screen_manager import Screen
+
 from ..types import Image, ImageConfig
 from .screenshot_maker import ScreenshotMaker
 
@@ -28,6 +30,9 @@ class AsyncScreenshotMaker:
         """
         self.sync_screenshot_maker = ScreenshotMaker(config=config)
         self.config = config
+
+    def set_target_screen(self, screen: Screen):
+        self.sync_screenshot_maker.set_target_screen(screen)
 
     async def __call__(self) -> Image:
         """
