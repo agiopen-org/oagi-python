@@ -28,10 +28,10 @@ from oagi.utils.output_parser import parse_raw_output
 from oagi.utils.prompt_builder import build_prompt
 
 DEFAULT_BASE_URL = "https://api.agiopen.org"
-DEFAULT_MODEL = "lux-actor-1"
+DEFAULT_MODEL = "lux-thinker-1"
 
 
-def agent_loop(task_description: str, max_steps: int = 10) -> bool:
+def agent_loop(task_description: str, max_steps: int = 100) -> bool:
     """
     Run an agent loop to complete a task.
 
@@ -114,5 +114,5 @@ if __name__ == "__main__":
     # Example task
     task = "Find some shoes on amazon"
 
-    success = agent_loop(task, max_steps=20)
+    success = agent_loop(task, max_steps=100)
     print(f"\nFinal result: {'Success' if success else 'Failed'}")
