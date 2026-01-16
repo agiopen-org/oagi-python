@@ -51,6 +51,10 @@ class PyautoguiConfig(BaseModel):
         default=True,
         description="Replace 'ctrl' with 'command' in hotkey combinations on macOS",
     )
+    click_pre_delay: float = Field(
+        default=0.1,
+        description="Delay in seconds after moving to position before clicking",
+    )
 
 
 class PyautoguiActionHandler:
@@ -158,6 +162,11 @@ class PyautoguiActionHandler:
         keys = [self._normalize_key(key) for key in args_str.split("+")]
         return keys
 
+    def _move_and_wait(self, x: int, y: int) -> None:
+        """Move cursor to position and wait before clicking."""
+        pyautogui.moveTo(x, y)
+        time.sleep(self.config.click_pre_delay)
+
     def _execute_single_action(self, action: Action) -> None:
         """Execute a single action once."""
         arg = action.argument.strip("()")  # Remove outer parentheses if present
@@ -165,25 +174,29 @@ class PyautoguiActionHandler:
         match action.type:
             case ActionType.CLICK:
                 x, y = self._parse_coords(arg)
-                pyautogui.click(x, y)
+                self._move_and_wait(x, y)
+                pyautogui.click()
 
             case ActionType.LEFT_DOUBLE:
                 x, y = self._parse_coords(arg)
+                self._move_and_wait(x, y)
                 if sys.platform == "darwin":
                     _macos.macos_click(x, y, clicks=2)
                 else:
-                    pyautogui.doubleClick(x, y)
+                    pyautogui.doubleClick()
 
             case ActionType.LEFT_TRIPLE:
                 x, y = self._parse_coords(arg)
+                self._move_and_wait(x, y)
                 if sys.platform == "darwin":
                     _macos.macos_click(x, y, clicks=3)
                 else:
-                    pyautogui.tripleClick(x, y)
+                    pyautogui.tripleClick()
 
             case ActionType.RIGHT_SINGLE:
                 x, y = self._parse_coords(arg)
-                pyautogui.rightClick(x, y)
+                self._move_and_wait(x, y)
+                pyautogui.rightClick()
 
             case ActionType.DRAG:
                 x1, y1, x2, y2 = self._parse_drag_coords(arg)

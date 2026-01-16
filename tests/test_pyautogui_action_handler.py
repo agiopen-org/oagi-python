@@ -54,9 +54,9 @@ def test_coordinate_based_actions(
         action = Action(type=action_type, argument=argument, count=1)
         handler([action])
 
-        getattr(mock_pyautogui, expected_method).assert_called_once_with(
-            *expected_coords
-        )
+        # Click actions now use moveTo first, then click without coordinates
+        mock_pyautogui.moveTo.assert_called_with(*expected_coords)
+        getattr(mock_pyautogui, expected_method).assert_called_once_with()
 
 
 def test_drag_action(handler, mock_pyautogui, config):
@@ -262,7 +262,9 @@ class TestCornerCoordinatesHandling:
         handler = PyautoguiActionHandler()
         action = Action(type=ActionType.CLICK, argument=input_coords, count=1)
         handler([action])
-        mock_pyautogui.click.assert_called_once_with(*expected_coords)
+        # Click actions now use moveTo first, then click without coordinates
+        mock_pyautogui.moveTo.assert_called_with(*expected_coords)
+        mock_pyautogui.click.assert_called_once_with()
 
     def test_drag_with_corner_coordinates(self, mock_pyautogui, config):
         """Test drag operations with corner coordinates."""
@@ -300,10 +302,16 @@ class TestCornerCoordinatesHandling:
         with patch.object(sys, "platform", "linux"):
             handler(actions)
 
-            # All corner coordinates should be adjusted
-            mock_pyautogui.doubleClick.assert_called_once_with(1, 1)
-            mock_pyautogui.tripleClick.assert_called_once_with(1919, 1)
-            mock_pyautogui.rightClick.assert_called_once_with(1, 1079)
+            # All click actions now use moveTo first, then click without coordinates
+            # Check moveTo was called with the adjusted corner coordinates
+            moveTo_calls = mock_pyautogui.moveTo.call_args_list
+            assert (1, 1) in [call[0] for call in moveTo_calls]
+            assert (1919, 1) in [call[0] for call in moveTo_calls]
+            assert (1, 1079) in [call[0] for call in moveTo_calls]
+            # Click methods called without coordinates
+            mock_pyautogui.doubleClick.assert_called_once_with()
+            mock_pyautogui.tripleClick.assert_called_once_with()
+            mock_pyautogui.rightClick.assert_called_once_with()
 
 
 class TestCapsLockIntegration:
