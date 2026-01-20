@@ -12,6 +12,9 @@ from dataclasses import dataclass
 
 from oagi.exceptions import check_optional_dependency
 
+# Guard flag to prevent multiple DPI awareness calls on Windows
+_dpi_awareness_set = False
+
 
 @dataclass
 class Screen:
@@ -159,7 +162,14 @@ class ScreenManager:
         DPI-aware will have their coordinates virtualized, causing clicks/moves to
         land at incorrect positions. Enabling DPI awareness ensures PyAutoGUI and mss
         works in physical pixels across all monitors.
+
+        This method is idempotent - subsequent calls after the first successful call
+        will be no-ops.
         """
+        global _dpi_awareness_set
+        if _dpi_awareness_set:
+            return
+
         import ctypes  # noqa: PLC0415
 
         try:
@@ -167,9 +177,11 @@ class ScreenManager:
             # 2 = PROCESS_PER_MONITOR_DPI_AWARE
             PROCESS_PER_MONITOR_DPI_AWARE = 2
             ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
+            _dpi_awareness_set = True
         except Exception:
             try:
                 # Fallback for older Windows versions
                 ctypes.windll.user32.SetProcessDPIAware()
+                _dpi_awareness_set = True
             except Exception:
                 raise RuntimeError("Could not set DPI awareness")

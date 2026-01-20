@@ -237,11 +237,11 @@ def run_agent(args: argparse.Namespace) -> None:
 
     # Create screen manager for multi-screen support
     # Must be initialized before importing pyautogui to ensure correct DPI awareness in Windows
-    screen_index = args.screen_index or 0
     target_screen = None
-    if screen_index:
+    if args.screen_index is not None:
         from oagi.handler import ScreenManager  # noqa: PLC0415
 
+        screen_index = args.screen_index
         screen_manager = ScreenManager()
         all_screens = screen_manager.get_all_screens()
         if screen_index >= len(all_screens) or screen_index < 0:
