@@ -10,6 +10,8 @@
 import sys
 from typing import List
 
+from oagi.exceptions import check_optional_dependency
+
 
 class Screen:
     """
@@ -33,7 +35,7 @@ class Screen:
         self.is_primary = is_primary
 
     def __str__(self):
-        return f"Screen(name={self.name}, x={self.x}, y={self.y}, width={self.width}, height={self.height})"
+        return f"Screen(is_primary={self.is_primary}, name={self.name}, x={self.x}, y={self.y}, width={self.width}, height={self.height})"
 
 
 class ScreenManager:
@@ -42,34 +44,42 @@ class ScreenManager:
     """
 
     def __init__(self):
-        self.screens = {}
+        self.screens = []
         # Enable DPI awareness if on Windows
         if sys.platform == "win32":
             self.enable_windows_dpi_awareness()
 
-    def get_all_screens(self) -> dict[str, Screen]:
+    def get_all_screens(self) -> List[Screen]:
         if self.screens:
             return self.screens
         if sys.platform == "darwin":
-            screens = self.get_darwin_screen_info()
+            screens = self._get_darwin_screen_info()
         elif sys.platform == "win32":
-            screens = self.get_windows_screen_info()
+            screens = self._get_windows_screen_info()
         else:
-            screens = self.get_linux_screen_info()
+            screens = self._get_linux_screen_info()
+        # Find the primary screen
+        primary_screen, alternative_screens = None, []
         for screen in screens:
             if screen.is_primary:
-                self.screens["primary"] = screen
+                primary_screen = screen
             else:
-                self.screens[screen.name] = screen
+                alternative_screens.append(screen)
+        # order the alternative_screens by x coordinate ascending and y coordinate ascending
+        alternative_screens = sorted(
+            alternative_screens, key=lambda item: (item.x, item.y)
+        )
+        self.screens = [primary_screen] + alternative_screens
         return self.screens
 
-    def get_darwin_screen_info(self) -> List[Screen]:
+    def _get_darwin_screen_info(self) -> List[Screen]:
         """
         Get screen information for macOS using AppKit.
 
         Returns:
             List[Screen]: A list of Screen objects representing all detected screens.
         """
+        check_optional_dependency("AppKit", "ScreenManager", "desktop")
         import AppKit  # noqa: PLC0415
 
         # Force the RunLoop to update once
@@ -92,13 +102,14 @@ class ScreenManager:
             screen_list.append(Screen(name, x, y, width, height, x == 0 and y == 0))
         return screen_list
 
-    def get_windows_screen_info(self) -> List[Screen]:
+    def _get_windows_screen_info(self) -> List[Screen]:
         """
          Get screen information for windows using mss.
 
         Returns:
             List[Screen]: A list of Screen objects representing all detected screens.
         """
+        check_optional_dependency("mss", "ScreenManager", "desktop")
         import mss  # noqa: PLC0415
 
         screen_list = []
@@ -115,13 +126,14 @@ class ScreenManager:
             )
         return screen_list
 
-    def get_linux_screen_info(self) -> List[Screen]:
+    def _get_linux_screen_info(self) -> List[Screen]:
         """
         Get screen information for linux and other platform as default.
 
         Returns:
             List[Screen]: A list of Screen objects representing all detected screens.
         """
+        check_optional_dependency("screeninfo", "ScreenManager", "desktop")
         import screeninfo  # noqa: PLC0415
 
         screen_list = []
@@ -138,7 +150,8 @@ class ScreenManager:
             )
         return screen_list
 
-    def enable_windows_dpi_awareness(self):
+    @staticmethod
+    def enable_windows_dpi_awareness():
         """
         Enable per-monitor DPI awareness to fix multi-monitor scaling issues.
 

@@ -21,6 +21,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "AsyncYdotoolActionHandler": "oagi.handler.async_ydotool_action_handler",
     "YdotoolActionHandler": "oagi.handler.ydotool_action_handler",
     "YdotoolConfig": "oagi.handler.ydotool_action_handler",
+    "ScreenManager": "oagi.handler.screen_manager",
 }
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
         PyautoguiActionHandler,
         PyautoguiConfig,
     )
+    from oagi.handler.screen_manager import ScreenManager
     from oagi.handler.screenshot_maker import ScreenshotMaker
     from oagi.handler.ydotool_action_handler import YdotoolActionHandler, YdotoolConfig
 
@@ -60,4 +62,5 @@ __all__ = [
     "YdotoolConfig",
     "YdotoolActionHandler",
     "AsyncYdotoolActionHandler",
+    "ScreenManager",
 ]
