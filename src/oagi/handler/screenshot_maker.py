@@ -23,7 +23,7 @@ class ScreenshotMaker:
         self._last_image: Optional[PILImage] = None
         self.region: Optional[tuple[int, int, int, int]] = None
 
-    def set_target_screen(self, screen: Screen):
+    def set_target_screen(self, screen: Screen) -> None:
         """Set the target screen for screenshotting."""
         self.region = (screen.x, screen.y, screen.width, screen.height)
 

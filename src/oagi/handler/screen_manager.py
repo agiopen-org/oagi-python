@@ -8,11 +8,12 @@
 
 
 import sys
-from typing import List
+from dataclasses import dataclass
 
 from oagi.exceptions import check_optional_dependency
 
 
+@dataclass
 class Screen:
     """
     Screen represents a single display screen.
@@ -26,16 +27,12 @@ class Screen:
         is_primary (bool): True if this is the primary screen, False otherwise.
     """
 
-    def __init__(self, name, x, y, width, height, is_primary=False):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.name = name
-        self.is_primary = is_primary
-
-    def __str__(self):
-        return f"Screen(is_primary={self.is_primary}, name={self.name}, x={self.x}, y={self.y}, width={self.width}, height={self.height})"
+    name: str
+    x: int
+    y: int
+    width: int
+    height: int
+    is_primary: bool = False
 
 
 class ScreenManager:
@@ -49,7 +46,7 @@ class ScreenManager:
         if sys.platform == "win32":
             self.enable_windows_dpi_awareness()
 
-    def get_all_screens(self) -> List[Screen]:
+    def get_all_screens(self) -> list[Screen]:
         if self.screens:
             return self.screens
         if sys.platform == "darwin":
@@ -69,15 +66,18 @@ class ScreenManager:
         alternative_screens = sorted(
             alternative_screens, key=lambda item: (item.x, item.y)
         )
-        self.screens = [primary_screen] + alternative_screens
+        # Add the primary screen to the front of the list if it exists
+        if primary_screen:
+            self.screens = [primary_screen]
+        self.screens += alternative_screens
         return self.screens
 
-    def _get_darwin_screen_info(self) -> List[Screen]:
+    def _get_darwin_screen_info(self) -> list[Screen]:
         """
         Get screen information for macOS using AppKit.
 
         Returns:
-            List[Screen]: A list of Screen objects representing all detected screens.
+            list[Screen]: A list of Screen objects representing all detected screens.
         """
         check_optional_dependency("AppKit", "ScreenManager", "desktop")
         import AppKit  # noqa: PLC0415
@@ -91,7 +91,7 @@ class ScreenManager:
         # Retrieve screen information using AppKit
         screens = AppKit.NSScreen.screens()
         screen_list = []
-        for _, screen in enumerate(screens):
+        for screen in screens:
             frame = screen.frame()
             # Origin (0,0) is bottom-left of the primary screen
             x, y = int(frame.origin.x), int(frame.origin.y)
@@ -102,12 +102,12 @@ class ScreenManager:
             screen_list.append(Screen(name, x, y, width, height, x == 0 and y == 0))
         return screen_list
 
-    def _get_windows_screen_info(self) -> List[Screen]:
+    def _get_windows_screen_info(self) -> list[Screen]:
         """
-         Get screen information for windows using mss.
+        Get screen information for Windows using mss.
 
         Returns:
-            List[Screen]: A list of Screen objects representing all detected screens.
+            list[Screen]: A list of Screen objects representing all detected screens.
         """
         check_optional_dependency("mss", "ScreenManager", "desktop")
         import mss  # noqa: PLC0415
@@ -126,12 +126,12 @@ class ScreenManager:
             )
         return screen_list
 
-    def _get_linux_screen_info(self) -> List[Screen]:
+    def _get_linux_screen_info(self) -> list[Screen]:
         """
-        Get screen information for linux and other platform as default.
+        Get screen information for Linux and other platforms as default.
 
         Returns:
-            List[Screen]: A list of Screen objects representing all detected screens.
+            list[Screen]: A list of Screen objects representing all detected screens.
         """
         check_optional_dependency("screeninfo", "ScreenManager", "desktop")
         import screeninfo  # noqa: PLC0415

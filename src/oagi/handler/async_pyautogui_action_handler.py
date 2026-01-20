@@ -31,7 +31,7 @@ class AsyncPyautoguiActionHandler:
         self.sync_handler = PyautoguiActionHandler(config=config)
         self.config = config or PyautoguiConfig()
 
-    def set_target_screen(self, screen: Screen):
+    def set_target_screen(self, screen: Screen) -> None:
         """Set the target screen for the action handler.
 
         Args:

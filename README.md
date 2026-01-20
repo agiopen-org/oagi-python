@@ -267,7 +267,6 @@ def print_all_screens():
     print("Available screens:")
     for screen_index, screen in enumerate(all_screens):
         print(f"  - Index {screen_index}: {screen}")
-    return
 
 async def main():
     agent = AsyncDefaultAgent(max_steps=10)

@@ -43,7 +43,7 @@ def get_screen_size() -> tuple[int, int]:
     raise Exception("No monitor found, cannot get the screen size info")
 
 
-def screenshot(region: tuple[int, int, int, int] = None) -> Image:
+def screenshot(region: tuple[int, int, int, int] | None = None) -> Image:
     """
     Use Flameshot to take a screenshot and return an Image object
 

@@ -31,7 +31,7 @@ class AsyncYdotoolActionHandler:
         self.config = config or YdotoolConfig()
         self.sync_handler = YdotoolActionHandler(config=self.config)
 
-    def set_target_screen(self, screen: Screen):
+    def set_target_screen(self, screen: Screen) -> None:
         """Set the target screen for the action handler.
 
         Args:

@@ -28,12 +28,11 @@ def print_all_screens():
     print("Available screens:")
     for screen_index, screen in enumerate(all_screens):
         print(f"  - Index {screen_index}: {screen}")
-    return
 
 
 def execute_task_on_specific_screen(task_desc, max_steps=5, screen_index=0):
     """Synchronous wrapper for async task execution."""
-    # Print all screens and choose one screen for task exection
+    # Print all screens and choose one screen for task execution
     return asyncio.run(
         async_execute_task_on_specific_screen(task_desc, max_steps, screen_index)
     )
@@ -48,7 +47,7 @@ async def async_execute_task_on_specific_screen(task_desc, max_steps=5, screen_i
     action_handler = AsyncPyautoguiActionHandler()
     image_provider = AsyncScreenshotMaker()
 
-    # Get the target screen info for task exection
+    # Get the target screen info for task execution
     screen_manager = ScreenManager()
     all_screens = screen_manager.get_all_screens()
     screen = all_screens[screen_index]

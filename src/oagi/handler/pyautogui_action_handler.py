@@ -90,7 +90,7 @@ class PyautoguiActionHandler:
         """
         self.caps_manager.reset()
 
-    def set_target_screen(self, screen: Screen):
+    def set_target_screen(self, screen: Screen) -> None:
         """Set the target screen for the action handler.
 
         Args:

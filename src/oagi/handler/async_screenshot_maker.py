@@ -31,7 +31,7 @@ class AsyncScreenshotMaker:
         self.sync_screenshot_maker = ScreenshotMaker(config=config)
         self.config = config
 
-    def set_target_screen(self, screen: Screen):
+    def set_target_screen(self, screen: Screen) -> None:
         self.sync_screenshot_maker.set_target_screen(screen)
 
     async def __call__(self) -> Image:
