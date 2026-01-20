@@ -139,8 +139,14 @@ oagi agent modes
 # Check macOS permissions (screen recording & accessibility)
 oagi agent permission
 
+# Print all available screens and their indices
+oagi agent screens
+
 # Export execution history
 oagi agent run "Complete the form" --export html --export-file report.html
+
+# Run with a specific screen
+oagi agent run "Search weather on Google" --screen-index 1
 ```
 
 CLI options:
@@ -151,6 +157,7 @@ CLI options:
 - `--step-delay`: Delay after each action before next screenshot (default: 0.3s)
 - `--export`: Export format (markdown, html, json)
 - `--export-file`: Output file path for export
+- `--screen-index`: Screen index for multi-screen environments
 
 ### Image Processing
 
@@ -235,11 +242,61 @@ config = YdotoolConfig(
 action_handler = AsyncYdotoolActionHandler(config=config)
 ```
 
+### Multi-Screen Execution
+When running on multi-screen environments, you can choose which screen to use for task execution. The `ScreenManager` class provides methods to list available screens, while the `AsyncPyautoguiActionHandler` and `AsyncScreenshotMaker` classes allow you to set the target screen for actions and screenshots. In the result of `get_all_screens`, the primary screen is always the first one in the list and the remaining screens are appended in the ascending order of their origin coordinates.
+
+```python
+import asyncio
+import sys
+from oagi import ScreenManager
+
+# Must be initialized before importing pyautogui to ensure correct DPI awareness in Windows
+if sys.platform == "win32":
+    ScreenManager.enable_windows_dpi_awareness()
+
+from oagi import (
+    AsyncDefaultAgent,
+    AsyncPyautoguiActionHandler,
+    AsyncScreenshotMaker,
+)
+
+def print_all_screens():
+    """Print all available screens."""
+    screen_manager = ScreenManager()
+    all_screens = screen_manager.get_all_screens()
+    print("Available screens:")
+    for screen_index, screen in enumerate(all_screens):
+        print(f"  - Index {screen_index}: {screen}")
+
+async def main():
+    agent = AsyncDefaultAgent(max_steps=10)
+    action_handler = AsyncPyautoguiActionHandler()
+    image_provider = AsyncScreenshotMaker()
+    # Get all available screens
+    screen_manager = ScreenManager()
+    all_screens = screen_manager.get_all_screens()
+    # Choose a screen for task execution
+    screen_index = 1  # Use the second screen as example
+    target_screen = all_screens[screen_index]
+    # Set the target screen for handlers
+    action_handler.set_target_screen(target_screen)
+    image_provider.set_target_screen(target_screen)
+    completed = await agent.execute(
+        "Search weather on Google",
+        action_handler=action_handler,
+        image_provider=image_provider,
+    )
+    return completed
+
+asyncio.run(main())
+```
+
 ## Examples
 
 See the [`examples/`](examples/) directory for more usage patterns:
 - `execute_task_auto.py` - Automated task execution with `AsyncDefaultAgent`
 - `execute_task_manual.py` - Manual step-by-step control with `Actor`
+- `multi_screen_execution.py` - Automated task execution on multi-screen environments
 - `continued_session.py` - Continuing tasks across sessions
 - `screenshot_with_config.py` - Image compression and optimization
 - `socketio_server_basic.py` - Socket.IO server example

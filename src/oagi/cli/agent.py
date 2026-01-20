@@ -86,6 +86,11 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         type=float,
         help=f"Delay in seconds after each step before next screenshot (default: {DEFAULT_STEP_DELAY})",
     )
+    run_parser.add_argument(
+        "--screen-index",
+        type=int,
+        help="Choose the index of screen to run the task",
+    )
 
     # agent modes command
     agent_subparsers.add_parser("modes", help="List available agent modes")
@@ -96,6 +101,11 @@ def add_agent_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Check macOS permissions for screen recording and accessibility",
     )
 
+    # agent screens command
+    agent_subparsers.add_parser(
+        "screens", help="List all available screens for agent execution"
+    )
+
 
 def handle_agent_command(args: argparse.Namespace) -> None:
     if args.agent_command == "run":
@@ -104,6 +114,19 @@ def handle_agent_command(args: argparse.Namespace) -> None:
         list_modes()
     elif args.agent_command == "permission":
         check_permissions()
+    elif args.agent_command == "screens":
+        list_screens()
+
+
+def list_screens() -> None:
+    """List all available screens for agent execution."""
+    from oagi import ScreenManager  # noqa: PLC0415
+
+    screen_manager = ScreenManager()
+    screens = screen_manager.get_all_screens()
+    print("Available screens:")
+    for screen_index, screen in enumerate(screens):
+        print(f"  - Index {screen_index}: {screen}")
 
 
 def list_modes() -> None:
@@ -212,6 +235,22 @@ def run_agent(args: argparse.Namespace) -> None:
     from oagi.agent import create_agent  # noqa: PLC0415
     from oagi.handler.wayland_support import is_wayland_display_server  # noqa: PLC0415
 
+    # Create screen manager for multi-screen support
+    # Must be initialized before importing pyautogui to ensure correct DPI awareness in Windows
+    target_screen = None
+    if args.screen_index is not None:
+        from oagi.handler import ScreenManager  # noqa: PLC0415
+
+        screen_index = args.screen_index
+        screen_manager = ScreenManager()
+        all_screens = screen_manager.get_all_screens()
+        if screen_index >= len(all_screens) or screen_index < 0:
+            raise ValueError(
+                f"Error: Screen index {screen_index} not found. Available screen indices: {list(range(len(all_screens)))}"
+            )
+        target_screen = all_screens[screen_index]
+        print(f"Target screen: {target_screen}")
+
     # Select appropriate action handler based on display server
     if is_wayland_display_server():
         check_optional_dependency("screeninfo", "Agent execution (Wayland)", "desktop")
@@ -279,6 +318,11 @@ def run_agent(args: argparse.Namespace) -> None:
 
     # Create image provider
     image_provider = AsyncScreenshotMaker()
+
+    if target_screen:
+        # Set the target screen for the image and action provider
+        image_provider.set_target_screen(target_screen)
+        action_handler.set_target_screen(target_screen)
 
     if args.instruction:
         print(f"Starting agent with instruction: {args.instruction}")

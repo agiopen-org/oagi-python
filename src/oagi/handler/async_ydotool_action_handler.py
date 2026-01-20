@@ -8,6 +8,8 @@
 
 import asyncio
 
+from oagi.handler.screen_manager import Screen
+
 from ..types import Action
 from .ydotool_action_handler import YdotoolActionHandler, YdotoolConfig
 
@@ -28,6 +30,14 @@ class AsyncYdotoolActionHandler:
         """
         self.config = config or YdotoolConfig()
         self.sync_handler = YdotoolActionHandler(config=self.config)
+
+    def set_target_screen(self, screen: Screen) -> None:
+        """Set the target screen for the action handler.
+
+        Args:
+            screen (Screen): The screen object to set as the target.
+        """
+        self.sync_handler.set_target_screen(screen)
 
     def reset(self):
         """Reset handler state.

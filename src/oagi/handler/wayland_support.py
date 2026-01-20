@@ -43,7 +43,7 @@ def get_screen_size() -> tuple[int, int]:
     raise Exception("No monitor found, cannot get the screen size info")
 
 
-def screenshot() -> Image:
+def screenshot(region: tuple[int, int, int, int] | None = None) -> Image:
     """
     Use Flameshot to take a screenshot and return an Image object
 
@@ -52,7 +52,11 @@ def screenshot() -> Image:
     # Check if flameshot is installed
     if shutil.which("flameshot") is None:
         raise RuntimeError("flameshot not found. Ensure it is installed and in PATH.")
-    cmd = ["flameshot", "full", "--region", "all", "--raw"]
+    cmd = ["flameshot", "full", "--raw"]
+    if region:
+        cmd.extend(["--region", f"{region[2]}x{region[3]}+{region[0]}+{region[1]}"])
+    else:
+        cmd.extend(["--region", "all"])
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if res.returncode != 0:
         raise RuntimeError(

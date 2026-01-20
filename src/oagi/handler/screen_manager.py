@@ -1,0 +1,187 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) OpenAGI Foundation
+#  All rights reserved.
+#
+#  This file is part of the official API project.
+#  Licensed under the MIT License.
+# -----------------------------------------------------------------------------
+
+
+import sys
+from dataclasses import dataclass
+
+from oagi.exceptions import check_optional_dependency
+
+# Guard flag to prevent multiple DPI awareness calls on Windows
+_dpi_awareness_set = False
+
+
+@dataclass
+class Screen:
+    """
+    Screen represents a single display screen.
+
+    Attributes:
+        name (str): The name of the screen.
+        x (int): The x-coordinate of the top-left corner of the screen.
+        y (int): The y-coordinate of the top-left corner of the screen.
+        width (int): The width of the screen in pixels.
+        height (int): The height of the screen in pixels.
+        is_primary (bool): True if this is the primary screen, False otherwise.
+    """
+
+    name: str
+    x: int
+    y: int
+    width: int
+    height: int
+    is_primary: bool = False
+
+
+class ScreenManager:
+    """
+    ScreenManager is responsible for detecting and managing screens.
+    """
+
+    def __init__(self):
+        self.screens = []
+        # Enable DPI awareness if on Windows
+        if sys.platform == "win32":
+            self.enable_windows_dpi_awareness()
+
+    def get_all_screens(self) -> list[Screen]:
+        if self.screens:
+            return self.screens
+        if sys.platform == "darwin":
+            screens = self._get_darwin_screen_info()
+        elif sys.platform == "win32":
+            screens = self._get_windows_screen_info()
+        else:
+            screens = self._get_linux_screen_info()
+        # Find the primary screen
+        primary_screen, alternative_screens = None, []
+        for screen in screens:
+            if screen.is_primary:
+                primary_screen = screen
+            else:
+                alternative_screens.append(screen)
+        # order the alternative_screens by x coordinate ascending and y coordinate ascending
+        alternative_screens = sorted(
+            alternative_screens, key=lambda item: (item.x, item.y)
+        )
+        # Add the primary screen to the front of the list if it exists
+        if primary_screen:
+            self.screens = [primary_screen]
+        self.screens += alternative_screens
+        return self.screens
+
+    def _get_darwin_screen_info(self) -> list[Screen]:
+        """
+        Get screen information for macOS using AppKit.
+
+        Returns:
+            list[Screen]: A list of Screen objects representing all detected screens.
+        """
+        check_optional_dependency("AppKit", "ScreenManager", "desktop")
+        import AppKit  # noqa: PLC0415
+
+        # Force the RunLoop to update once
+        # This "accepts input" which forces macOS to update screen geometry
+        loop = AppKit.NSRunLoop.currentRunLoop()
+        loop.acceptInputForMode_beforeDate_(
+            AppKit.NSDefaultRunLoopMode, AppKit.NSDate.distantPast()
+        )
+        # Retrieve screen information using AppKit
+        screens = AppKit.NSScreen.screens()
+        screen_list = []
+        for screen in screens:
+            frame = screen.frame()
+            # Origin (0,0) is bottom-left of the primary screen
+            x, y = int(frame.origin.x), int(frame.origin.y)
+            width, height = int(frame.size.width), int(frame.size.height)
+            name = screen.localizedName()
+            # Normalize the origin to Top-Left
+            y = int(AppKit.NSScreen.screens()[0].frame().size.height) - (y + height)
+            screen_list.append(Screen(name, x, y, width, height, x == 0 and y == 0))
+        return screen_list
+
+    def _get_windows_screen_info(self) -> list[Screen]:
+        """
+        Get screen information for Windows using mss.
+
+        Returns:
+            list[Screen]: A list of Screen objects representing all detected screens.
+        """
+        check_optional_dependency("mss", "ScreenManager", "desktop")
+        import mss  # noqa: PLC0415
+
+        screen_list = []
+        for index, screen in enumerate(mss.mss().monitors[1:]):
+            screen_list.append(
+                Screen(
+                    f"DISPLAY{index}",
+                    screen["left"],
+                    screen["top"],
+                    screen["width"],
+                    screen["height"],
+                    screen["top"] == 0 and screen["left"] == 0,
+                )
+            )
+        return screen_list
+
+    def _get_linux_screen_info(self) -> list[Screen]:
+        """
+        Get screen information for Linux and other platforms as default.
+
+        Returns:
+            list[Screen]: A list of Screen objects representing all detected screens.
+        """
+        check_optional_dependency("screeninfo", "ScreenManager", "desktop")
+        import screeninfo  # noqa: PLC0415
+
+        screen_list = []
+        for screen in screeninfo.get_monitors():
+            screen_list.append(
+                Screen(
+                    screen.name,
+                    screen.x,
+                    screen.y,
+                    screen.width,
+                    screen.height,
+                    screen.is_primary,
+                )
+            )
+        return screen_list
+
+    @staticmethod
+    def enable_windows_dpi_awareness():
+        """
+        Enable per-monitor DPI awareness to fix multi-monitor scaling issues.
+
+        On Windows with mixed scaling between monitors, applications that are not
+        DPI-aware will have their coordinates virtualized, causing clicks/moves to
+        land at incorrect positions. Enabling DPI awareness ensures PyAutoGUI and mss
+        works in physical pixels across all monitors.
+
+        This method is idempotent - subsequent calls after the first successful call
+        will be no-ops.
+        """
+        global _dpi_awareness_set
+        if _dpi_awareness_set:
+            return
+
+        import ctypes  # noqa: PLC0415
+
+        try:
+            # For Windows 8.1 and Windows 10/11
+            # 2 = PROCESS_PER_MONITOR_DPI_AWARE
+            PROCESS_PER_MONITOR_DPI_AWARE = 2
+            ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
+            _dpi_awareness_set = True
+        except Exception:
+            try:
+                # Fallback for older Windows versions
+                ctypes.windll.user32.SetProcessDPIAware()
+                _dpi_awareness_set = True
+            except Exception:
+                raise RuntimeError("Could not set DPI awareness")

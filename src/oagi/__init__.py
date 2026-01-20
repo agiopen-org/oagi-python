@@ -81,6 +81,7 @@ _LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
         "screeninfo",
         "desktop",
     ),
+    "ScreenManager": ("oagi.handler.screen_manager", None, None),
 }
 
 if TYPE_CHECKING:
@@ -95,6 +96,7 @@ if TYPE_CHECKING:
         PyautoguiActionHandler,
         PyautoguiConfig,
     )
+    from oagi.handler.screen_manager import ScreenManager
     from oagi.handler.screenshot_maker import ScreenshotMaker
     from oagi.handler.ydotool_action_handler import YdotoolActionHandler, YdotoolConfig
     from oagi.server.config import ServerConfig
@@ -170,4 +172,6 @@ __all__ = [
     "AsyncYdotoolActionHandler",
     "YdotoolActionHandler",
     "YdotoolConfig",
+    # Lazy imports - Screen manager
+    "ScreenManager",
 ]

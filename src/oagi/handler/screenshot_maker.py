@@ -8,6 +8,8 @@
 
 from typing import Optional
 
+from oagi.handler.screen_manager import Screen
+
 from ..types import Image
 from ..types.models.image_config import ImageConfig
 from .pil_image import PILImage
@@ -19,11 +21,16 @@ class ScreenshotMaker:
     def __init__(self, config: ImageConfig | None = None):
         self.config = config or ImageConfig()
         self._last_image: Optional[PILImage] = None
+        self.region: Optional[tuple[int, int, int, int]] = None
+
+    def set_target_screen(self, screen: Screen) -> None:
+        """Set the target screen for screenshotting."""
+        self.region = (screen.x, screen.y, screen.width, screen.height)
 
     def __call__(self) -> Image:
         """Take and process a screenshot."""
         # Create PILImage from screenshot
-        pil_image = PILImage.from_screenshot()
+        pil_image = PILImage.from_screenshot(region=self.region)
 
         # Apply transformation if config is set
         if self.config:

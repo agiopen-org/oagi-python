@@ -7,6 +7,7 @@
 # -----------------------------------------------------------------------------
 
 import io
+import sys
 
 from ..exceptions import check_optional_dependency
 from ..types.models.image_config import ImageConfig
@@ -39,17 +40,47 @@ class PILImage:
         return cls(image, config)
 
     @classmethod
-    def from_screenshot(cls, config: ImageConfig | None = None) -> "PILImage":
-        """Create PILImage from screenshot."""
+    def from_screenshot(
+        cls,
+        config: ImageConfig | None = None,
+        region: tuple[int, int, int, int] | None = None,
+    ) -> "PILImage":
+        """Create PILImage from screenshot.
+
+        Args:
+            config: ImageConfig for transformations
+            region: Optional (x, y, width, height) tuple for cropping
+        """
         # Use flameshot by default in Wayland display environment
         if is_wayland_display_server():
-            return cls(wayland_screenshot(), config)
+            return cls(wayland_screenshot(region=region), config)
 
         # Lazy import to avoid DISPLAY issues in headless environments
         check_optional_dependency("pyautogui", "PILImage.from_screenshot()", "desktop")
         import pyautogui  # noqa: PLC0415
 
-        screenshot = pyautogui.screenshot()
+        if sys.platform == "win32" and region is not None:
+            # Use mss instead of pyautogui for screenshots in multi-monitor Windows setups
+            import mss  # noqa: PLC0415
+
+            with mss.mss() as sct:
+                screenshot_data = sct.grab(
+                    {
+                        "top": region[1],
+                        "left": region[0],
+                        "width": region[2],
+                        "height": region[3],
+                    }
+                )
+                screenshot = PILImageLib.frombytes(
+                    "RGB",
+                    screenshot_data.size,
+                    screenshot_data.bgra,
+                    "raw",
+                    "BGRX",
+                )
+        else:
+            screenshot = pyautogui.screenshot(region=region)
         return cls(screenshot, config)
 
     def transform(self, config: ImageConfig) -> "PILImage":
