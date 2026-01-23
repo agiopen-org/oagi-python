@@ -29,7 +29,8 @@ class AsyncPyautoguiActionHandler:
             config: PyautoguiConfig instance for customizing behavior
         """
         self.sync_handler = PyautoguiActionHandler(config=config)
-        self.config = config or PyautoguiConfig()
+        # Share the same config object so configure_handler_delay() works
+        self.config = self.sync_handler.config
 
     def set_target_screen(self, screen: Screen) -> None:
         """Set the target screen for the action handler.

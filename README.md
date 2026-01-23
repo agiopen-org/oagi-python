@@ -108,12 +108,15 @@ from oagi import AsyncPyautoguiActionHandler, PyautoguiConfig
 
 # Customize action behavior
 config = PyautoguiConfig(
-    drag_duration=1.0,      # Slower drags for precision (default: 0.5)
-    scroll_amount=50,       # Larger scroll steps (default: 30)
-    wait_duration=2.0,      # Longer waits (default: 1.0)
-    action_pause=0.2,       # More pause between actions (default: 0.1)
-    hotkey_interval=0.1,    # Interval between keys in hotkey combinations (default: 0.1)
-    capslock_mode="session" # Caps lock mode: 'session' or 'system' (default: 'session')
+    drag_duration=1.0,       # Slower drags for precision (default: 0.5)
+    scroll_amount=50,        # Larger scroll steps (default: 2 on macOS, 100 on others)
+    wait_duration=2.0,       # Longer waits for WAIT action (default: 1.0)
+    action_pause=0.2,        # Pause between PyAutoGUI calls (default: 0.1)
+    hotkey_interval=0.1,     # Interval between keys in hotkey combos (default: 0.1)
+    capslock_mode="session", # Caps lock mode: 'session' or 'system' (default: 'session')
+    macos_ctrl_to_cmd=True,  # Replace ctrl with cmd on macOS (default: True)
+    click_pre_delay=0.1,     # Delay after move before click (default: 0.1)
+    post_batch_delay=1.0,    # Delay after actions before next screenshot (default: 1.0)
 )
 
 action_handler = AsyncPyautoguiActionHandler(config=config)
@@ -233,10 +236,11 @@ from oagi import AsyncYdotoolActionHandler, YdotoolConfig
 # Customize action behavior
 config = YdotoolConfig(
     scroll_amount=50,        # Larger scroll steps (default: 20)
-    wait_duration=2.0,       # Longer waits (default: 1.0)
-    action_pause=1.0,        # More pause between actions (default: 0.5)
+    wait_duration=2.0,       # Longer waits for WAIT action (default: 1.0)
+    action_pause=1.0,        # Pause between Ydotool calls (default: 0.5)
     capslock_mode="session", # Caps lock mode: 'session' or 'system' (default: 'session')
-    socket_address="/tmp/ydotool.sock"  # Customized Socket address for ydotool (ydotool uses 'YDOTOOL_SOCKET' environment variable by default)
+    socket_address="/tmp/ydotool.sock",  # Custom socket address (default: YDOTOOL_SOCKET env var)
+    post_batch_delay=1.0,    # Delay after actions before next screenshot (default: 1.0)
 )
 
 action_handler = AsyncYdotoolActionHandler(config=config)

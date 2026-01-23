@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from oagi.handler.screen_manager import Screen
 
+from ..constants import DEFAULT_STEP_DELAY
 from ..exceptions import check_optional_dependency
 from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
 from .capslock_manager import CapsLockManager
@@ -56,6 +57,12 @@ class PyautoguiConfig(BaseModel):
     click_pre_delay: float = Field(
         default=0.1,
         description="Delay in seconds after moving to position before clicking",
+    )
+    post_batch_delay: float = Field(
+        default=DEFAULT_STEP_DELAY,
+        ge=0,
+        description="Delay after executing all actions in a batch (seconds). "
+        "Allows UI to settle before next screenshot.",
     )
 
 
@@ -292,3 +299,7 @@ class PyautoguiActionHandler:
             except Exception as e:
                 print(f"Error executing action {action.type}: {e}")
                 raise
+
+        # Wait after batch for UI to settle before next screenshot
+        if self.config.post_batch_delay > 0:
+            time.sleep(self.config.post_batch_delay)

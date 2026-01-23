@@ -17,6 +17,7 @@ from oagi.handler.pyautogui_action_handler import (
     PyautoguiActionHandler,
     PyautoguiConfig,
 )
+from oagi.handler.utils import configure_handler_delay
 from oagi.types import Action, ActionType
 
 
@@ -29,12 +30,14 @@ def mock_pyautogui():
 
 @pytest.fixture
 def config():
-    return PyautoguiConfig()
+    # Disable post_batch_delay to avoid sleeping in tests
+    return PyautoguiConfig(post_batch_delay=0)
 
 
 @pytest.fixture
 def handler(mock_pyautogui):
-    return PyautoguiActionHandler()
+    # Disable post_batch_delay to avoid sleeping in tests
+    return PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
 
 
 @pytest.mark.parametrize(
@@ -109,6 +112,7 @@ def test_wait_action(handler, mock_pyautogui, config):
     with patch("time.sleep") as mock_sleep:
         action = Action(type=ActionType.WAIT, argument="", count=1)
         handler([action])
+        # wait_duration calls time.sleep (post_batch_delay is 0 in test fixture)
         mock_sleep.assert_called_once_with(config.wait_duration)
 
 
@@ -259,7 +263,7 @@ class TestCornerCoordinatesHandling:
     def test_corner_coordinate_adjustment(
         self, mock_pyautogui, input_coords, expected_coords
     ):
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
         action = Action(type=ActionType.CLICK, argument=input_coords, count=1)
         handler([action])
         # Click actions now use moveTo first, then click without coordinates
@@ -268,7 +272,7 @@ class TestCornerCoordinatesHandling:
 
     def test_drag_with_corner_coordinates(self, mock_pyautogui, config):
         """Test drag operations with corner coordinates."""
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=config)
         # Drag from top-left corner to bottom-right corner
         action = Action(type=ActionType.DRAG, argument="0, 0, 1000, 1000", count=1)
         handler([action])
@@ -281,7 +285,7 @@ class TestCornerCoordinatesHandling:
 
     def test_scroll_with_corner_coordinates(self, mock_pyautogui, config):
         """Test scroll operations at corner coordinates."""
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=config)
         action = Action(type=ActionType.SCROLL, argument="0, 0, up", count=1)
         handler([action])
 
@@ -291,7 +295,7 @@ class TestCornerCoordinatesHandling:
 
     def test_multiple_clicks_at_corners(self, mock_pyautogui):
         """Test multiple clicks at corner positions."""
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
         actions = [
             Action(type=ActionType.LEFT_DOUBLE, argument="0, 0", count=1),
             Action(type=ActionType.LEFT_TRIPLE, argument="1000, 0", count=1),
@@ -316,7 +320,7 @@ class TestCornerCoordinatesHandling:
 
 class TestCapsLockIntegration:
     def test_caps_lock_key_normalization(self, mock_pyautogui):
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
 
         # Test different caps lock variations
         for variant in ["caps", "caps_lock", "capslock"]:
@@ -324,7 +328,7 @@ class TestCapsLockIntegration:
             assert keys == ["capslock"]
 
     def test_caps_lock_session_mode(self, mock_pyautogui):
-        config = PyautoguiConfig(capslock_mode="session")
+        config = PyautoguiConfig(capslock_mode="session", post_batch_delay=0)
         handler = PyautoguiActionHandler(config=config)
 
         # Mock platform as Linux to use pyautogui.typewrite fallback
@@ -347,7 +351,7 @@ class TestCapsLockIntegration:
             mock_pyautogui.typewrite.assert_called_with("TEST")
 
     def test_caps_lock_system_mode(self, mock_pyautogui):
-        config = PyautoguiConfig(capslock_mode="system")
+        config = PyautoguiConfig(capslock_mode="system", post_batch_delay=0)
         handler = PyautoguiActionHandler(config=config)
 
         # Toggle caps lock in system mode
@@ -366,7 +370,7 @@ class TestCapsLockIntegration:
 
     def test_regular_hotkey_not_affected(self, mock_pyautogui):
         # Disable macos_ctrl_to_cmd to test basic hotkey functionality
-        config = PyautoguiConfig(macos_ctrl_to_cmd=False)
+        config = PyautoguiConfig(macos_ctrl_to_cmd=False, post_batch_delay=0)
         handler = PyautoguiActionHandler(config=config)
 
         # Regular hotkeys should work normally
@@ -378,14 +382,14 @@ class TestCapsLockIntegration:
 class TestMacosCtrlToCmd:
     @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
     def test_ctrl_remapped_to_command_on_macos_by_default(self, mock_pyautogui):
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
         action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
         handler([action])
         mock_pyautogui.hotkey.assert_called_once_with("command", "c", interval=0.1)
 
     @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
     def test_ctrl_not_remapped_when_disabled(self, mock_pyautogui):
-        config = PyautoguiConfig(macos_ctrl_to_cmd=False)
+        config = PyautoguiConfig(macos_ctrl_to_cmd=False, post_batch_delay=0)
         handler = PyautoguiActionHandler(config=config)
         action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
         handler([action])
@@ -393,7 +397,7 @@ class TestMacosCtrlToCmd:
 
     @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
     def test_multiple_keys_with_ctrl_remapped(self, mock_pyautogui):
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
         action = Action(type=ActionType.HOTKEY, argument="ctrl+shift+a", count=1)
         handler([action])
         mock_pyautogui.hotkey.assert_called_once_with(
@@ -402,20 +406,20 @@ class TestMacosCtrlToCmd:
 
     @pytest.mark.skipif(sys.platform != "darwin", reason="macOS-specific test")
     def test_cmd_not_affected_on_macos(self, mock_pyautogui):
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
         action = Action(type=ActionType.HOTKEY, argument="cmd+v", count=1)
         handler([action])
         mock_pyautogui.hotkey.assert_called_once_with("cmd", "v", interval=0.1)
 
     def test_ctrl_not_remapped_on_non_macos(self, mock_pyautogui):
         with patch.object(sys, "platform", "linux"):
-            handler = PyautoguiActionHandler()
+            handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
             action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
             handler([action])
             mock_pyautogui.hotkey.assert_called_once_with("ctrl", "c", interval=0.1)
 
     def test_other_keys_not_affected(self, mock_pyautogui):
-        handler = PyautoguiActionHandler()
+        handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
         action = Action(type=ActionType.HOTKEY, argument="shift+tab", count=1)
         handler([action])
         mock_pyautogui.hotkey.assert_called_once_with("shift", "tab", interval=0.1)
@@ -423,7 +427,7 @@ class TestMacosCtrlToCmd:
 
 class TestHandlerReset:
     def test_handler_reset_resets_capslock_state(self, mock_pyautogui):
-        config = PyautoguiConfig(capslock_mode="session")
+        config = PyautoguiConfig(capslock_mode="session", post_batch_delay=0)
         handler = PyautoguiActionHandler(config=config)
 
         # Enable caps lock via hotkey
@@ -436,7 +440,7 @@ class TestHandlerReset:
         assert handler.caps_manager.caps_enabled is False
 
     def test_finish_action_resets_handler(self, mock_pyautogui):
-        config = PyautoguiConfig(capslock_mode="session")
+        config = PyautoguiConfig(capslock_mode="session", post_batch_delay=0)
         handler = PyautoguiActionHandler(config=config)
 
         # Enable caps lock
@@ -452,7 +456,7 @@ class TestHandlerReset:
 
 class TestAsyncHandlerReset:
     def test_async_handler_reset_delegates_to_sync_handler(self, mock_pyautogui):
-        config = PyautoguiConfig(capslock_mode="session")
+        config = PyautoguiConfig(capslock_mode="session", post_batch_delay=0)
         handler = AsyncPyautoguiActionHandler(config=config)
 
         # Enable caps lock on the underlying sync handler
@@ -462,3 +466,27 @@ class TestAsyncHandlerReset:
         # Reset via async handler
         handler.reset()
         assert handler.sync_handler.caps_manager.caps_enabled is False
+
+
+class TestConfigureHandlerDelay:
+    def test_configure_handler_delay(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+        original_delay = handler.config.post_batch_delay
+
+        configure_handler_delay(handler, 3.0)
+        assert handler.config.post_batch_delay == 3.0
+        assert handler.config.post_batch_delay != original_delay
+
+    def test_configure_handler_delay_with_zero(self, mock_pyautogui):
+        handler = PyautoguiActionHandler()
+        configure_handler_delay(handler, 0)
+        assert handler.config.post_batch_delay == 0
+
+    def test_configure_handler_delay_ignores_incompatible_handler(self):
+        # A handler without config attribute
+        class DummyHandler:
+            pass
+
+        handler = DummyHandler()
+        # Should not raise
+        configure_handler_delay(handler, 1.0)

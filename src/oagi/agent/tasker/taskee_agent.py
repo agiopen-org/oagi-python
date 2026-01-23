@@ -6,7 +6,6 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-import asyncio
 import logging
 from datetime import datetime
 from typing import Any
@@ -19,7 +18,7 @@ from oagi.constants import (
     DEFAULT_TEMPERATURE,
     MODEL_ACTOR,
 )
-from oagi.handler.utils import reset_handler
+from oagi.handler.utils import configure_handler_delay, reset_handler
 from oagi.types import (
     URL,
     ActionEvent,
@@ -125,6 +124,9 @@ class TaskeeAgent(AsyncAgent):
         """
         # Reset handler state at todo execution start
         reset_handler(action_handler)
+
+        # Configure handler's post_batch_delay from agent's step_delay
+        configure_handler_delay(action_handler, self.step_delay)
 
         self.current_todo = instruction
         self.actions = []
@@ -354,10 +356,6 @@ class TaskeeAgent(AsyncAgent):
 
                 self.total_actions += len(step.actions)
                 self.since_reflection += len(step.actions)
-
-            # Wait after actions before next screenshot
-            if self.step_delay > 0:
-                await asyncio.sleep(self.step_delay)
 
             steps_taken += 1
 

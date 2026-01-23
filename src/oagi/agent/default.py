@@ -6,7 +6,6 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-import asyncio
 import logging
 
 from .. import AsyncActor
@@ -16,7 +15,7 @@ from ..constants import (
     DEFAULT_TEMPERATURE,
     MODEL_ACTOR,
 )
-from ..handler.utils import reset_handler
+from ..handler.utils import configure_handler_delay, reset_handler
 from ..types import (
     ActionEvent,
     AsyncActionHandler,
@@ -72,6 +71,9 @@ class AsyncDefaultAgent:
             # Reset handler state at automation start
             reset_handler(action_handler)
 
+            # Configure handler's post_batch_delay from agent's step_delay
+            configure_handler_delay(action_handler, self.step_delay)
+
             for i in range(self.max_steps):
                 step_num = i + 1
                 logger.debug(f"Executing step {step_num}/{self.max_steps}")
@@ -126,10 +128,6 @@ class AsyncDefaultAgent:
                                 error=error,
                             )
                         )
-
-                # Wait after actions before next screenshot
-                if self.step_delay > 0:
-                    await asyncio.sleep(self.step_delay)
 
                 # Check if task is complete
                 if step.stop:

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from oagi.handler.screen_manager import Screen
 
+from ..constants import DEFAULT_STEP_DELAY
 from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
 from .capslock_manager import CapsLockManager
 from .wayland_support import Ydotool, get_screen_size
@@ -37,6 +38,12 @@ class YdotoolConfig(BaseModel):
     socket_address: str = Field(
         default="",
         description="Custom socket address for ydotool (e.g., '/tmp/ydotool.sock')",
+    )
+    post_batch_delay: float = Field(
+        default=DEFAULT_STEP_DELAY,
+        ge=0,
+        description="Delay after executing all actions in a batch (seconds). "
+        "Allows UI to settle before next screenshot.",
     )
 
 
@@ -241,3 +248,7 @@ class YdotoolActionHandler(Ydotool):
             except Exception as e:
                 print(f"Error executing action {action.type}: {e}")
                 raise
+
+        # Wait after batch for UI to settle before next screenshot
+        if self.config.post_batch_delay > 0:
+            time.sleep(self.config.post_batch_delay)

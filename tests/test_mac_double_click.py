@@ -17,7 +17,10 @@ if sys.platform != "darwin":
     )
 
 from oagi.handler import _macos  # noqa: E402
-from oagi.handler.pyautogui_action_handler import PyautoguiActionHandler
+from oagi.handler.pyautogui_action_handler import (
+    PyautoguiActionHandler,
+    PyautoguiConfig,
+)
 from oagi.types import Action, ActionType
 
 
@@ -77,7 +80,7 @@ def test_macos_click_implementation(mock_quartz):
 
 def test_handler_calls_macos_click_double(mock_pyautogui):
     """Test that handler calls macos_click for double click on macOS."""
-    handler = PyautoguiActionHandler()
+    handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
     action = Action(type=ActionType.LEFT_DOUBLE, argument="500, 500", count=1)
 
     with (
@@ -92,7 +95,7 @@ def test_handler_calls_macos_click_double(mock_pyautogui):
 
 def test_handler_calls_macos_click_triple(mock_pyautogui):
     """Test that handler calls macos_click for triple click on macOS."""
-    handler = PyautoguiActionHandler()
+    handler = PyautoguiActionHandler(config=PyautoguiConfig(post_batch_delay=0))
     action = Action(type=ActionType.LEFT_TRIPLE, argument="500, 500", count=1)
 
     with (
