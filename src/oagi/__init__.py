@@ -40,12 +40,6 @@ from oagi.types.models import (
 _LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
     # Action converters (no optional dependencies)
     "OagiActionConverter": ("oagi.converters.oagi", None, None),
-    "ClaudeActionConverter": ("oagi.converters.claude", None, None),
-    "Qwen3ActionConverter": ("oagi.converters.qwen3", None, None),
-    "GeminiActionConverter": ("oagi.converters.gemini", None, None),
-    "ClaudeAction": ("oagi.converters.models", None, None),
-    "Qwen3Action": ("oagi.converters.models", None, None),
-    "GeminiAction": ("oagi.converters.models", None, None),
     "ConverterConfig": ("oagi.converters.base", None, None),
     "BaseActionConverter": ("oagi.converters.base", None, None),
     # Desktop handlers (require pyautogui/PIL)
@@ -99,11 +93,7 @@ if TYPE_CHECKING:
     from oagi.agent.observer.agent_observer import AsyncAgentObserver
     from oagi.agent.tasker import TaskerAgent
     from oagi.converters.base import BaseActionConverter, ConverterConfig
-    from oagi.converters.claude import ClaudeActionConverter
-    from oagi.converters.gemini import GeminiActionConverter
-    from oagi.converters.models import ClaudeAction, GeminiAction, Qwen3Action
     from oagi.converters.oagi import OagiActionConverter
-    from oagi.converters.qwen3 import Qwen3ActionConverter
     from oagi.handler.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
     from oagi.handler.async_screenshot_maker import AsyncScreenshotMaker
     from oagi.handler.async_ydotool_action_handler import AsyncYdotoolActionHandler
@@ -192,12 +182,6 @@ __all__ = [
     "ScreenManager",
     # Lazy imports - Action converters
     "OagiActionConverter",
-    "ClaudeActionConverter",
-    "Qwen3ActionConverter",
-    "GeminiActionConverter",
-    "ClaudeAction",
-    "Qwen3Action",
-    "GeminiAction",
     "ConverterConfig",
     "BaseActionConverter",
 ]
