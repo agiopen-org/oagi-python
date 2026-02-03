@@ -18,15 +18,20 @@ import sys
 # =============================================================================
 
 # Minimal key mapping - only normalizes common variations to pyautogui names
-# Matches original PyautoguiActionHandler.hotkey_variations_mapping behavior
+# Matches original PyautoguiActionHandler.hotkey_variations_mapping behavior exactly:
+#   "capslock": ["caps_lock", "caps", "capslock"] -> capslock
+#   "pgup": ["page_up", "pageup"] -> pgup
+#   "pgdn": ["page_down", "pagedown"] -> pgdn
 KEY_MAP: dict[str, str] = {
-    # Caps lock variations
+    # Caps lock variations -> capslock
     "caps_lock": "capslock",
     "caps": "capslock",
-    # Page up variations
-    "page_up": "pageup",
-    # Page down variations
-    "page_down": "pagedown",
+    # Page up variations -> pgup (short form, matching original)
+    "page_up": "pgup",
+    "pageup": "pgup",
+    # Page down variations -> pgdn (short form, matching original)
+    "page_down": "pgdn",
+    "pagedown": "pgdn",
 }
 
 # Valid pyautogui key names
