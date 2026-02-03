@@ -50,8 +50,7 @@ class TestDragAction:
         assert len(result) == 2
         assert "pyautogui.moveTo(192, 108)" in result[0]
         assert (
-            f"pyautogui.dragTo(960, 324, duration={config.drag_duration})"
-            in result[1]
+            f"pyautogui.dragTo(960, 324, duration={config.drag_duration})" in result[1]
         )
 
 
