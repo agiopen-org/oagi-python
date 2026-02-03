@@ -301,6 +301,7 @@ class CoordinateScaler:
         *,
         clamp: bool = True,
         prevent_failsafe: bool = False,
+        strict: bool = False,
     ) -> tuple[int, int]:
         """Scale coordinates from source to target space.
 
@@ -310,10 +311,28 @@ class CoordinateScaler:
             clamp: If True, clamp to valid target range
             prevent_failsafe: If True, offset corner coordinates by 1 pixel
                              (prevents PyAutoGUI fail-safe trigger)
+            strict: If True, raise ValueError when coordinates are outside
+                   valid source range [0, source_width] x [0, source_height]
 
         Returns:
             Tuple of (target_x, target_y) in target coordinate space
+
+        Raises:
+            ValueError: If strict=True and coordinates are outside valid range
         """
+        # Strict validation: check if coordinates are in valid source range
+        if strict:
+            if x < 0 or x > self.source_width:
+                raise ValueError(
+                    f"x coordinate {x} out of valid range [0, {self.source_width}]. "
+                    f"Coordinates must be normalized between 0 and {self.source_width}."
+                )
+            if y < 0 or y > self.source_height:
+                raise ValueError(
+                    f"y coordinate {y} out of valid range [0, {self.source_height}]. "
+                    f"Coordinates must be normalized between 0 and {self.source_height}."
+                )
+
         scaled_x = round(x * self.scale_x)
         scaled_y = round(y * self.scale_y)
 
@@ -456,6 +475,7 @@ def parse_click_coords(
     scaler: CoordinateScaler,
     *,
     prevent_failsafe: bool = False,
+    strict: bool = False,
 ) -> tuple[int, int]:
     """Parse click coordinates from argument string.
 
@@ -463,12 +483,13 @@ def parse_click_coords(
         argument: Coordinate string in format "x, y"
         scaler: CoordinateScaler instance for coordinate transformation
         prevent_failsafe: If True, offset corner coordinates
+        strict: If True, raise ValueError for out-of-range coordinates
 
     Returns:
         Tuple of (x, y) in target coordinate space
 
     Raises:
-        ValueError: If coordinate format is invalid
+        ValueError: If coordinate format is invalid or (strict=True) out of range
     """
     # Check for common format errors
     if " and " in argument.lower() or " then " in argument.lower():
@@ -487,7 +508,7 @@ def parse_click_coords(
     try:
         x = float(parts[0].strip())
         y = float(parts[1].strip())
-        return scaler.scale(x, y, prevent_failsafe=prevent_failsafe)
+        return scaler.scale(x, y, prevent_failsafe=prevent_failsafe, strict=strict)
     except (ValueError, IndexError) as e:
         raise ValueError(
             f"Failed to parse click coords '{argument}': {e}. "
@@ -500,6 +521,7 @@ def parse_drag_coords(
     scaler: CoordinateScaler,
     *,
     prevent_failsafe: bool = False,
+    strict: bool = False,
 ) -> tuple[int, int, int, int]:
     """Parse drag coordinates from argument string.
 
@@ -507,12 +529,13 @@ def parse_drag_coords(
         argument: Coordinate string in format "x1, y1, x2, y2"
         scaler: CoordinateScaler instance for coordinate transformation
         prevent_failsafe: If True, offset corner coordinates
+        strict: If True, raise ValueError for out-of-range coordinates
 
     Returns:
         Tuple of (x1, y1, x2, y2) in target coordinate space
 
     Raises:
-        ValueError: If coordinate format is invalid
+        ValueError: If coordinate format is invalid or (strict=True) out of range
     """
     # Check for common format errors
     if " and " in argument.lower() or " then " in argument.lower():
@@ -533,8 +556,8 @@ def parse_drag_coords(
         sy = float(parts[1].strip())
         ex = float(parts[2].strip())
         ey = float(parts[3].strip())
-        x1, y1 = scaler.scale(sx, sy, prevent_failsafe=prevent_failsafe)
-        x2, y2 = scaler.scale(ex, ey, prevent_failsafe=prevent_failsafe)
+        x1, y1 = scaler.scale(sx, sy, prevent_failsafe=prevent_failsafe, strict=strict)
+        x2, y2 = scaler.scale(ex, ey, prevent_failsafe=prevent_failsafe, strict=strict)
         return x1, y1, x2, y2
     except (ValueError, IndexError) as e:
         raise ValueError(
@@ -548,6 +571,7 @@ def parse_scroll_coords(
     scaler: CoordinateScaler,
     *,
     prevent_failsafe: bool = False,
+    strict: bool = False,
 ) -> tuple[int, int, str]:
     """Parse scroll coordinates and direction from argument string.
 
@@ -555,12 +579,13 @@ def parse_scroll_coords(
         argument: Scroll string in format "x, y, direction"
         scaler: CoordinateScaler instance for coordinate transformation
         prevent_failsafe: If True, offset corner coordinates
+        strict: If True, raise ValueError for out-of-range coordinates
 
     Returns:
         Tuple of (x, y, direction) where direction is 'up' or 'down'
 
     Raises:
-        ValueError: If format is invalid
+        ValueError: If format is invalid or (strict=True) coordinates out of range
     """
     parts = [p.strip() for p in argument.split(",")]
     if len(parts) != 3:
@@ -579,7 +604,7 @@ def parse_scroll_coords(
                 f"Invalid scroll direction: '{direction}'. Use 'up' or 'down'."
             )
 
-        scaled_x, scaled_y = scaler.scale(x, y, prevent_failsafe=prevent_failsafe)
+        scaled_x, scaled_y = scaler.scale(x, y, prevent_failsafe=prevent_failsafe, strict=strict)
         return scaled_x, scaled_y, direction
     except (ValueError, IndexError) as e:
         if "scroll direction" in str(e):

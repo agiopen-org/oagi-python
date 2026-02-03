@@ -41,6 +41,9 @@ class ConverterConfig:
     wait_duration: float = 1.0
     hotkey_interval: float = 0.1
     capslock_mode: str = "session"
+    strict_coordinate_validation: bool = False
+    """If True, raise ValueError when coordinates are outside valid range.
+    If False (default), clamp coordinates to valid range (original behavior)."""
 
 
 class BaseActionConverter(ABC, Generic[T]):

@@ -133,3 +133,75 @@ class TestBaseActionConverterExports:
 
     def test_oagi_converter_inherits_base(self, converter):
         assert isinstance(converter, BaseActionConverter)
+
+
+class TestStrictCoordinateValidation:
+    """Test strict coordinate validation mode."""
+
+    @pytest.fixture
+    def strict_config(self):
+        return ConverterConfig(
+            sandbox_width=1920,
+            sandbox_height=1080,
+            strict_coordinate_validation=True,
+        )
+
+    @pytest.fixture
+    def strict_converter(self, strict_config):
+        return OagiActionConverter(config=strict_config)
+
+    def test_strict_mode_disabled_by_default(self):
+        config = ConverterConfig()
+        assert config.strict_coordinate_validation is False
+
+    def test_strict_mode_clamps_valid_coordinates(self, strict_converter):
+        """Valid coordinates within [0, 1000] should work in strict mode."""
+        action = Action(type=ActionType.CLICK, argument="500, 500", count=1)
+        result = strict_converter([action])
+        assert len(result) == 1
+        assert "pyautogui.click" in result[0][0]
+
+    def test_strict_mode_raises_on_negative_x(self, strict_converter):
+        """Negative x coordinate should raise error in strict mode."""
+        action = Action(type=ActionType.CLICK, argument="-10, 500", count=1)
+        with pytest.raises(RuntimeError, match="x coordinate .* out of valid range"):
+            strict_converter([action])
+
+    def test_strict_mode_raises_on_negative_y(self, strict_converter):
+        """Negative y coordinate should raise error in strict mode."""
+        action = Action(type=ActionType.CLICK, argument="500, -10", count=1)
+        with pytest.raises(RuntimeError, match="y coordinate .* out of valid range"):
+            strict_converter([action])
+
+    def test_strict_mode_raises_on_x_exceeding_max(self, strict_converter):
+        """x coordinate > 1000 should raise error in strict mode."""
+        action = Action(type=ActionType.CLICK, argument="1050, 500", count=1)
+        with pytest.raises(RuntimeError, match="x coordinate .* out of valid range"):
+            strict_converter([action])
+
+    def test_strict_mode_raises_on_y_exceeding_max(self, strict_converter):
+        """y coordinate > 1000 should raise error in strict mode."""
+        action = Action(type=ActionType.CLICK, argument="500, 1050", count=1)
+        with pytest.raises(RuntimeError, match="y coordinate .* out of valid range"):
+            strict_converter([action])
+
+    def test_non_strict_mode_clamps_out_of_range(self, converter):
+        """Non-strict mode should clamp out-of-range coordinates."""
+        # This should not raise, coordinates get clamped
+        action = Action(type=ActionType.CLICK, argument="1050, 1050", count=1)
+        result = converter([action])
+        assert len(result) == 1
+        # Coordinates should be clamped to max (1919, 1079)
+        assert "pyautogui.click(x=1919, y=1079)" in result[0][0]
+
+    def test_strict_mode_for_drag(self, strict_converter):
+        """Drag action should also validate coordinates in strict mode."""
+        action = Action(type=ActionType.DRAG, argument="500, 500, 1100, 500", count=1)
+        with pytest.raises(RuntimeError, match="x coordinate .* out of valid range"):
+            strict_converter([action])
+
+    def test_strict_mode_for_scroll(self, strict_converter):
+        """Scroll action should also validate coordinates in strict mode."""
+        action = Action(type=ActionType.SCROLL, argument="1100, 500, up", count=1)
+        with pytest.raises(RuntimeError, match="x coordinate .* out of valid range"):
+            strict_converter([action])

@@ -108,25 +108,26 @@ class OagiActionConverter(BaseActionConverter[Action]):
         scroll_amount = self.config.scroll_amount
         wait_duration = self.config.wait_duration
         hotkey_interval = self.config.hotkey_interval
+        strict = self.config.strict_coordinate_validation
 
         if action_type == ActionType.CLICK.value:
-            x, y = parse_click_coords(argument, self._coord_scaler)
+            x, y = parse_click_coords(argument, self._coord_scaler, strict=strict)
             return [f"pyautogui.click(x={x}, y={y})"]
 
         if action_type == ActionType.LEFT_DOUBLE.value:
-            x, y = parse_click_coords(argument, self._coord_scaler)
+            x, y = parse_click_coords(argument, self._coord_scaler, strict=strict)
             return [f"pyautogui.doubleClick(x={x}, y={y})"]
 
         if action_type == ActionType.LEFT_TRIPLE.value:
-            x, y = parse_click_coords(argument, self._coord_scaler)
+            x, y = parse_click_coords(argument, self._coord_scaler, strict=strict)
             return [f"pyautogui.tripleClick(x={x}, y={y})"]
 
         if action_type == ActionType.RIGHT_SINGLE.value:
-            x, y = parse_click_coords(argument, self._coord_scaler)
+            x, y = parse_click_coords(argument, self._coord_scaler, strict=strict)
             return [f"pyautogui.rightClick(x={x}, y={y})"]
 
         if action_type == ActionType.DRAG.value:
-            sx, sy, ex, ey = parse_drag_coords(argument, self._coord_scaler)
+            sx, sy, ex, ey = parse_drag_coords(argument, self._coord_scaler, strict=strict)
             return [
                 f"pyautogui.moveTo({sx}, {sy})",
                 f"pyautogui.dragTo({ex}, {ey}, duration={drag_duration})",
@@ -157,7 +158,7 @@ class OagiActionConverter(BaseActionConverter[Action]):
             return [f"pyautogui.typewrite({text!r})"]
 
         if action_type == ActionType.SCROLL.value:
-            x, y, direction = parse_scroll_coords(argument, self._coord_scaler)
+            x, y, direction = parse_scroll_coords(argument, self._coord_scaler, strict=strict)
             amount = scroll_amount if direction == "up" else -scroll_amount
             return [f"pyautogui.moveTo({x}, {y})", f"pyautogui.scroll({amount})"]
 
