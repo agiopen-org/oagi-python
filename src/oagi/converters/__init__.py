@@ -18,10 +18,10 @@ Example usage:
     converter = OagiActionConverter(config=config)
 
     # Convert OAGI actions to pyautogui strings
-    result = converter(actions)  # list[tuple[str, bool]]
+    result = converter(actions)  # list[str]
 
     # Convert to runtime API steps
-    for cmd, is_last in result:
+    for cmd in result:
         step = converter.action_string_to_step(cmd)
         # Execute step via runtime API...
 

@@ -44,12 +44,12 @@ class OagiActionConverter(BaseActionConverter[Action]):
     def coord_height(self) -> int:
         return OAGI_COORD_SIZE
 
-    def __call__(self, actions: list[Action]) -> list[tuple[str, bool]]:
-        """Convert OAGI actions to list of (action_string, is_last) tuples.
+    def __call__(self, actions: list[Action]) -> list[str]:
+        """Convert OAGI actions to list of pyautogui command strings.
 
         Extends base implementation to handle action count and finish detection.
         """
-        converted: list[tuple[str, bool]] = []
+        converted: list[str] = []
         failed: list[tuple[str, str]] = []
         has_finish = False
 
@@ -80,23 +80,16 @@ class OagiActionConverter(BaseActionConverter[Action]):
             )
         return converted
 
-    def _convert_action(self, action: Action) -> list[tuple[str, bool]]:
-        """Convert action to list of (action_string, is_last_of_repeat) tuples.
+    def _convert_action(self, action: Action) -> list[str]:
+        """Convert action to list of pyautogui command strings.
 
         Handles action.count for repeat support.
         """
         count = action.count or 1
-        out: list[tuple[str, bool]] = []
         single_actions = self._convert_single_action(action)
 
         # Repeat the actions count times
-        for i in range(int(count)):
-            is_last_repeat = i == int(count) - 1
-            for j, action_str in enumerate(single_actions):
-                is_last = is_last_repeat and (j == len(single_actions) - 1)
-                out.append((action_str, is_last))
-
-        return out
+        return single_actions * int(count)
 
     def _convert_single_action(self, action: Action) -> list[str]:
         """Convert a single OAGI action to pyautogui command string(s)."""

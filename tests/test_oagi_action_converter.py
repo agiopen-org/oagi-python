@@ -40,8 +40,7 @@ class TestCoordinateBasedActions:
         action = Action(type=action_type, argument=argument, count=1)
         result = converter([action])
         assert len(result) == 1
-        assert result[0][0] == expected_cmd
-        assert result[0][1] is True  # is_last
+        assert result[0] == expected_cmd
 
 
 class TestDragAction:
@@ -49,10 +48,10 @@ class TestDragAction:
         action = Action(type=ActionType.DRAG, argument="100, 100, 500, 300", count=1)
         result = converter([action])
         assert len(result) == 2
-        assert "pyautogui.moveTo(192, 108)" in result[0][0]
+        assert "pyautogui.moveTo(192, 108)" in result[0]
         assert (
             f"pyautogui.dragTo(960, 324, duration={config.drag_duration})"
-            in result[1][0]
+            in result[1]
         )
 
 
@@ -63,7 +62,7 @@ class TestHotkeyAction:
         assert len(result) == 1
         assert (
             f"pyautogui.hotkey('ctrl', 'c', interval={config.hotkey_interval})"
-            in result[0][0]
+            in result[0]
         )
 
 
@@ -72,8 +71,8 @@ class TestTypeAction:
         action = Action(type=ActionType.TYPE, argument="Hello World", count=1)
         result = converter([action])
         assert len(result) == 1
-        assert "pyautogui.typewrite" in result[0][0]
-        assert "Hello World" in result[0][0]
+        assert "pyautogui.typewrite" in result[0]
+        assert "Hello World" in result[0]
 
 
 class TestScrollAction:
@@ -84,20 +83,20 @@ class TestScrollAction:
         )
         result = converter([action])
         assert len(result) == 2
-        assert "pyautogui.moveTo(960, 324)" in result[0][0]
-        assert f"pyautogui.scroll({expected_amount})" in result[1][0]
+        assert "pyautogui.moveTo(960, 324)" in result[0]
+        assert f"pyautogui.scroll({expected_amount})" in result[1]
 
 
 class TestSpecialActions:
     def test_wait_action(self, converter, config):
         action = Action(type=ActionType.WAIT, argument="", count=1)
         result = converter([action])
-        assert f"WAIT({config.wait_duration})" in result[0][0]
+        assert f"WAIT({config.wait_duration})" in result[0]
 
     def test_finish_action(self, converter):
         action = Action(type=ActionType.FINISH, argument="", count=1)
         result = converter([action])
-        assert result[0][0] == "DONE"
+        assert result[0] == "DONE"
 
 
 class TestActionStringToStep:
@@ -123,10 +122,8 @@ class TestMultipleActions:
         result = converter([action])
         # Each click generates 1 command, repeated 3 times
         assert len(result) == 3
-        # Only the last one should have is_last=True
-        assert result[0][1] is False
-        assert result[1][1] is False
-        assert result[2][1] is True
+        # All should be the same click command
+        assert all(cmd == "pyautogui.click(x=960, y=324)" for cmd in result)
 
 
 class TestStrictCoordinateValidation:
@@ -158,7 +155,7 @@ class TestStrictCoordinateValidation:
     def test_non_strict_mode_clamps_out_of_range(self, converter):
         action = Action(type=ActionType.CLICK, argument="1050, 1050", count=1)
         result = converter([action])
-        assert "pyautogui.click(x=1919, y=1079)" in result[0][0]
+        assert "pyautogui.click(x=1919, y=1079)" in result[0]
 
     @pytest.mark.parametrize(
         "action_type,argument",

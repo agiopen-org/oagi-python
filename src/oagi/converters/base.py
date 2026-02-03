@@ -57,7 +57,7 @@ class BaseActionConverter(ABC, Generic[T]):
     Provides common functionality:
     - Coordinate scaling via CoordinateScaler
     - Key normalization via shared utils
-    - __call__ interface returning [(action_string, is_last), ...]
+    - __call__ interface returning list of action strings
     - action_string_to_step() for runtime API format
     """
 
@@ -184,30 +184,26 @@ class BaseActionConverter(ABC, Generic[T]):
         if self.logger:
             self.logger.debug(message)
 
-    def __call__(self, actions: list[T]) -> list[tuple[str, bool]]:
-        """Convert actions to list of (action_string, is_last_of_repeat) tuples.
+    def __call__(self, actions: list[T]) -> list[str]:
+        """Convert actions to list of pyautogui command strings.
 
         Args:
             actions: List of model-specific action objects
 
         Returns:
-            List of tuples: [(action_string, is_last), ...]
-            - action_string: pyautogui command string
-            - is_last: True if this is the last action in the batch
+            List of pyautogui command strings
 
         Raises:
             RuntimeError: If all action conversions failed
         """
-        converted: list[tuple[str, bool]] = []
+        converted: list[str] = []
         failed: list[tuple[str, str]] = []
         skipped: list[str] = []
 
         if not actions:
             return converted
 
-        for i, action in enumerate(actions):
-            is_last_action = i == len(actions) - 1
-
+        for action in actions:
             try:
                 action_strings = self._convert_single_action(action)
 
@@ -217,9 +213,7 @@ class BaseActionConverter(ABC, Generic[T]):
                     skipped.append(str(action_type))
                     continue
 
-                for j, action_str in enumerate(action_strings):
-                    is_last = is_last_action and (j == len(action_strings) - 1)
-                    converted.append((action_str, is_last))
+                converted.extend(action_strings)
 
             except Exception as e:
                 action_repr = repr(action)
