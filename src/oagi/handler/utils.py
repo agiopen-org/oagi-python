@@ -305,8 +305,8 @@ class CoordinateScaler:
                     f"Coordinates must be normalized between 0 and {self.source_height}."
                 )
 
-        scaled_x = round(x * self.scale_x)
-        scaled_y = round(y * self.scale_y)
+        scaled_x = int(x * self.scale_x)
+        scaled_y = int(y * self.scale_y)
 
         if clamp:
             # Clamp to valid range
