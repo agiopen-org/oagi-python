@@ -17,6 +17,7 @@ from ..constants import DEFAULT_STEP_DELAY
 from ..exceptions import check_optional_dependency
 from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
 from .capslock_manager import CapsLockManager
+from .utils import CoordinateScaler, normalize_key, parse_hotkey
 
 check_optional_dependency("pyautogui", "PyautoguiActionHandler", "desktop")
 import pyautogui  # noqa: E402
@@ -92,6 +93,15 @@ class PyautoguiActionHandler:
         self.caps_manager = CapsLockManager(mode=self.config.capslock_mode)
         # The origin position of coordinates (the top-left corner of the target screen)
         self.origin_x, self.origin_y = 0, 0
+        # Initialize coordinate scaler (OAGI uses 0-1000 normalized coordinates)
+        self._coord_scaler = CoordinateScaler(
+            source_width=1000,
+            source_height=1000,
+            target_width=self.screen_width,
+            target_height=self.screen_height,
+            origin_x=self.origin_x,
+            origin_y=self.origin_y,
+        )
 
     def reset(self):
         """Reset handler state.
@@ -109,6 +119,9 @@ class PyautoguiActionHandler:
         """
         self.screen_width, self.screen_height = screen.width, screen.height
         self.origin_x, self.origin_y = screen.x, screen.y
+        # Update coordinate scaler
+        self._coord_scaler.set_target_size(screen.width, screen.height)
+        self._coord_scaler.set_origin(screen.x, screen.y)
 
     def _denormalize_coords(self, x: float, y: float) -> tuple[int, int]:
         """Convert coordinates from 0-1000 range to actual screen coordinates.
@@ -116,26 +129,7 @@ class PyautoguiActionHandler:
         Also handles corner coordinates to prevent PyAutoGUI fail-safe trigger.
         Corner coordinates (0,0), (0,max), (max,0), (max,max) are offset by 1 pixel.
         """
-        screen_x = int(x * self.screen_width / 1000)
-        screen_y = int(y * self.screen_height / 1000)
-
-        # Prevent fail-safe by adjusting corner coordinates
-        # Check if coordinates are at screen corners (with small tolerance)
-        if screen_x < 1:
-            screen_x = 1
-        elif screen_x > self.screen_width - 1:
-            screen_x = self.screen_width - 1
-
-        if screen_y < 1:
-            screen_y = 1
-        elif screen_y > self.screen_height - 1:
-            screen_y = self.screen_height - 1
-
-        # Add origin offset to convert relative to top-left corner
-        screen_x += self.origin_x
-        screen_y += self.origin_y
-
-        return screen_x, screen_y
+        return self._coord_scaler.scale(x, y, prevent_failsafe=True)
 
     def _parse_coords(self, args_str: str) -> tuple[int, int]:
         """Extract x, y coordinates from argument string."""
@@ -163,28 +157,15 @@ class PyautoguiActionHandler:
 
     def _normalize_key(self, key: str) -> str:
         """Normalize key names for consistency."""
-        key = key.strip().lower()
-        # Normalize caps lock variations
-        hotkey_variations_mapping = {
-            "capslock": ["caps_lock", "caps", "capslock"],
-            "pgup": ["page_up", "pageup"],
-            "pgdn": ["page_down", "pagedown"],
-        }
-        for normalized, variations in hotkey_variations_mapping.items():
-            if key in variations:
-                return normalized
-        # Remap ctrl to command on macOS if enabled
-        if self.config.macos_ctrl_to_cmd and sys.platform == "darwin" and key == "ctrl":
-            return "command"
-        return key
+        return normalize_key(key, macos_ctrl_to_cmd=self.config.macos_ctrl_to_cmd)
 
     def _parse_hotkey(self, args_str: str) -> list[str]:
         """Parse hotkey string into list of keys."""
-        # Remove parentheses if present
-        args_str = args_str.strip("()")
-        # Split by '+' to get individual keys
-        keys = [self._normalize_key(key) for key in args_str.split("+")]
-        return keys
+        return parse_hotkey(
+            args_str,
+            macos_ctrl_to_cmd=self.config.macos_ctrl_to_cmd,
+            validate=False,  # Don't validate, let pyautogui handle invalid keys
+        )
 
     def _move_and_wait(self, x: int, y: int) -> None:
         """Move cursor to position and wait before clicking."""

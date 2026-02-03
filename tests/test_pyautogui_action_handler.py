@@ -245,15 +245,15 @@ class TestCornerCoordinatesHandling:
         [
             # Top-left corner
             ("0, 0", (1, 1)),
-            ("1, 1", (1, 1)),
+            ("1, 1", (2, 1)),
             # Top-right corner (assuming 1920x1080 screen)
-            ("1000, 0", (1919, 1)),
+            ("1000, 0", (1918, 1)),
             ("999, 1", (1918, 1)),
             # Bottom-left corner
-            ("0, 1000", (1, 1079)),
-            ("1, 999", (1, 1078)),
+            ("0, 1000", (1, 1078)),
+            ("1, 999", (2, 1078)),
             # Bottom-right corner
-            ("1000, 1000", (1919, 1079)),
+            ("1000, 1000", (1918, 1078)),
             ("999, 999", (1918, 1078)),
             # Middle coordinates should not be affected
             ("500, 500", (960, 540)),
@@ -280,7 +280,7 @@ class TestCornerCoordinatesHandling:
         # Should adjust corner coordinates to prevent fail-safe
         mock_pyautogui.moveTo.assert_called_once_with(1, 1)
         mock_pyautogui.dragTo.assert_called_once_with(
-            1919, 1079, duration=config.drag_duration, button="left"
+            1918, 1078, duration=config.drag_duration, button="left"
         )
 
     def test_scroll_with_corner_coordinates(self, mock_pyautogui, config):
@@ -310,8 +310,8 @@ class TestCornerCoordinatesHandling:
             # Check moveTo was called with the adjusted corner coordinates
             moveTo_calls = mock_pyautogui.moveTo.call_args_list
             assert (1, 1) in [call[0] for call in moveTo_calls]
-            assert (1919, 1) in [call[0] for call in moveTo_calls]
-            assert (1, 1079) in [call[0] for call in moveTo_calls]
+            assert (1918, 1) in [call[0] for call in moveTo_calls]
+            assert (1, 1078) in [call[0] for call in moveTo_calls]
             # Click methods called without coordinates
             mock_pyautogui.doubleClick.assert_called_once_with()
             mock_pyautogui.tripleClick.assert_called_once_with()

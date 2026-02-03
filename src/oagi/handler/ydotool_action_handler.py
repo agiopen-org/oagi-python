@@ -15,6 +15,7 @@ from oagi.handler.screen_manager import Screen
 from ..constants import DEFAULT_STEP_DELAY
 from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
 from .capslock_manager import CapsLockManager
+from .utils import CoordinateScaler, normalize_key, parse_hotkey
 from .wayland_support import Ydotool, get_screen_size
 
 
@@ -73,6 +74,13 @@ class YdotoolActionHandler(Ydotool):
         self.caps_manager = CapsLockManager(mode=self.config.capslock_mode)
         # The origin position of coordinates (the top-left corner of the screen)
         self.origin_x, self.origin_y = 0, 0
+        # Initialize coordinate scaler
+        self._coord_scaler = CoordinateScaler(
+            source_width=1000,
+            source_height=1000,
+            target_width=self.screen_width,
+            target_height=self.screen_height,
+        )
 
     def reset(self):
         """Reset handler state.
@@ -90,6 +98,12 @@ class YdotoolActionHandler(Ydotool):
         """
         self.screen_width, self.screen_height = screen.width, screen.height
         self.origin_x, self.origin_y = screen.x, screen.y
+        self._coord_scaler = CoordinateScaler(
+            source_width=1000,
+            source_height=1000,
+            target_width=self.screen_width,
+            target_height=self.screen_height,
+        )
 
     def _execute_action(self, action: Action) -> bool:
         """
@@ -168,45 +182,14 @@ class YdotoolActionHandler(Ydotool):
         return finished
 
     def _denormalize_coords(self, x: float, y: float) -> tuple[int, int]:
-        """Convert coordinates from 0-1000 range to actual screen coordinates.
-
-        Also handles corner coordinates to prevent PyAutoGUI fail-safe trigger.
-        Corner coordinates (0,0), (0,max), (max,0), (max,max) are offset by 1 pixel.
-        """
-        screen_x = int(x * self.screen_width / 1000)
-        screen_y = int(y * self.screen_height / 1000)
-
-        # Prevent fail-safe by adjusting corner coordinates
-        # Check if coordinates are at screen corners (with small tolerance)
-        if screen_x < 1:
-            screen_x = 1
-        elif screen_x > self.screen_width - 1:
-            screen_x = self.screen_width - 1
-
-        if screen_y < 1:
-            screen_y = 1
-        elif screen_y > self.screen_height - 1:
-            screen_y = self.screen_height - 1
-
-        # Add origin offset to convert relative to top-left corner
-        screen_x += self.origin_x
-        screen_y += self.origin_y
-
-        return screen_x, screen_y
+        """Convert coordinates from 0-1000 range to actual screen coordinates."""
+        screen_x, screen_y = self._coord_scaler.scale(x, y, prevent_failsafe=True)
+        # Add origin offset for multi-screen support
+        return screen_x + self.origin_x, screen_y + self.origin_y
 
     def _normalize_key(self, key: str) -> str:
         """Normalize key names for consistency."""
-        key = key.strip().lower()
-        # Normalize caps lock variations
-        hotkey_variations_mapping = {
-            "capslock": ["caps_lock", "caps", "capslock"],
-            "pgup": ["page_up", "pageup"],
-            "pgdn": ["page_down", "pagedown"],
-        }
-        for normalized, variations in hotkey_variations_mapping.items():
-            if key in variations:
-                return normalized
-        return key
+        return normalize_key(key)
 
     def _parse_coords(self, args_str: str) -> tuple[int, int]:
         """Extract x, y coordinates from argument string."""
@@ -234,11 +217,7 @@ class YdotoolActionHandler(Ydotool):
 
     def _parse_hotkey(self, args_str: str) -> list[str]:
         """Parse hotkey string into list of keys."""
-        # Remove parentheses if present
-        args_str = args_str.strip("()")
-        # Split by '+' to get individual keys
-        keys = [self._normalize_key(key) for key in args_str.split("+")]
-        return keys
+        return parse_hotkey(args_str.strip("()"), validate=False)
 
     def __call__(self, actions: list[Action]) -> None:
         """Execute the provided list of actions."""
