@@ -46,8 +46,8 @@ Creating custom converters:
             ...
 """
 
-from oagi.converters.base import BaseActionConverter, ConverterConfig
-from oagi.converters.oagi import OagiActionConverter
+from .base import BaseActionConverter, ConverterConfig
+from .oagi import OagiActionConverter
 
 __all__ = [
     "BaseActionConverter",

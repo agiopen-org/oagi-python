@@ -16,8 +16,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
-from oagi.handler.capslock_manager import CapsLockManager
-from oagi.handler.utils import (
+from ..handler.capslock_manager import CapsLockManager
+from ..handler.utils import (
     CoordinateScaler,
     normalize_key,
     parse_hotkey,

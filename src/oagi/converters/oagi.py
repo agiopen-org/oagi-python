@@ -13,13 +13,12 @@ to pyautogui command strings for remote execution.
 
 from typing import Any
 
-from oagi.handler.utils import (
+from ..handler.utils import (
     parse_click_coords,
     parse_drag_coords,
     parse_scroll_coords,
 )
-from oagi.types import Action, ActionType
-
+from ..types import Action, ActionType
 from .base import BaseActionConverter
 
 # OAGI uses normalized 0-1000 coordinate space
@@ -127,7 +126,9 @@ class OagiActionConverter(BaseActionConverter[Action]):
             return [f"pyautogui.rightClick(x={x}, y={y})"]
 
         if action_type == ActionType.DRAG.value:
-            sx, sy, ex, ey = parse_drag_coords(argument, self._coord_scaler, strict=strict)
+            sx, sy, ex, ey = parse_drag_coords(
+                argument, self._coord_scaler, strict=strict
+            )
             return [
                 f"pyautogui.moveTo({sx}, {sy})",
                 f"pyautogui.dragTo({ex}, {ey}, duration={drag_duration})",
@@ -158,7 +159,9 @@ class OagiActionConverter(BaseActionConverter[Action]):
             return [f"pyautogui.typewrite({text!r})"]
 
         if action_type == ActionType.SCROLL.value:
-            x, y, direction = parse_scroll_coords(argument, self._coord_scaler, strict=strict)
+            x, y, direction = parse_scroll_coords(
+                argument, self._coord_scaler, strict=strict
+            )
             amount = scroll_amount if direction == "up" else -scroll_amount
             return [f"pyautogui.moveTo({x}, {y})", f"pyautogui.scroll({amount})"]
 

@@ -576,7 +576,9 @@ def parse_scroll_coords(
                 f"Invalid scroll direction: '{direction}'. Use 'up' or 'down'."
             )
 
-        scaled_x, scaled_y = scaler.scale(x, y, prevent_failsafe=prevent_failsafe, strict=strict)
+        scaled_x, scaled_y = scaler.scale(
+            x, y, prevent_failsafe=prevent_failsafe, strict=strict
+        )
         return scaled_x, scaled_y, direction
     except (ValueError, IndexError) as e:
         if "scroll direction" in str(e):
