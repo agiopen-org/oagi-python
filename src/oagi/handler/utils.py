@@ -17,49 +17,16 @@ import sys
 # Key Normalization Mapping
 # =============================================================================
 
-# Unified key mapping - normalizes various key name formats to pyautogui names
+# Minimal key mapping - only normalizes common variations to pyautogui names
+# Matches original PyautoguiActionHandler.hotkey_variations_mapping behavior
 KEY_MAP: dict[str, str] = {
-    # Modifier keys
-    "ctrl": "ctrl",
-    "control": "ctrl",
-    "alt": "alt",
-    "option": "alt",
-    "shift": "shift",
-    "cmd": "command",
-    "command": "command",
-    "meta": "win",
-    "super": "win",
-    "windows": "win",
-    "win": "win",
-    # Enter/Return
-    "return": "enter",
-    "enter": "enter",
-    # Escape
-    "escape": "escape",
-    "esc": "escape",
-    # Page navigation
-    "pageup": "pageup",
-    "page_up": "pageup",
-    "pgup": "pageup",
-    "pagedown": "pagedown",
-    "page_down": "pagedown",
-    "pgdn": "pagedown",
-    # Lock keys
-    "capslock": "capslock",
+    # Caps lock variations
     "caps_lock": "capslock",
     "caps": "capslock",
-    "numlock": "numlock",
-    "num_lock": "numlock",
-    "scrolllock": "scrolllock",
-    "scroll_lock": "scrolllock",
-    # Print screen
-    "printscreen": "printscreen",
-    "print_screen": "printscreen",
-    "prtsc": "printscreen",
-    "prtscr": "printscreen",
-    # Media keys
-    "mute": "volumemute",
-    "play": "playpause",
+    # Page up variations
+    "page_up": "pageup",
+    # Page down variations
+    "page_down": "pagedown",
 }
 
 # Valid pyautogui key names
