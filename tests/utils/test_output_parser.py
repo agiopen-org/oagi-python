@@ -34,6 +34,15 @@ class TestParseRawOutput:
         assert step.actions[0].type == ActionType.FINISH
         assert step.stop is True
 
+    def test_parse_fail_action_sets_stop(self):
+        raw = "<|think_start|>Task is infeasible<|think_end|>\n<|action_start|>fail()<|action_end|>"
+        step = parse_raw_output(raw)
+
+        assert step.reason == "Task is infeasible"
+        assert len(step.actions) == 1
+        assert step.actions[0].type == ActionType.FAIL
+        assert step.stop is True
+
     def test_parse_multiple_actions_with_ampersand(self):
         raw = "<|think_start|>Do two things<|think_end|>\n<|action_start|>click(100, 200) & type(hello)<|action_end|>"
         step = parse_raw_output(raw)
@@ -147,6 +156,7 @@ class TestParseAction:
             ("type(hello world)", ActionType.TYPE, "hello world"),
             ("wait()", ActionType.WAIT, ""),
             ("finish()", ActionType.FINISH, ""),
+            ("fail()", ActionType.FAIL, ""),
         ],
     )
     def test_parse_basic_actions(self, action_text, expected_type, expected_arg):
@@ -250,6 +260,21 @@ class TestEdgeCases:
 
     def test_finish_with_other_actions(self):
         raw = "<|think_start|>Test<|think_end|>\n<|action_start|>click(100, 200) & finish()<|action_end|>"
+        step = parse_raw_output(raw)
+
+        assert step.stop is True
+        assert len(step.actions) == 2
+
+    def test_fail_with_other_actions(self):
+        raw = "<|think_start|>Test<|think_end|>\n<|action_start|>click(100, 200) & fail()<|action_end|>"
+        step = parse_raw_output(raw)
+
+        assert step.stop is True
+        assert len(step.actions) == 2
+        assert step.actions[1].type == ActionType.FAIL
+
+    def test_multiple_fail_actions_stop_true(self):
+        raw = "<|think_start|>Test<|think_end|>\n<|action_start|>fail() & fail()<|action_end|>"
         step = parse_raw_output(raw)
 
         assert step.stop is True

@@ -97,6 +97,19 @@ class TestSpecialActions:
         result = converter([action])
         assert result[0] == "DONE"
 
+    def test_fail_action(self, converter):
+        action = Action(type=ActionType.FAIL, argument="", count=1)
+        result = converter([action])
+        assert result[0] == "FAIL"
+
+    def test_duplicate_terminal_actions_raises(self, converter):
+        actions = [
+            Action(type=ActionType.FINISH, argument="", count=1),
+            Action(type=ActionType.FAIL, argument="", count=1),
+        ]
+        with pytest.raises(ValueError, match="Duplicate finish\\(\\)/fail\\(\\)"):
+            converter(actions)
+
 
 class TestActionStringToStep:
     def test_pyautogui_command(self, converter):
@@ -111,6 +124,11 @@ class TestActionStringToStep:
 
     def test_done_command(self, converter):
         step = converter.action_string_to_step("DONE")
+        assert step["type"] == "sleep"
+        assert step["parameters"]["seconds"] == 0
+
+    def test_fail_command(self, converter):
+        step = converter.action_string_to_step("FAIL")
         assert step["type"] == "sleep"
         assert step["parameters"]["seconds"] == 0
 

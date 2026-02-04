@@ -133,6 +133,12 @@ def sample_raw_output_completed():
 
 
 @pytest.fixture
+def sample_raw_output_failed():
+    """Sample raw output for infeasible task."""
+    return "<|think_start|>The task is infeasible<|think_end|>\n<|action_start|>fail()<|action_end|>"
+
+
+@pytest.fixture
 def sample_step(sample_action):
     """Sample Step object for testing."""
     return Step(
@@ -148,6 +154,16 @@ def completed_step():
     return Step(
         reason="The task has been completed successfully",
         actions=[Action(type=ActionType.FINISH, argument="", count=1)],
+        stop=True,
+    )
+
+
+@pytest.fixture
+def failed_step():
+    """Sample failed Step object for infeasible task."""
+    return Step(
+        reason="The task is infeasible",
+        actions=[Action(type=ActionType.FAIL, argument="", count=1)],
         stop=True,
     )
 

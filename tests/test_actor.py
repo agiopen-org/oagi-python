@@ -219,6 +219,27 @@ class TestActorStep:
         assert len(result.actions) == 1
         assert result.actions[0].type == ActionType.FINISH
 
+    def test_step_with_failed_response(
+        self, actor, failed_step, sample_usage_obj, mock_upload_file_response
+    ):
+        actor.task_description = "Test task"
+        actor.task_id = "task-789"
+
+        # Setup mocks
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            failed_step,
+            "<|think_start|>infeasible<|think_end|>\n<|action_start|>fail()<|action_end|>",
+            sample_usage_obj,
+        )
+
+        result = actor.step(b"image bytes")
+
+        assert result.stop is True
+        assert result.reason == "The task is infeasible"
+        assert len(result.actions) == 1
+        assert result.actions[0].type == ActionType.FAIL
+
     def test_step_handles_exception(self, actor, mock_upload_file_response):
         actor.task_description = "Test task"
         actor.client.put_s3_presigned_url.return_value = mock_upload_file_response

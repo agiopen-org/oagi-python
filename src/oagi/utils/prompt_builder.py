@@ -24,6 +24,7 @@ In the action field, you have the following action formats:
 8. scroll(x, y, direction, c) # scroll the mouse at position (x, y) in the direction of up or down for c times, where x and y are integers normalized between 0 and 1000
 9. wait() # wait for a while
 10. finish() # indicate the task is finished
+11. fail() # indicate the task is infeasible
 
 Directly output the text beginning with <|think_start|>, no additional text is needed for this scenario.
 
