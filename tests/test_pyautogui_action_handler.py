@@ -131,6 +131,11 @@ def test_finish_action(handler, mock_pyautogui):
     handler([action])
 
 
+def test_fail_action(handler, mock_pyautogui):
+    action = Action(type=ActionType.FAIL, argument="", count=1)
+    handler([action])
+
+
 def test_call_user_action(handler, mock_pyautogui, capsys):
     action = Action(type=ActionType.CALL_USER, argument="", count=1)
     handler([action])
@@ -451,6 +456,20 @@ class TestHandlerReset:
         # FINISH action should reset handler
         finish_action = Action(type=ActionType.FINISH, argument="", count=1)
         handler([finish_action])
+        assert handler.caps_manager.caps_enabled is False
+
+    def test_fail_action_resets_handler(self, mock_pyautogui):
+        config = PyautoguiConfig(capslock_mode="session", post_batch_delay=0)
+        handler = PyautoguiActionHandler(config=config)
+
+        # Enable caps lock
+        caps_action = Action(type=ActionType.HOTKEY, argument="capslock", count=1)
+        handler([caps_action])
+        assert handler.caps_manager.caps_enabled is True
+
+        # FAIL action should also reset handler
+        fail_action = Action(type=ActionType.FAIL, argument="", count=1)
+        handler([fail_action])
         assert handler.caps_manager.caps_enabled is False
 
 

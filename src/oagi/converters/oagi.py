@@ -51,21 +51,21 @@ class OagiActionConverter(BaseActionConverter[Action]):
         """
         converted: list[str] = []
         failed: list[tuple[str, str]] = []
-        has_finish = False
+        has_terminal = False
 
         if not actions:
             return converted
 
         for action in actions:
-            # Check for duplicate finish() during iteration
-            is_finish = action.type == ActionType.FINISH
-            if is_finish:
-                if has_finish:
+            # Check for duplicate finish()/fail() during iteration
+            is_terminal = action.type in (ActionType.FINISH, ActionType.FAIL)
+            if is_terminal:
+                if has_terminal:
                     raise ValueError(
-                        "Duplicate finish() detected. "
-                        "Only one finish() is allowed per action sequence."
+                        "Duplicate finish()/fail() detected. "
+                        "Only one terminal action is allowed per action sequence."
                     )
-                has_finish = True
+                has_terminal = True
 
             try:
                 converted.extend(self._convert_action(action))
@@ -172,6 +172,10 @@ class OagiActionConverter(BaseActionConverter[Action]):
             self._log_info("Task completion action -> DONE")
             return ["DONE"]
 
+        if action_type == ActionType.FAIL.value:
+            self._log_info("Task infeasible action -> FAIL")
+            return ["FAIL"]
+
         if action_type == ActionType.CALL_USER.value:
             self._log_info("User intervention requested")
             return []
@@ -179,7 +183,7 @@ class OagiActionConverter(BaseActionConverter[Action]):
         raise ValueError(
             f"Unknown action type: '{action_type}'. "
             "Supported: click, left_double, left_triple, right_single, drag, "
-            "hotkey, type, scroll, wait, finish, call_user"
+            "hotkey, type, scroll, wait, finish, fail, call_user"
         )
 
     def serialize_actions(self, actions: list[Action]) -> list[dict[str, Any]]:

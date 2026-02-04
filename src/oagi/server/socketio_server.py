@@ -372,6 +372,14 @@ class SessionNamespace(socketio.AsyncNamespace):
                     timeout=self.config.socketio_timeout,
                 )
 
+            case ActionType.FAIL:
+                return await self.call(
+                    "finish",
+                    FinishEventData(**common).model_dump(),
+                    to=session.socket_id,
+                    timeout=self.config.socketio_timeout,
+                )
+
             case _:
                 logger.warning(f"Unknown action type: {action.type}")
                 return None
