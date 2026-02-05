@@ -164,8 +164,8 @@ class YdotoolActionHandler(Ydotool):
                 text = self.caps_manager.transform_text(text)
                 self._run_ydotool(["type", text], count=count)
 
-            case ActionType.FINISH:
-                # Task completion - reset handler state
+            case ActionType.FINISH | ActionType.FAIL:
+                # Task completion or infeasible - reset handler state
                 self.reset()
 
             case ActionType.WAIT:

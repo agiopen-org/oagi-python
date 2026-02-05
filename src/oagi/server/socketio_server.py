@@ -364,7 +364,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                     timeout=self.config.socketio_timeout,
                 )
 
-            case ActionType.FINISH:
+            case ActionType.FINISH | ActionType.FAIL:
                 return await self.call(
                     "finish",
                     FinishEventData(**common).model_dump(),

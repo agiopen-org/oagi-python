@@ -22,6 +22,7 @@ class ActionType(str, Enum):
     TYPE = "type"
     SCROLL = "scroll"
     FINISH = "finish"
+    FAIL = "fail"
     WAIT = "wait"
     CALL_USER = "call_user"
 

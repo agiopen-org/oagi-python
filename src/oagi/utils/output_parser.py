@@ -45,7 +45,7 @@ def parse_raw_output(raw_output: str) -> Step:
             parsed_action = _parse_action(action_text.strip())
             if parsed_action:
                 actions.append(parsed_action)
-                if parsed_action.type == ActionType.FINISH:
+                if parsed_action.type in (ActionType.FINISH, ActionType.FAIL):
                     stop = True
 
     return Step(reason=reason, actions=actions, stop=stop)
@@ -105,6 +105,7 @@ def _parse_action(action_text: str) -> Action | None:
     - scroll(x, y, direction, c) # scroll at position
     - wait() # wait for a while
     - finish() # indicate task is finished
+    - fail() # indicate task is infeasible
 
     Args:
         action_text: String representation of a single action

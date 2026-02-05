@@ -250,8 +250,8 @@ class PyautoguiActionHandler:
                 )
                 pyautogui.scroll(scroll_amount)
 
-            case ActionType.FINISH:
-                # Task completion - reset handler state
+            case ActionType.FINISH | ActionType.FAIL:
+                # Task completion or infeasible - reset handler state
                 self.reset()
 
             case ActionType.WAIT:
