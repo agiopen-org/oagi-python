@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oagi"
-version = "0.14.2"
+version = "0.15.0"
 description = "Official API of OpenAGI Foundation (metapackage with all features)"
 readme = "README.md"
 license = "MIT"
@@ -16,7 +16,7 @@ authors = [
 requires-python = ">= 3.10"
 
 dependencies = [
-    "oagi-core[desktop,server]==0.14.2",
+    "oagi-core[desktop,server]==0.15.0",
 ]
 
 [project.urls]
