@@ -281,8 +281,13 @@ class BaseActionConverter(ABC, Generic[T]):
             seconds = float(wait_match.group("sec"))
             return {"type": "sleep", "parameters": {"seconds": seconds}}
 
-        # pyautogui code path
-        if "pyautogui" in action_str.lower():
+        # pyautogui code path - also handles PynputController and _smart_paste
+        action_lower = action_str.lower()
+        if (
+            "pyautogui" in action_lower
+            or "pynputcontroller" in action_lower
+            or "_smart_paste" in action_lower
+        ):
             return {
                 "type": "pyautogui",
                 "parameters": {"code": action_str},
