@@ -109,6 +109,14 @@ class TestParseRawOutput:
         assert step.actions[0].type == ActionType.CLICK
         assert step.actions[1].type == ActionType.TYPE
 
+    def test_parse_type_with_multiline_content(self):
+        raw = "<|think_start|>Type multiline<|think_end|>\n<|action_start|>type(line1\nline2\nline3)<|action_end|>"
+        step = parse_raw_output(raw)
+
+        assert len(step.actions) == 1
+        assert step.actions[0].type == ActionType.TYPE
+        assert step.actions[0].argument == "line1\nline2\nline3"
+
 
 class TestSplitActions:
     """Test _split_actions function."""
@@ -140,6 +148,11 @@ class TestSplitActions:
     def test_split_three_actions(self):
         result = _split_actions("click(100, 200) & type(hello) & finish()")
         assert result == ["click(100, 200)", "type(hello)", "finish()"]
+
+    def test_split_multiline_type_preserved(self):
+        """Multiline content inside type() parens is NOT split."""
+        result = _split_actions("type(line1\nline2) & click(100, 200)")
+        assert result == ["type(line1\nline2)", "click(100, 200)"]
 
 
 class TestParseAction:
@@ -220,6 +233,12 @@ class TestParseAction:
         action = _parse_action("hotkey(ctrl+c, abc)")
         assert action is not None
         assert action.count == 1
+
+    def test_parse_type_with_multiline_content(self):
+        action = _parse_action("type(first line\nsecond line\nthird line)")
+        assert action is not None
+        assert action.type == ActionType.TYPE
+        assert action.argument == "first line\nsecond line\nthird line"
 
 
 class TestEdgeCases:
