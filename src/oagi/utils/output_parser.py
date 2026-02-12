@@ -114,7 +114,8 @@ def _parse_action(action_text: str) -> Action | None:
         Action object or None if parsing fails
     """
     # Match action format: action_type(arguments)
-    match = re.match(r"(\w+)\((.*)\)", action_text.strip())
+    # re.DOTALL allows '.' to match newlines for multiline type() content
+    match = re.match(r"(\w+)\((.*)\)", action_text.strip(), re.DOTALL)
     if not match:
         return None
 
