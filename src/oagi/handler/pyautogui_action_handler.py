@@ -9,15 +9,12 @@
 import sys
 import time
 
-from pydantic import BaseModel, Field
-
 from oagi.handler.screen_manager import Screen
 
-from ..constants import DEFAULT_STEP_DELAY
 from ..exceptions import check_optional_dependency
 from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
 from .capslock_manager import CapsLockManager
-from .utils import CoordinateScaler, normalize_key, parse_hotkey
+from .utils import CoordinateScaler, PyautoguiConfig, normalize_key, parse_hotkey
 
 check_optional_dependency("pyautogui", "PyautoguiActionHandler", "desktop")
 import pyautogui  # noqa: E402
@@ -26,45 +23,6 @@ if sys.platform == "darwin":
     from . import _macos
 elif sys.platform == "win32":
     from . import _windows
-
-
-class PyautoguiConfig(BaseModel):
-    """Configuration for PyautoguiActionHandler."""
-
-    drag_duration: float = Field(
-        default=0.5, description="Duration for drag operations in seconds"
-    )
-    scroll_amount: int = Field(
-        default=2 if sys.platform == "darwin" else 100,
-        description="Amount to scroll (positive for up, negative for down)",
-    )
-    wait_duration: float = Field(
-        default=1.0, description="Duration for wait actions in seconds"
-    )
-    action_pause: float = Field(
-        default=0.1, description="Pause between PyAutoGUI actions in seconds"
-    )
-    hotkey_interval: float = Field(
-        default=0.1, description="Interval between key presses in hotkey combinations"
-    )
-    capslock_mode: str = Field(
-        default="session",
-        description="Caps lock handling mode: 'session' (internal state) or 'system' (OS-level)",
-    )
-    macos_ctrl_to_cmd: bool = Field(
-        default=True,
-        description="Replace 'ctrl' with 'command' in hotkey combinations on macOS",
-    )
-    click_pre_delay: float = Field(
-        default=0.1,
-        description="Delay in seconds after moving to position before clicking",
-    )
-    post_batch_delay: float = Field(
-        default=DEFAULT_STEP_DELAY,
-        ge=0,
-        description="Delay after executing all actions in a batch (seconds). "
-        "Allows UI to settle before next screenshot.",
-    )
 
 
 class PyautoguiActionHandler:
