@@ -24,12 +24,10 @@ DEFAULT_SANDBOX_WIDTH = 1920
 DEFAULT_SANDBOX_HEIGHT = 1080
 MODEL_COORD_WIDTH = 1000
 MODEL_COORD_HEIGHT = 1000
-DEFAULT_SCROLL_AMOUNT = 2
-DEFAULT_DRAG_DURATION = 0.5
-DEFAULT_WAIT_DURATION = 1.0
-DEFAULT_ACTION_PAUSE = 0.1
-DEFAULT_HOTKEY_INTERVAL = 0.1
-DEFAULT_CAPSLOCK_MODE = "session"
+
+# Converter uses scroll_amount=2 (not PyautoguiConfig's platform-dependent default
+# of 100 on Linux) because commands execute in the remote sandbox VM.
+DEFAULT_CONVERTER_SCROLL_AMOUNT = 2
 
 
 class PyautoguiActionConvertor:
@@ -53,32 +51,25 @@ class PyautoguiActionConvertor:
 
     Args:
         logger: Logger instance for error and debug logging
+        config: PyautoguiConfig instance. If not provided, uses default config
+            with scroll_amount=2 (overriding the platform-dependent default).
     """
 
     def __init__(
         self,
         *,
         logger: logging.Logger,
-        scroll_amount: int = DEFAULT_SCROLL_AMOUNT,
-        drag_duration: float = DEFAULT_DRAG_DURATION,
-        wait_duration: float = DEFAULT_WAIT_DURATION,
-        action_pause: float = DEFAULT_ACTION_PAUSE,
-        hotkey_interval: float = DEFAULT_HOTKEY_INTERVAL,
-        capslock_mode: str = DEFAULT_CAPSLOCK_MODE,
+        config: PyautoguiConfig | None = None,
     ) -> None:
         self.logger = logger
 
-        # Initialize configurations internally
-        self.pyautogui_config = PyautoguiConfig()
-        self.pyautogui_config.scroll_amount = scroll_amount
-        self.pyautogui_config.drag_duration = drag_duration
-        self.pyautogui_config.wait_duration = wait_duration
-        self.pyautogui_config.action_pause = action_pause
-        self.pyautogui_config.hotkey_interval = hotkey_interval
-        self.pyautogui_config.capslock_mode = capslock_mode
+        # Use provided config or create default with converter-specific scroll_amount
+        self.pyautogui_config = config or PyautoguiConfig(
+            scroll_amount=DEFAULT_CONVERTER_SCROLL_AMOUNT,
+        )
 
-        self.sandbox_width = DEFAULT_SANDBOX_WIDTH
-        self.sandbox_height = DEFAULT_SANDBOX_HEIGHT
+        self.sandbox_width = self.pyautogui_config.sandbox_width
+        self.sandbox_height = self.pyautogui_config.sandbox_height
 
         self.coord_scale_x = self.sandbox_width / MODEL_COORD_WIDTH
         self.coord_scale_y = self.sandbox_height / MODEL_COORD_HEIGHT
