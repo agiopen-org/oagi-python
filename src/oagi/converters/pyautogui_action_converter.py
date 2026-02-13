@@ -272,7 +272,7 @@ class PyautoguiActionConvertor:
 
         # Normalize underscore-separated key names to pyautogui format
         # This handles common model outputs like page_down, print_screen, etc.
-        # Synced from oagi-python/src/oagi/handler/pyautogui_action_handler.py
+        # Synced from oagi.handler.utils.normalize_key
         hotkey_variations_mapping = {
             "pageup": ["page_up", "pageup", "pgup"],
             "pagedown": ["page_down", "pagedown", "pgdn"],
@@ -321,14 +321,14 @@ class PyautoguiActionConvertor:
             suggestions = []
             for invalid_key in invalid_keys:
                 if invalid_key in ("return", "ret"):
-                    suggestions.append(f"'{invalid_key}' -> use 'enter' or 'return'")
+                    suggestions.append(f"'{invalid_key}' → use 'enter' or 'return'")
                 elif invalid_key in ("delete", "del"):
-                    suggestions.append(f"'{invalid_key}' -> use 'delete' or 'del'")
+                    suggestions.append(f"'{invalid_key}' → use 'delete' or 'del'")
                 elif invalid_key in ("escape", "esc"):
-                    suggestions.append(f"'{invalid_key}' -> use 'escape' or 'esc'")
+                    suggestions.append(f"'{invalid_key}' → use 'escape' or 'esc'")
                 elif invalid_key.startswith("num") and len(invalid_key) > 3:
                     suggestions.append(
-                        f"'{invalid_key}' -> numpad keys use format 'num0'-'num9'"
+                        f"'{invalid_key}' → numpad keys use format 'num0'-'num9'"
                     )
                 else:
                     suggestions.append(f"'{invalid_key}' is not a valid key name")
