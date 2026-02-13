@@ -7,26 +7,26 @@
 # -----------------------------------------------------------------------------
 """Action converters for VLM support.
 
-This module provides the base class and OAGI implementation for action converters.
-Third parties can inherit from BaseActionConverter to create custom converters.
+This module provides PyautoguiActionConvertor for converting OAGI actions
+to pyautogui command strings, and BaseActionConverter for custom converters.
 
 Example usage:
-    from oagi.converters import OagiActionConverter, ConverterConfig
+    from oagi.converters import PyautoguiActionConvertor
 
-    # Configure for 1920x1080 sandbox
-    config = ConverterConfig(sandbox_width=1920, sandbox_height=1080)
-    converter = OagiActionConverter(config=config)
+    import logging
+    converter = PyautoguiActionConvertor(logger=logging.getLogger(__name__))
 
     # Convert OAGI actions to pyautogui strings
-    result = converter(actions)  # list[str]
+    result = converter(actions)  # list[tuple[str, bool]]
 
     # Convert to runtime API steps
-    for cmd in result:
+    for cmd, is_last in result:
         step = converter.action_string_to_step(cmd)
         # Execute step via runtime API...
 
 Creating custom converters:
-    from oagi.converters import BaseActionConverter, ConverterConfig
+    from oagi.converters import BaseActionConverter
+    from oagi.handler.utils import PyautoguiConfig
 
     class MyActionConverter(BaseActionConverter[MyAction]):
         @property
@@ -46,11 +46,11 @@ Creating custom converters:
             ...
 """
 
-from .base import BaseActionConverter, ConverterConfig
-from .oagi import OagiActionConverter
+from .base import BaseActionConverter
+from .pyautogui_action_converter import OagiActionConverter, PyautoguiActionConvertor
 
 __all__ = [
     "BaseActionConverter",
-    "ConverterConfig",
+    "PyautoguiActionConvertor",
     "OagiActionConverter",
 ]

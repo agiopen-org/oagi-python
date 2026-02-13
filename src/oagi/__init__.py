@@ -39,8 +39,16 @@ from oagi.types.models import (
 # package_to_check is None if no optional dependency is required
 _LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
     # Action converters (no optional dependencies)
-    "OagiActionConverter": ("oagi.converters.oagi", None, None),
-    "ConverterConfig": ("oagi.converters.base", None, None),
+    "PyautoguiActionConvertor": (
+        "oagi.converters.pyautogui_action_converter",
+        None,
+        None,
+    ),
+    "OagiActionConverter": (
+        "oagi.converters.pyautogui_action_converter",
+        None,
+        None,
+    ),
     "BaseActionConverter": ("oagi.converters.base", None, None),
     # Desktop handlers (require pyautogui/PIL)
     "AsyncPyautoguiActionHandler": (
@@ -55,11 +63,7 @@ _LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
         "pyautogui",
         "desktop",
     ),
-    "PyautoguiConfig": (
-        "oagi.handler.pyautogui_action_handler",
-        "pyautogui",
-        "desktop",
-    ),
+    "PyautoguiConfig": ("oagi.handler.utils", None, None),
     "ScreenshotMaker": ("oagi.handler.screenshot_maker", "PIL", "desktop"),
     # Agent modules (lazy to avoid circular imports)
     "AsyncDefaultAgent": ("oagi.agent.default", None, None),
@@ -92,18 +96,19 @@ if TYPE_CHECKING:
     from oagi.agent.default import AsyncDefaultAgent
     from oagi.agent.observer.agent_observer import AsyncAgentObserver
     from oagi.agent.tasker import TaskerAgent
-    from oagi.converters.base import BaseActionConverter, ConverterConfig
-    from oagi.converters.oagi import OagiActionConverter
+    from oagi.converters.base import BaseActionConverter
+    from oagi.converters.pyautogui_action_converter import (
+        OagiActionConverter,
+        PyautoguiActionConvertor,
+    )
     from oagi.handler.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
     from oagi.handler.async_screenshot_maker import AsyncScreenshotMaker
     from oagi.handler.async_ydotool_action_handler import AsyncYdotoolActionHandler
     from oagi.handler.pil_image import PILImage
-    from oagi.handler.pyautogui_action_handler import (
-        PyautoguiActionHandler,
-        PyautoguiConfig,
-    )
+    from oagi.handler.pyautogui_action_handler import PyautoguiActionHandler
     from oagi.handler.screen_manager import ScreenManager
     from oagi.handler.screenshot_maker import ScreenshotMaker
+    from oagi.handler.utils import PyautoguiConfig
     from oagi.handler.ydotool_action_handler import YdotoolActionHandler, YdotoolConfig
     from oagi.server.config import ServerConfig
     from oagi.server.main import create_app
@@ -181,7 +186,7 @@ __all__ = [
     # Lazy imports - Screen manager
     "ScreenManager",
     # Lazy imports - Action converters
+    "PyautoguiActionConvertor",
     "OagiActionConverter",
-    "ConverterConfig",
     "BaseActionConverter",
 ]

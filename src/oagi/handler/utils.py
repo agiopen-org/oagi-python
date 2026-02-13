@@ -13,6 +13,10 @@ This module provides common functionality used by both PyautoguiActionHandler
 
 import sys
 
+from pydantic import BaseModel, Field
+
+from ..constants import DEFAULT_STEP_DELAY
+
 # =============================================================================
 # Key Normalization Mapping
 # =============================================================================
@@ -620,3 +624,79 @@ def configure_handler_delay(handler, step_delay: float) -> None:
     """
     if hasattr(handler, "config") and hasattr(handler.config, "post_batch_delay"):
         handler.config.post_batch_delay = step_delay
+
+
+# =============================================================================
+# PyautoguiConfig
+# =============================================================================
+
+
+class PyautoguiConfig(BaseModel):
+    """Configuration for PyautoguiActionHandler and PyautoguiActionConvertor."""
+
+    drag_duration: float = Field(
+        default=0.5, description="Duration for drag operations in seconds"
+    )
+    scroll_amount: int = Field(
+        default=2 if sys.platform == "darwin" else 100,
+        description="Amount to scroll (positive for up, negative for down)",
+    )
+    wait_duration: float = Field(
+        default=1.0, description="Duration for wait actions in seconds"
+    )
+    action_pause: float = Field(
+        default=0.1, description="Pause between PyAutoGUI actions in seconds"
+    )
+    hotkey_interval: float = Field(
+        default=0.1, description="Interval between key presses in hotkey combinations"
+    )
+    capslock_mode: str = Field(
+        default="session",
+        description="Caps lock handling mode: 'session' (internal state) or 'system' (OS-level)",
+    )
+    macos_ctrl_to_cmd: bool = Field(
+        default=True,
+        description="Replace 'ctrl' with 'command' in hotkey combinations on macOS",
+    )
+    click_pre_delay: float = Field(
+        default=0.1,
+        description="Delay in seconds after moving to position before clicking",
+    )
+    post_batch_delay: float = Field(
+        default=DEFAULT_STEP_DELAY,
+        ge=0,
+        description="Delay after executing all actions in a batch (seconds). "
+        "Allows UI to settle before next screenshot.",
+    )
+    sandbox_width: int = Field(
+        default=1920, description="Target sandbox screen width in pixels"
+    )
+    sandbox_height: int = Field(
+        default=1080, description="Target sandbox screen height in pixels"
+    )
+    strict_coordinate_validation: bool = Field(
+        default=False,
+        description="If True, raise ValueError when coordinates are outside valid range. "
+        "If False (default), clamp coordinates to valid range.",
+    )
+
+
+# =============================================================================
+# Type Command Utilities
+# =============================================================================
+
+_PYNPUT_CHAR_LIMIT = 200
+
+
+def make_type_command(text: str) -> str:
+    """Generate pyautogui code to type *text*.
+
+    Short ASCII without newlines (<=200 chars) -> PynputController (character-by-character).
+    Long ASCII / Unicode / multi-line          -> _smart_paste (clipboard paste, terminal-aware).
+    """
+    if not text:
+        raise ValueError("Empty text for type command — invalid model output")
+    has_unicode = any(ord(c) > 127 for c in text)
+    if not has_unicode and "\n" not in text and len(text) <= _PYNPUT_CHAR_LIMIT:
+        return f"PynputController().type({text!r})"
+    return f"_smart_paste({text!r})"
