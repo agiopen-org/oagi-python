@@ -6,20 +6,27 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
+import logging
+
 import pytest
 
-from oagi.converters import ConverterConfig, OagiActionConverter
+from oagi.converters import OagiActionConverter, PyautoguiActionConvertor
 from oagi.types import Action, ActionType
 
 
 @pytest.fixture
-def config():
-    return ConverterConfig(sandbox_width=1920, sandbox_height=1080)
+def converter():
+    return PyautoguiActionConvertor(logger=logging.getLogger("test"))
 
 
-@pytest.fixture
-def converter(config):
-    return OagiActionConverter(config=config)
+def _cmds(result: list[tuple[str, bool]]) -> list[str]:
+    """Extract command strings from converter result tuples."""
+    return [cmd for cmd, _ in result]
+
+
+class TestBackwardCompatAlias:
+    def test_oagi_action_converter_is_alias(self):
+        assert OagiActionConverter is PyautoguiActionConvertor
 
 
 class TestCoordinateBasedActions:
@@ -35,72 +42,103 @@ class TestCoordinateBasedActions:
                 "pyautogui.rightClick(x=1152, y=432)",
             ),
         ],
+        ids=["click", "double-click", "triple-click", "right-click"],
     )
     def test_click_actions(self, converter, action_type, argument, expected_cmd):
         action = Action(type=action_type, argument=argument, count=1)
         result = converter([action])
         assert len(result) == 1
-        assert result[0] == expected_cmd
+        cmd, is_last = result[0]
+        assert cmd == expected_cmd
+        assert is_last is True
 
 
 class TestDragAction:
-    def test_drag_generates_two_commands(self, converter, config):
+    def test_drag_generates_two_commands(self, converter):
         action = Action(type=ActionType.DRAG, argument="100, 100, 500, 300", count=1)
         result = converter([action])
-        assert len(result) == 2
-        assert "pyautogui.moveTo(192, 108)" in result[0]
-        assert (
-            f"pyautogui.dragTo(960, 324, duration={config.drag_duration})" in result[1]
-        )
+        cmds = _cmds(result)
+        assert len(cmds) == 2
+        assert "pyautogui.moveTo(192, 108)" in cmds[0]
+        assert "pyautogui.dragTo(960, 324, duration=0.5)" in cmds[1]
+        # Only last command should have is_last=True
+        assert result[0][1] is False
+        assert result[1][1] is True
 
 
 class TestHotkeyAction:
-    def test_hotkey_conversion(self, converter, config):
+    def test_hotkey_conversion(self, converter):
         action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)
         result = converter([action])
-        assert len(result) == 1
-        assert (
-            f"pyautogui.hotkey('ctrl', 'c', interval={config.hotkey_interval})"
-            in result[0]
-        )
+        cmds = _cmds(result)
+        assert len(cmds) == 1
+        assert "pyautogui.hotkey('ctrl', 'c', interval=0.1)" in cmds[0]
 
 
 class TestTypeAction:
-    def test_type_conversion(self, converter):
+    def test_short_ascii_uses_pynput(self, converter):
         action = Action(type=ActionType.TYPE, argument="Hello World", count=1)
         result = converter([action])
-        assert len(result) == 1
-        assert "pyautogui.typewrite" in result[0]
-        assert "Hello World" in result[0]
+        cmds = _cmds(result)
+        assert len(cmds) == 1
+        assert "PynputController().type('Hello World')" == cmds[0]
+
+    def test_unicode_uses_smart_paste(self, converter):
+        action = Action(type=ActionType.TYPE, argument="你好世界", count=1)
+        result = converter([action])
+        cmds = _cmds(result)
+        assert len(cmds) == 1
+        assert "_smart_paste('你好世界')" == cmds[0]
+
+    def test_multiline_uses_smart_paste(self, converter):
+        action = Action(type=ActionType.TYPE, argument="line1\nline2", count=1)
+        result = converter([action])
+        cmds = _cmds(result)
+        assert len(cmds) == 1
+        assert "_smart_paste(" in cmds[0]
+
+    def test_long_text_uses_smart_paste(self, converter):
+        long_text = "a" * 201
+        action = Action(type=ActionType.TYPE, argument=long_text, count=1)
+        result = converter([action])
+        cmds = _cmds(result)
+        assert len(cmds) == 1
+        assert "_smart_paste(" in cmds[0]
 
 
 class TestScrollAction:
-    @pytest.mark.parametrize("direction,expected_amount", [("up", 2), ("down", -2)])
+    @pytest.mark.parametrize(
+        "direction,expected_amount",
+        [("up", 2), ("down", -2)],
+        ids=["scroll-up", "scroll-down"],
+    )
     def test_scroll_conversion(self, converter, direction, expected_amount):
         action = Action(
             type=ActionType.SCROLL, argument=f"500, 300, {direction}", count=1
         )
         result = converter([action])
-        assert len(result) == 2
-        assert "pyautogui.moveTo(960, 324)" in result[0]
-        assert f"pyautogui.scroll({expected_amount})" in result[1]
+        cmds = _cmds(result)
+        assert len(cmds) == 2
+        assert "pyautogui.moveTo(960, 324)" in cmds[0]
+        assert f"pyautogui.scroll({expected_amount})" in cmds[1]
 
 
 class TestSpecialActions:
-    def test_wait_action(self, converter, config):
+    def test_wait_action(self, converter):
         action = Action(type=ActionType.WAIT, argument="", count=1)
         result = converter([action])
-        assert f"WAIT({config.wait_duration})" in result[0]
+        cmds = _cmds(result)
+        assert "WAIT(1.0)" in cmds[0]
 
     def test_finish_action(self, converter):
         action = Action(type=ActionType.FINISH, argument="", count=1)
         result = converter([action])
-        assert result[0] == "DONE"
+        assert result[0][0] == "DONE"
 
     def test_fail_action(self, converter):
         action = Action(type=ActionType.FAIL, argument="", count=1)
         result = converter([action])
-        assert result[0] == "FAIL"
+        assert result[0][0] == "FAIL"
 
     def test_duplicate_terminal_actions_raises(self, converter):
         actions = [
@@ -116,6 +154,16 @@ class TestActionStringToStep:
         step = converter.action_string_to_step("pyautogui.click(x=100, y=200)")
         assert step["type"] == "pyautogui"
         assert step["parameters"]["code"] == "pyautogui.click(x=100, y=200)"
+
+    def test_pynput_command(self, converter):
+        step = converter.action_string_to_step("PynputController().type('hello')")
+        assert step["type"] == "pyautogui"
+        assert step["parameters"]["code"] == "PynputController().type('hello')"
+
+    def test_smart_paste_command(self, converter):
+        step = converter.action_string_to_step("_smart_paste('hello')")
+        assert step["type"] == "pyautogui"
+        assert step["parameters"]["code"] == "_smart_paste('hello')"
 
     def test_wait_command(self, converter):
         step = converter.action_string_to_step("WAIT(5)")
@@ -137,22 +185,26 @@ class TestMultipleActions:
     def test_action_count(self, converter):
         action = Action(type=ActionType.CLICK, argument="500, 300", count=3)
         result = converter([action])
+        cmds = _cmds(result)
         # Each click generates 1 command, repeated 3 times
-        assert len(result) == 3
+        assert len(cmds) == 3
         # All should be the same click command
-        assert all(cmd == "pyautogui.click(x=960, y=324)" for cmd in result)
+        assert all(cmd == "pyautogui.click(x=960, y=324)" for cmd in cmds)
+        # Only the last should have is_last=True
+        assert result[0][1] is False
+        assert result[1][1] is False
+        assert result[2][1] is True
+
+    def test_drag_count(self, converter):
+        action = Action(type=ActionType.DRAG, argument="100, 100, 500, 300", count=2)
+        result = converter([action])
+        # Drag generates 2 commands, repeated 2 times = 4 total
+        assert len(result) == 4
+        # is_last only on the very last command
+        assert [is_last for _, is_last in result] == [False, False, False, True]
 
 
-class TestStrictCoordinateValidation:
-    @pytest.fixture
-    def strict_converter(self):
-        config = ConverterConfig(
-            sandbox_width=1920,
-            sandbox_height=1080,
-            strict_coordinate_validation=True,
-        )
-        return OagiActionConverter(config=config)
-
+class TestCoordinateValidation:
     @pytest.mark.parametrize(
         "argument,match_pattern",
         [
@@ -161,18 +213,19 @@ class TestStrictCoordinateValidation:
             ("1050, 500", "x coordinate .* out of valid range"),
             ("500, 1050", "y coordinate .* out of valid range"),
         ],
+        ids=["neg-x", "neg-y", "over-x", "over-y"],
     )
-    def test_strict_mode_rejects_out_of_range(
-        self, strict_converter, argument, match_pattern
-    ):
+    def test_rejects_out_of_range(self, converter, argument, match_pattern):
         action = Action(type=ActionType.CLICK, argument=argument, count=1)
+        # Coordinates always validated, wraps in RuntimeError from __call__
         with pytest.raises(RuntimeError, match=match_pattern):
-            strict_converter([action])
+            converter([action])
 
-    def test_non_strict_mode_clamps_out_of_range(self, converter):
-        action = Action(type=ActionType.CLICK, argument="1050, 1050", count=1)
+    def test_boundary_1000_clamps_to_max(self, converter):
+        """Coordinates at exactly 1000 are valid but clamped to screen edge."""
+        action = Action(type=ActionType.CLICK, argument="1000, 1000", count=1)
         result = converter([action])
-        assert "pyautogui.click(x=1919, y=1079)" in result[0]
+        assert result[0][0] == "pyautogui.click(x=1919, y=1079)"
 
     @pytest.mark.parametrize(
         "action_type,argument",
@@ -180,10 +233,9 @@ class TestStrictCoordinateValidation:
             (ActionType.DRAG, "500, 500, 1100, 500"),
             (ActionType.SCROLL, "1100, 500, up"),
         ],
+        ids=["drag-over-range", "scroll-over-range"],
     )
-    def test_strict_mode_for_other_actions(
-        self, strict_converter, action_type, argument
-    ):
+    def test_other_actions_reject_out_of_range(self, converter, action_type, argument):
         action = Action(type=action_type, argument=argument, count=1)
         with pytest.raises(RuntimeError, match="x coordinate .* out of valid range"):
-            strict_converter([action])
+            converter([action])

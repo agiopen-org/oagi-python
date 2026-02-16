@@ -13,37 +13,18 @@ actions to pyautogui command strings for remote execution.
 
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 from ..handler.capslock_manager import CapsLockManager
 from ..handler.utils import (
     CoordinateScaler,
+    PyautoguiConfig,
     normalize_key,
     parse_hotkey,
     validate_keys,
 )
 
 T = TypeVar("T")
-
-
-@dataclass
-class ConverterConfig:
-    """Configuration for action converters.
-
-    Matches the configuration options in PyautoguiConfig for consistency.
-    """
-
-    sandbox_width: int = 1920
-    sandbox_height: int = 1080
-    drag_duration: float = 0.5
-    scroll_amount: int = 2
-    wait_duration: float = 1.0
-    hotkey_interval: float = 0.1
-    capslock_mode: str = "session"
-    strict_coordinate_validation: bool = False
-    """If True, raise ValueError when coordinates are outside valid range.
-    If False (default), clamp coordinates to valid range (original behavior)."""
 
 
 class BaseActionConverter(ABC, Generic[T]):
@@ -64,7 +45,7 @@ class BaseActionConverter(ABC, Generic[T]):
     def __init__(
         self,
         *,
-        config: ConverterConfig | None = None,
+        config: PyautoguiConfig | None = None,
         logger: Any | None = None,
     ):
         """Initialize the converter.
@@ -73,7 +54,7 @@ class BaseActionConverter(ABC, Generic[T]):
             config: Converter configuration. Uses defaults if not provided.
             logger: Optional logger instance for debug/error logging.
         """
-        self.config = config or ConverterConfig()
+        self.config = config or PyautoguiConfig()
         self.logger = logger
 
         # Initialize coordinate scaler
