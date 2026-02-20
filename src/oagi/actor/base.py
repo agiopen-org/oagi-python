@@ -30,11 +30,13 @@ class BaseActor:
         base_url: str | None,
         model: str,
         temperature: float | None,
+        parser_mode: str = "qwen3",
     ):
         self.task_id: str = uuid4().hex  # Client-side generated UUID
         self.task_description: str | None = None
         self.model = model
         self.temperature = temperature
+        self.parser_mode = parser_mode
         self.message_history: list = []  # OpenAI-compatible message history
         self.max_steps: int = DEFAULT_MAX_STEPS
         self.current_step: int = 0  # Current step counter
@@ -182,7 +184,11 @@ class BaseActor:
     def _build_step_prompt(self) -> str | None:
         """Build prompt for first message only."""
         if len(self.message_history) == 0:
-            return build_prompt(self.task_description)
+            prompt_mode = "legacy" if self.parser_mode == "legacy" else "qwen3"
+            return build_prompt(
+                self.task_description,
+                prompt_mode=prompt_mode,
+            )
         return None
 
     def _log_step_completion(self, step: Step, prefix: str = "") -> None:

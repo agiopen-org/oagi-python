@@ -43,6 +43,9 @@ class Session:
         self.status: str = "initialized"
         self.created_at: str = datetime.now().isoformat()
         self.actions_executed: int = 0
+        # Last known cursor position in model coordinate space (0-1000)
+        self.last_cursor_x: int | None = None
+        self.last_cursor_y: int | None = None
 
         # OAGI client reference
         self.oagi_client: Any | None = None

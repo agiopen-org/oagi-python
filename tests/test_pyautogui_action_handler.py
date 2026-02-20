@@ -72,6 +72,34 @@ def test_drag_action(handler, mock_pyautogui, config):
     )
 
 
+def test_mouse_move_action(handler, mock_pyautogui):
+    action = Action(type=ActionType.MOUSE_MOVE, argument="500, 300", count=1)
+    handler([action])
+    mock_pyautogui.moveTo.assert_called_once_with(960, 324)
+
+
+def test_left_click_drag_action(handler, mock_pyautogui, config):
+    action = Action(type=ActionType.LEFT_CLICK_DRAG, argument="500, 300", count=1)
+    handler([action])
+    mock_pyautogui.dragTo.assert_called_once_with(
+        960, 324, duration=config.drag_duration, button="left"
+    )
+
+
+def test_press_click_action(handler, mock_pyautogui):
+    action = Action(
+        type=ActionType.PRESS_CLICK,
+        argument='{"keys":["ctrl"],"click_type":"left_click","coordinate":[500,300]}',
+        count=1,
+    )
+    handler([action])
+
+    mock_pyautogui.keyDown.assert_called_once_with("ctrl")
+    mock_pyautogui.moveTo.assert_called_once_with(960, 324)
+    mock_pyautogui.click.assert_called_once_with()
+    mock_pyautogui.keyUp.assert_called_once_with("ctrl")
+
+
 def test_hotkey_action(mock_pyautogui):
     # Disable macos_ctrl_to_cmd to test basic hotkey functionality
     config = PyautoguiConfig(macos_ctrl_to_cmd=False)
@@ -114,6 +142,13 @@ def test_wait_action(handler, mock_pyautogui, config):
         handler([action])
         # wait_duration calls time.sleep (post_batch_delay is 0 in test fixture)
         mock_sleep.assert_called_once_with(config.wait_duration)
+
+
+def test_wait_action_uses_argument_seconds(handler, mock_pyautogui):
+    with patch("time.sleep") as mock_sleep:
+        action = Action(type=ActionType.WAIT, argument="2.5", count=1)
+        handler([action])
+        mock_sleep.assert_called_once_with(2.5)
 
 
 def test_hotkey_with_custom_interval(mock_pyautogui):

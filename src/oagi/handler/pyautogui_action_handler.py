@@ -12,7 +12,14 @@ import time
 from oagi.handler.screen_manager import Screen
 
 from ..exceptions import check_optional_dependency
-from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
+from ..types import (
+    Action,
+    ActionType,
+    parse_coords,
+    parse_drag_coords,
+    parse_press_click,
+    parse_scroll,
+)
 from .capslock_manager import CapsLockManager
 from .utils import CoordinateScaler, PyautoguiConfig, normalize_key, parse_hotkey
 
@@ -132,7 +139,12 @@ class PyautoguiActionHandler:
 
     def _execute_single_action(self, action: Action) -> None:
         """Execute a single action once."""
-        arg = action.argument.strip("()")  # Remove outer parentheses if present
+        raw_arg = action.argument or ""
+        arg = (
+            raw_arg
+            if action.type in (ActionType.TYPE, ActionType.PRESS_CLICK)
+            else raw_arg.strip("()")
+        )
 
         match action.type:
             case ActionType.CLICK:
@@ -168,6 +180,14 @@ class PyautoguiActionHandler:
                     x2, y2, duration=self.config.drag_duration, button="left"
                 )
 
+            case ActionType.MOUSE_MOVE:
+                x, y = self._parse_coords(arg)
+                pyautogui.moveTo(x, y)
+
+            case ActionType.LEFT_CLICK_DRAG:
+                x, y = self._parse_coords(arg)
+                pyautogui.dragTo(x, y, duration=self.config.drag_duration, button="left")
+
             case ActionType.HOTKEY:
                 keys = self._parse_hotkey(arg)
                 # Check if this is a caps lock key press
@@ -185,8 +205,9 @@ class PyautoguiActionHandler:
                     pyautogui.hotkey(*keys, interval=self.config.hotkey_interval)
 
             case ActionType.TYPE:
-                # Remove quotes if present
-                text = arg.strip("\"'")
+                text = arg
+                if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+                    text = text[1:-1]
                 # Apply caps lock transformation if needed
                 text = self.caps_manager.transform_text(text)
                 # Use platform-specific typing that ignores system capslock
@@ -197,6 +218,41 @@ class PyautoguiActionHandler:
                 else:
                     # Fallback for other platforms
                     pyautogui.typewrite(text)
+
+            case ActionType.PRESS_CLICK:
+                parsed = parse_press_click(arg)
+                if not parsed:
+                    raise ValueError(
+                        f"Invalid press_click argument: {arg}. "
+                        "Expected JSON with keys, click_type, and coordinate."
+                    )
+
+                keys, click_type, raw_x, raw_y = parsed
+                x, y = self._denormalize_coords(raw_x, raw_y)
+                normalized_keys = [self._normalize_key(key) for key in keys if key]
+
+                for key in normalized_keys:
+                    pyautogui.keyDown(key)
+
+                try:
+                    self._move_and_wait(x, y)
+                    if click_type == "left_click":
+                        pyautogui.click()
+                    elif click_type == "right_click":
+                        pyautogui.rightClick()
+                    elif click_type == "double_click":
+                        if sys.platform == "darwin":
+                            _macos.macos_click(x, y, clicks=2)
+                        else:
+                            pyautogui.doubleClick()
+                    elif click_type == "triple_click":
+                        if sys.platform == "darwin":
+                            _macos.macos_click(x, y, clicks=3)
+                        else:
+                            pyautogui.tripleClick()
+                finally:
+                    for key in reversed(normalized_keys):
+                        pyautogui.keyUp(key)
 
             case ActionType.SCROLL:
                 x, y, direction = self._parse_scroll(arg)
@@ -213,8 +269,14 @@ class PyautoguiActionHandler:
                 self.reset()
 
             case ActionType.WAIT:
-                # Wait for a short period
-                time.sleep(self.config.wait_duration)
+                # Respect per-action wait argument when provided.
+                try:
+                    wait_seconds = (
+                        float(arg) if arg else float(self.config.wait_duration)
+                    )
+                except ValueError:
+                    wait_seconds = float(self.config.wait_duration)
+                time.sleep(max(wait_seconds, 0.0))
 
             case ActionType.CALL_USER:
                 # Call user - implementation depends on requirements

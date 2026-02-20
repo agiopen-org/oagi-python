@@ -63,6 +63,18 @@ class FinishEventData(BaseActionEventData):
     pass
 
 
+class PressClickEventData(BaseActionEventData):
+    keys: list[str] = Field(default_factory=list)
+    click_type: Literal[
+        "left_click",
+        "right_click",
+        "double_click",
+        "triple_click",
+    ] = Field(...)
+    x: int = Field(..., ge=0, le=1000)
+    y: int = Field(..., ge=0, le=1000)
+
+
 # Screenshot request/response
 class ScreenshotRequestData(BaseModel):
     presigned_url: str = Field(...)

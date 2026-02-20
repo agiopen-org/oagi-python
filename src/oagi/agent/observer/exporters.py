@@ -22,6 +22,7 @@ from ...types import (
     StepEvent,
     parse_coords,
     parse_drag_coords,
+    parse_press_click,
     parse_scroll,
 )
 
@@ -43,6 +44,8 @@ def _parse_action_coords(action: Action) -> dict | None:
             | ActionType.LEFT_DOUBLE
             | ActionType.LEFT_TRIPLE
             | ActionType.RIGHT_SINGLE
+            | ActionType.MOUSE_MOVE
+            | ActionType.LEFT_CLICK_DRAG
         ):
             coords = parse_coords(arg)
             if coords:
@@ -66,6 +69,10 @@ def _parse_action_coords(action: Action) -> dict | None:
                     "y": result[1],
                     "direction": result[2],
                 }
+        case ActionType.PRESS_CLICK:
+            result = parse_press_click(action.argument)
+            if result:
+                return {"type": "click", "x": result[2], "y": result[3]}
     return None
 
 

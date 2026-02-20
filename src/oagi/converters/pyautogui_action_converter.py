@@ -11,6 +11,7 @@ This module provides PyautoguiActionConvertor for converting OAGI actions
 to pyautogui command strings for remote execution via the sandbox runtime API.
 """
 
+import json
 import logging
 import re
 from typing import Any
@@ -262,6 +263,70 @@ class PyautoguiActionConvertor:
                 f"Coordinates must be comma-separated numeric values, e.g., 'drag(100, 200, 300, 400)'"
             ) from e
 
+    def _parse_press_click(self, argument: str) -> tuple[list[str], str, int, int]:
+        """Parse press_click payload from JSON argument string.
+
+        Args:
+            argument: JSON string with fields:
+                - keys: list[str] (optional)
+                - click_type: left_click/right_click/double_click/triple_click
+                - coordinate: [x, y] in model coordinate space
+
+        Returns:
+            Tuple of (keys, click_type, x, y), where x/y are denormalized.
+
+        Raises:
+            ValueError: If payload is malformed.
+        """
+        try:
+            payload = json.loads(argument)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid press_click format: '{argument}'. Expected JSON payload."
+            ) from e
+
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"Invalid press_click payload type: {type(payload).__name__}. Expected object."
+            )
+
+        raw_keys = payload.get("keys", [])
+        if isinstance(raw_keys, list):
+            keys = [str(key).strip() for key in raw_keys if str(key).strip()]
+        elif isinstance(raw_keys, str) and raw_keys.strip():
+            keys = [raw_keys.strip()]
+        else:
+            keys = []
+
+        click_type = str(payload.get("click_type", "")).strip().lower()
+        if click_type not in {
+            "left_click",
+            "right_click",
+            "double_click",
+            "triple_click",
+        }:
+            raise ValueError(
+                f"Invalid click_type in press_click: '{click_type}'. "
+                "Expected one of left_click/right_click/double_click/triple_click."
+            )
+
+        coordinate = payload.get("coordinate")
+        if not isinstance(coordinate, list | tuple) or len(coordinate) < 2:
+            raise ValueError(
+                f"Invalid coordinate in press_click: '{coordinate}'. Expected [x, y]."
+            )
+        try:
+            raw_x = float(coordinate[0])
+            raw_y = float(coordinate[1])
+        except (ValueError, TypeError, IndexError) as e:
+            raise ValueError(
+                f"Invalid coordinate values in press_click: '{coordinate}'. "
+                "Coordinates must be numeric."
+            ) from e
+
+        x, y = self._denormalize_coords(raw_x, raw_y)
+        return keys, click_type, x, y
+
     def _normalize_key(self, key: str) -> str:
         """Normalize key names for consistency.
 
@@ -397,6 +462,14 @@ class PyautoguiActionConvertor:
                 f"pyautogui.dragTo({ex}, {ey}, duration={drag_duration})",
             ]
 
+        if action_type == ActionType.MOUSE_MOVE.value:
+            x, y = self._parse_click_coords(argument)
+            return [f"pyautogui.moveTo({x}, {y})"]
+
+        if action_type == ActionType.LEFT_CLICK_DRAG.value:
+            x, y = self._parse_click_coords(argument)
+            return [f"pyautogui.dragTo({x}, {y}, duration={drag_duration}, button='left')"]
+
         if action_type == ActionType.HOTKEY.value:
             keys = self._parse_hotkey(argument)
             # Validate keys are not empty (already validated in _parse_hotkey)
@@ -429,6 +502,30 @@ class PyautoguiActionConvertor:
             # Apply caps lock transformation if needed
             text = self.caps_manager.transform_text(text)
             return [make_type_command(text)]
+
+        if action_type == ActionType.PRESS_CLICK.value:
+            keys, click_type, x, y = self._parse_press_click(argument)
+            normalized_keys = [self._normalize_key(k) for k in keys]
+            self._validate_keys(normalized_keys)
+
+            commands: list[str] = [
+                f"pyautogui.keyDown({key!r})" for key in normalized_keys if key
+            ]
+
+            click_cmd_map = {
+                "left_click": f"pyautogui.click(x={x}, y={y})",
+                "right_click": f"pyautogui.rightClick(x={x}, y={y})",
+                "double_click": f"pyautogui.doubleClick(x={x}, y={y})",
+                "triple_click": f"pyautogui.tripleClick(x={x}, y={y})",
+            }
+            commands.append(click_cmd_map[click_type])
+
+            commands.extend(
+                f"pyautogui.keyUp({key!r})"
+                for key in reversed(normalized_keys)
+                if key
+            )
+            return commands
 
         if action_type == ActionType.SCROLL.value:
             parts = [p.strip() for p in argument.split(",")]
@@ -488,7 +585,8 @@ class PyautoguiActionConvertor:
         raise ValueError(
             f"Unknown action type: '{action_type}'. "
             f"Supported types: click, left_double, left_triple, right_single, drag, "
-            f"hotkey, type, scroll, wait, finish, fail"
+            "mouse_move, left_click_drag, press_click, "
+            "hotkey, type, scroll, wait, finish, fail"
         )
 
     # ------------------------------------------------------------------

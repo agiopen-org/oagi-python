@@ -30,6 +30,7 @@ class ShortTask(Actor, BaseAutoMode):
         base_url: str | None = None,
         model: str = MODEL_ACTOR,
         temperature: float | None = None,
+        parser_mode: str = "qwen3",
     ):
         warnings.warn(
             "ShortTask is deprecated and will be removed in a future version. "
@@ -38,7 +39,11 @@ class ShortTask(Actor, BaseAutoMode):
             stacklevel=2,
         )
         super().__init__(
-            api_key=api_key, base_url=base_url, model=model, temperature=temperature
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            temperature=temperature,
+            parser_mode=parser_mode,
         )
 
     def auto_mode(

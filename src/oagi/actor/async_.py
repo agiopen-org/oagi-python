@@ -26,8 +26,15 @@ class AsyncActor(BaseActor):
         base_url: str | None = None,
         model: str = MODEL_ACTOR,
         temperature: float | None = None,
+        parser_mode: str = "qwen3",
     ):
-        super().__init__(api_key, base_url, model, temperature)
+        super().__init__(
+            api_key,
+            base_url,
+            model,
+            temperature,
+            parser_mode=parser_mode,
+        )
         self.client = AsyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
         self.base_url = self.client.base_url
@@ -50,6 +57,7 @@ class AsyncActor(BaseActor):
         screenshot: Image | URL | bytes,
         instruction: str | None = None,
         temperature: float | None = None,
+        parser_mode: str | None = None,
     ) -> Step:
         """Send screenshot to the server and get the next actions.
 
@@ -57,6 +65,7 @@ class AsyncActor(BaseActor):
             screenshot: Screenshot as Image object, URL string, or raw bytes
             instruction: Optional additional instruction for this step (currently unused)
             temperature: Sampling temperature for this step (overrides task default if provided)
+            parser_mode: Output parser mode for this request (defaults to actor setting)
 
         Returns:
             Step: The actions and reasoning for this step
@@ -75,6 +84,7 @@ class AsyncActor(BaseActor):
                 messages=self.message_history,
                 temperature=self._get_temperature(temperature),
                 task_id=self.task_id,
+                parser_mode=parser_mode or self.parser_mode,
             )
 
             self._add_assistant_message_to_history(raw_output)
@@ -108,6 +118,7 @@ class AsyncTask(AsyncActor):
         base_url: str | None = None,
         model: str = MODEL_ACTOR,
         temperature: float | None = None,
+        parser_mode: str = "qwen3",
     ):
         warnings.warn(
             "AsyncTask is deprecated and will be removed in a future version. "
@@ -115,4 +126,10 @@ class AsyncTask(AsyncActor):
             DeprecationWarning,
             stacklevel=2,
         )
-        super().__init__(api_key, base_url, model, temperature)
+        super().__init__(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            temperature=temperature,
+            parser_mode=parser_mode,
+        )
