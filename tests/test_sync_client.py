@@ -205,6 +205,29 @@ class TestSyncClientChatCompletion:
         call_args = test_client.openai_client.chat.completions.create.call_args
         assert call_args[1]["temperature"] == 0.7
 
+    def test_chat_completion_forwards_parser_mode(
+        self, test_client, sample_raw_output, sample_usage
+    ):
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = sample_raw_output
+        mock_response.usage = Mock(
+            prompt_tokens=sample_usage["prompt_tokens"],
+            completion_tokens=sample_usage["completion_tokens"],
+            total_tokens=sample_usage["total_tokens"],
+        )
+        test_client.openai_client.chat.completions.create.return_value = mock_response
+
+        with patch("oagi.client.base.parse_raw_output") as mock_parser:
+            mock_parser.return_value = Step(reason="", actions=[], stop=False)
+            test_client.chat_completion(
+                model=MODEL_ACTOR,
+                messages=[{"role": "user", "content": "Test"}],
+                parser_mode="legacy",
+            )
+
+            mock_parser.assert_called_once_with(sample_raw_output, parser_mode="legacy")
+
 
 class TestSyncClientS3Upload:
     def test_get_s3_presigned_url(self, test_client, upload_file_response):

@@ -66,6 +66,38 @@ class TestDragAction:
         assert result[1][1] is True
 
 
+class TestQwen3MouseActions:
+    def test_mouse_move_generates_move_to(self, converter):
+        action = Action(type=ActionType.MOUSE_MOVE, argument="500, 300", count=1)
+        result = converter([action])
+
+        assert result == [("pyautogui.moveTo(960, 324)", True)]
+
+    def test_left_click_drag_generates_drag_to(self, converter):
+        action = Action(type=ActionType.LEFT_CLICK_DRAG, argument="800, 600", count=1)
+        result = converter([action])
+
+        assert result == [
+            ("pyautogui.dragTo(1536, 648, duration=0.5, button='left')", True)
+        ]
+
+    def test_press_click_generates_key_down_click_key_up(self, converter):
+        action = Action(
+            type=ActionType.PRESS_CLICK,
+            argument='{"keys":["ctrl"],"click_type":"left_click","coordinate":[500,300]}',
+            count=1,
+        )
+        result = converter([action])
+        cmds = _cmds(result)
+
+        assert cmds == [
+            "pyautogui.keyDown('ctrl')",
+            "pyautogui.click(x=960, y=324)",
+            "pyautogui.keyUp('ctrl')",
+        ]
+        assert [is_last for _, is_last in result] == [False, False, True]
+
+
 class TestHotkeyAction:
     def test_hotkey_conversion(self, converter):
         action = Action(type=ActionType.HOTKEY, argument="ctrl+c", count=1)

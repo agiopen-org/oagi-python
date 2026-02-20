@@ -6,7 +6,11 @@
 #  Licensed under the MIT License.
 # -----------------------------------------------------------------------------
 
-instruction_template = """You are a Desktop Agent completing computer use tasks from a user instruction.
+from typing import Literal
+
+PromptMode = Literal["qwen3", "legacy"]
+
+_LEGACY_INSTRUCTION_TEMPLATE = """You are a Desktop Agent completing computer use tasks from a user instruction.
 
 Every step, you will look at the screenshot and output the desired actions in a format as:
 
@@ -33,13 +37,39 @@ The user instruction is:
 """
 
 
-def build_prompt(task_description: str) -> str:
-    """Build the instruction prompt for the OAGI model.
+_QWEN3_INSTRUCTION_TEMPLATE = """Please generate the next move according to the UI screenshot, instruction and previous actions.
+
+Instruction: {instruction}
+
+Previous actions:
+{previous_actions}
+"""
+
+
+def build_prompt(
+    task_description: str,
+    previous_actions: str | None = None,
+    prompt_mode: PromptMode = "qwen3",
+) -> str:
+    """Build the instruction prompt for the selected model style.
 
     Args:
-        task_description: The task description to include in the prompt
+        task_description: Task description to include in the prompt.
+        previous_actions: Historical action summary text.
+        prompt_mode: Prompt template mode ("qwen3" or "legacy").
 
     Returns:
-        The formatted prompt string with action format documentation
+        Formatted prompt string.
     """
-    return instruction_template.format(instruction=task_description)
+    if prompt_mode == "legacy":
+        return _LEGACY_INSTRUCTION_TEMPLATE.format(instruction=task_description)
+
+    if prompt_mode == "qwen3":
+        return _QWEN3_INSTRUCTION_TEMPLATE.format(
+            instruction=task_description,
+            previous_actions=previous_actions or "None",
+        )
+
+    raise ValueError(
+        f"Unsupported prompt_mode: {prompt_mode}. Expected 'qwen3' or 'legacy'."
+    )

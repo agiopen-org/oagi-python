@@ -289,6 +289,22 @@ class TestActorStep:
         assert isinstance(result, Step)
         assert not result.stop
 
+    def test_step_forwards_parser_mode_override(
+        self, actor, sample_step, sample_usage_obj, mock_upload_file_response
+    ):
+        actor.task_description = "Test task"
+        actor.client.put_s3_presigned_url.return_value = mock_upload_file_response
+        actor.client.chat_completion.return_value = (
+            sample_step,
+            "Action: click",
+            sample_usage_obj,
+        )
+
+        actor.step(b"image bytes", parser_mode="legacy")
+
+        call_args = actor.client.chat_completion.call_args
+        assert call_args[1]["parser_mode"] == "legacy"
+
 
 class TestActorContextManager:
     def test_context_manager(self, mock_sync_client):

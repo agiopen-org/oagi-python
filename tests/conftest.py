@@ -123,19 +123,31 @@ def mock_s3_upload_response():
 @pytest.fixture
 def sample_raw_output():
     """Sample raw output from the model."""
-    return "<|think_start|>Need to click the button at coordinates 300, 150<|think_end|>\n<|action_start|>click(300, 150)<|action_end|>"
+    return """<think>Need to click the button at coordinates 300, 150</think>
+Action: Click the target button.
+<tool_call>
+{"name":"computer_use","arguments":{"action":"left_click","coordinate":[300,150]}}
+</tool_call>"""
 
 
 @pytest.fixture
 def sample_raw_output_completed():
     """Sample raw output for completed task."""
-    return "<|think_start|>The task has been completed successfully<|think_end|>\n<|action_start|>finish()<|action_end|>"
+    return """<think>The task has been completed successfully</think>
+Action: Finish the task.
+<tool_call>
+{"name":"computer_use","arguments":{"action":"terminate","status":"success"}}
+</tool_call>"""
 
 
 @pytest.fixture
 def sample_raw_output_failed():
     """Sample raw output for infeasible task."""
-    return "<|think_start|>The task is infeasible<|think_end|>\n<|action_start|>fail()<|action_end|>"
+    return """<think>The task is infeasible</think>
+Action: Terminate as failure.
+<tool_call>
+{"name":"computer_use","arguments":{"action":"terminate","status":"failure"}}
+</tool_call>"""
 
 
 @pytest.fixture

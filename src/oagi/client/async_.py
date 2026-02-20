@@ -95,6 +95,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
         messages: list,
         temperature: float | None = None,
         task_id: str | None = None,
+        parser_mode: str = "qwen3",
     ) -> tuple[Step, str, Usage | None]:
         """
         Call OpenAI-compatible /v1/chat/completions endpoint.
@@ -104,6 +105,7 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             messages: Full message history (OpenAI-compatible format)
             temperature: Sampling temperature (0.0-2.0)
             task_id: Optional task ID for multi-turn conversations
+            parser_mode: Output parser mode ("qwen3", "legacy", or "auto")
 
         Returns:
             Tuple of (Step, raw_output, Usage)
@@ -116,7 +118,10 @@ class AsyncClient(BaseClient[httpx.AsyncClient]):
             model, messages, temperature, task_id
         )
         response = await self.openai_client.chat.completions.create(**kwargs)
-        return self._parse_chat_completion_response(response)
+        return self._parse_chat_completion_response(
+            response,
+            parser_mode=parser_mode,
+        )
 
     async def get_s3_presigned_url(
         self,

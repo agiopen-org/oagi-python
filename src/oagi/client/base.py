@@ -113,7 +113,9 @@ class BaseClient(Generic[HttpClientT]):
         return kwargs
 
     def _parse_chat_completion_response(
-        self, response
+        self,
+        response,
+        parser_mode: str = "qwen3",
     ) -> tuple[Step, str, Usage | None]:
         """Extract and parse OpenAI chat completion response, and log success.
 
@@ -126,7 +128,7 @@ class BaseClient(Generic[HttpClientT]):
             Tuple of (Step, raw_output, Usage)
         """
         raw_output = response.choices[0].message.content or ""
-        step = parse_raw_output(raw_output)
+        step = parse_raw_output(raw_output, parser_mode=parser_mode)
 
         # Extract task_id from response (custom field from OAGI API)
         task_id = getattr(response, "task_id", None)

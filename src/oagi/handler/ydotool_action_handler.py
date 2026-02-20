@@ -13,7 +13,14 @@ from pydantic import BaseModel, Field
 from oagi.handler.screen_manager import Screen
 
 from ..constants import DEFAULT_STEP_DELAY
-from ..types import Action, ActionType, parse_coords, parse_drag_coords, parse_scroll
+from ..types import (
+    Action,
+    ActionType,
+    parse_coords,
+    parse_drag_coords,
+    parse_press_click,
+    parse_scroll,
+)
 from .capslock_manager import CapsLockManager
 from .utils import CoordinateScaler, normalize_key, parse_hotkey
 from .wayland_support import Ydotool, get_screen_size
@@ -110,13 +117,29 @@ class YdotoolActionHandler(Ydotool):
         Execute a group of actions and return whether FINISH is reached.
         """
         finished = False
-        arg = (action.argument or "").strip()
+        raw_arg = action.argument or ""
+        arg = (
+            raw_arg
+            if action.type in (ActionType.TYPE, ActionType.PRESS_CLICK)
+            else raw_arg.strip()
+        )
         count = int(action.count or 1)
 
         match action.type:
             case ActionType.DRAG:
                 x1, y1, x2, y2 = self._parse_drag_coords(arg)
                 self.drag(x1, y1, x2, y2, count=count)
+
+            case ActionType.MOUSE_MOVE:
+                x, y = self._parse_coords(arg)
+                self.mousemove(x, y, count=count)
+
+            case ActionType.LEFT_CLICK_DRAG:
+                x, y = self._parse_coords(arg)
+                for _ in range(count):
+                    self._run_ydotool(["click", "0x40"])
+                    self.mousemove(x, y)
+                    self._run_ydotool(["click", "0x80"])
 
             case ActionType.SCROLL:
                 x, y, direction = self._parse_scroll(arg)
@@ -158,11 +181,45 @@ class YdotoolActionHandler(Ydotool):
                     self.hotkey(keys, count=count)
 
             case ActionType.TYPE:
-                # Remove quotes if present
-                text = arg.strip("\"'")
+                text = arg
+                if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+                    text = text[1:-1]
                 # Apply caps lock transformation if needed
                 text = self.caps_manager.transform_text(text)
                 self._run_ydotool(["type", text], count=count)
+
+            case ActionType.PRESS_CLICK:
+                parsed = parse_press_click(arg)
+                if not parsed:
+                    raise ValueError(
+                        f"Invalid press_click argument: {arg}. "
+                        "Expected JSON with keys, click_type, and coordinate."
+                    )
+                keys, click_type, raw_x, raw_y = parsed
+                x, y = self._denormalize_coords(raw_x, raw_y)
+                normalized_keys = [self._normalize_key(key) for key in keys if key]
+                keycodes = []
+                for key in normalized_keys:
+                    keycode = self._get_keycode(key)
+                    if keycode is None:
+                        raise ValueError(f"Unknown key for press_click: {key}")
+                    keycodes.append(keycode)
+
+                for _ in range(count):
+                    if keycodes:
+                        self._run_ydotool(["key", *[f"{code}:1" for code in keycodes]])
+                    if click_type == "left_click":
+                        self.click(x, y)
+                    elif click_type == "right_click":
+                        self.click(x, y, right=True)
+                    elif click_type == "double_click":
+                        self.click(x, y, count=2)
+                    elif click_type == "triple_click":
+                        self.click(x, y, count=3)
+                    if keycodes:
+                        self._run_ydotool(
+                            ["key", *[f"{code}:0" for code in keycodes[::-1]]]
+                        )
 
             case ActionType.FINISH | ActionType.FAIL:
                 # Task completion or infeasible - reset handler state

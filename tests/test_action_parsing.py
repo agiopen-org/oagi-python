@@ -8,7 +8,7 @@
 
 import pytest
 
-from oagi.types import parse_coords, parse_drag_coords, parse_scroll
+from oagi.types import parse_coords, parse_drag_coords, parse_press_click, parse_scroll
 
 
 class TestParseCoords:
@@ -99,3 +99,14 @@ class TestParseScroll:
     )
     def test_invalid_scroll(self, input_str):
         assert parse_scroll(input_str) is None
+
+
+class TestParsePressClick:
+    def test_valid_press_click(self):
+        result = parse_press_click(
+            '{"keys":["ctrl"],"click_type":"left_click","coordinate":[500,300]}'
+        )
+        assert result == (["ctrl"], "left_click", 500, 300)
+
+    def test_invalid_press_click(self):
+        assert parse_press_click("not-json") is None

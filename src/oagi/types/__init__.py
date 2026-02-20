@@ -18,6 +18,7 @@ from .models import (
     Step,
     parse_coords,
     parse_drag_coords,
+    parse_press_click,
     parse_scroll,
 )
 from .step_observer import (
@@ -58,5 +59,6 @@ __all__ = [
     "extract_uuid_from_url",
     "parse_coords",
     "parse_drag_coords",
+    "parse_press_click",
     "parse_scroll",
 ]

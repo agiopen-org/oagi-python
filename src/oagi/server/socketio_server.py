@@ -22,6 +22,7 @@ from ..types.models.action import (
     ActionType,
     parse_coords,
     parse_drag_coords,
+    parse_press_click,
     parse_scroll,
 )
 from .agent_wrappers import SocketIOActionHandler, SocketIOImageProvider
@@ -271,7 +272,7 @@ class SessionNamespace(socketio.AsyncNamespace):
     async def _emit_single_action(
         self, session: Session, action: Action, index: int, total: int
     ) -> dict | None:
-        arg = action.argument.strip("()")
+        arg = (action.argument or "").strip("()")
         common = BaseActionEventData(index=index, total=total).model_dump()
 
         logger.info(f"Emitting action {index + 1}/{total}: {action.type.value} {arg}")
@@ -281,6 +282,8 @@ class SessionNamespace(socketio.AsyncNamespace):
                 | ActionType.LEFT_DOUBLE
                 | ActionType.LEFT_TRIPLE
                 | ActionType.RIGHT_SINGLE
+                | ActionType.MOUSE_MOVE
+                | ActionType.LEFT_CLICK_DRAG
             ):
                 coords = parse_coords(arg)
                 if not coords:
@@ -288,7 +291,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                     return None
 
                 return await self.call(
-                    action.type.value,
+                    "click" if action.type == ActionType.LEFT_CLICK_DRAG else action.type.value,
                     ClickEventData(**common, x=coords[0], y=coords[1]).model_dump(),
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
@@ -368,6 +371,25 @@ class SessionNamespace(socketio.AsyncNamespace):
                 return await self.call(
                     "finish",
                     FinishEventData(**common).model_dump(),
+                    to=session.socket_id,
+                    timeout=self.config.socketio_timeout,
+                )
+
+            case ActionType.PRESS_CLICK:
+                press_click = parse_press_click(action.argument)
+                if not press_click:
+                    logger.warning(f"Invalid press_click payload: {action.argument}")
+                    return None
+                _, click_type, x, y = press_click
+                event_name = {
+                    "left_click": "click",
+                    "right_click": "right_single",
+                    "double_click": "left_double",
+                    "triple_click": "left_triple",
+                }[click_type]
+                return await self.call(
+                    event_name,
+                    ClickEventData(**common, x=x, y=y).model_dump(),
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
                 )

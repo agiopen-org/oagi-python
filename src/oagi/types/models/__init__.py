@@ -11,6 +11,7 @@ from .action import (
     ActionType,
     parse_coords,
     parse_drag_coords,
+    parse_press_click,
     parse_scroll,
 )
 from .client import (
@@ -35,5 +36,6 @@ __all__ = [
     "Usage",
     "parse_coords",
     "parse_drag_coords",
+    "parse_press_click",
     "parse_scroll",
 ]

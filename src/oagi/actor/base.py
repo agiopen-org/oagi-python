@@ -16,7 +16,7 @@ from ..constants import (
 )
 from ..logging import get_logger
 from ..types import URL, Image, Step
-from ..utils.prompt_builder import build_prompt
+from ..utils.prompt_builder import PromptMode, build_prompt
 
 logger = get_logger("actor.base")
 
@@ -30,11 +30,15 @@ class BaseActor:
         base_url: str | None,
         model: str,
         temperature: float | None,
+        parser_mode: str = "qwen3",
+        prompt_mode: PromptMode = "qwen3",
     ):
         self.task_id: str = uuid4().hex  # Client-side generated UUID
         self.task_description: str | None = None
         self.model = model
         self.temperature = temperature
+        self.parser_mode = parser_mode
+        self.prompt_mode = prompt_mode
         self.message_history: list = []  # OpenAI-compatible message history
         self.max_steps: int = DEFAULT_MAX_STEPS
         self.current_step: int = 0  # Current step counter
@@ -182,7 +186,10 @@ class BaseActor:
     def _build_step_prompt(self) -> str | None:
         """Build prompt for first message only."""
         if len(self.message_history) == 0:
-            return build_prompt(self.task_description)
+            return build_prompt(
+                self.task_description,
+                prompt_mode=self.prompt_mode,
+            )
         return None
 
     def _log_step_completion(self, step: Step, prefix: str = "") -> None:

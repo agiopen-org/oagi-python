@@ -93,6 +93,24 @@ class TestAsyncActorStep:
         assert not result.stop
 
     @pytest.mark.asyncio
+    async def test_step_forwards_parser_mode(
+        self, async_actor, sample_step, sample_usage_obj
+    ):
+        async_actor.task_description = "Test task"
+        async_actor.task_id = "task-123"
+        async_actor.client.chat_completion = AsyncMock(
+            return_value=(sample_step, "raw output", sample_usage_obj)
+        )
+        async_actor.client.put_s3_presigned_url = AsyncMock(
+            return_value=AsyncMock(download_url="https://cdn.example.com/image.png")
+        )
+
+        await async_actor.step(b"test-image", parser_mode="legacy")
+
+        call_args = async_actor.client.chat_completion.call_args
+        assert call_args[1]["parser_mode"] == "legacy"
+
+    @pytest.mark.asyncio
     async def test_step_task_complete(
         self, async_actor, completed_step, sample_usage_obj
     ):

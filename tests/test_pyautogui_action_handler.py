@@ -72,6 +72,34 @@ def test_drag_action(handler, mock_pyautogui, config):
     )
 
 
+def test_mouse_move_action(handler, mock_pyautogui):
+    action = Action(type=ActionType.MOUSE_MOVE, argument="500, 300", count=1)
+    handler([action])
+    mock_pyautogui.moveTo.assert_called_once_with(960, 324)
+
+
+def test_left_click_drag_action(handler, mock_pyautogui, config):
+    action = Action(type=ActionType.LEFT_CLICK_DRAG, argument="500, 300", count=1)
+    handler([action])
+    mock_pyautogui.dragTo.assert_called_once_with(
+        960, 324, duration=config.drag_duration, button="left"
+    )
+
+
+def test_press_click_action(handler, mock_pyautogui):
+    action = Action(
+        type=ActionType.PRESS_CLICK,
+        argument='{"keys":["ctrl"],"click_type":"left_click","coordinate":[500,300]}',
+        count=1,
+    )
+    handler([action])
+
+    mock_pyautogui.keyDown.assert_called_once_with("ctrl")
+    mock_pyautogui.moveTo.assert_called_once_with(960, 324)
+    mock_pyautogui.click.assert_called_once_with()
+    mock_pyautogui.keyUp.assert_called_once_with("ctrl")
+
+
 def test_hotkey_action(mock_pyautogui):
     # Disable macos_ctrl_to_cmd to test basic hotkey functionality
     config = PyautoguiConfig(macos_ctrl_to_cmd=False)
