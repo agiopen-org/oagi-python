@@ -12,7 +12,6 @@ from ..client import SyncClient
 from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..logging import get_logger
 from ..types import URL, Image, Step
-from ..utils.prompt_builder import PromptMode
 from .base import BaseActor
 
 logger = get_logger("actor.sync")
@@ -28,7 +27,6 @@ class Actor(BaseActor):
         model: str = MODEL_ACTOR,
         temperature: float | None = None,
         parser_mode: str = "qwen3",
-        prompt_mode: PromptMode = "qwen3",
     ):
         super().__init__(
             api_key,
@@ -36,7 +34,6 @@ class Actor(BaseActor):
             model,
             temperature,
             parser_mode=parser_mode,
-            prompt_mode=prompt_mode,
         )
         self.client = SyncClient(base_url=base_url, api_key=api_key)
         self.api_key = self.client.api_key
@@ -120,7 +117,6 @@ class Task(Actor):
         model: str = MODEL_ACTOR,
         temperature: float | None = None,
         parser_mode: str = "qwen3",
-        prompt_mode: PromptMode = "qwen3",
     ):
         warnings.warn(
             "Task is deprecated and will be removed in a future version. "
@@ -134,5 +130,4 @@ class Task(Actor):
             model=model,
             temperature=temperature,
             parser_mode=parser_mode,
-            prompt_mode=prompt_mode,
         )

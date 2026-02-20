@@ -11,13 +11,14 @@ This module provides PyautoguiActionConvertor for converting OAGI actions
 to pyautogui command strings for remote execution via the sandbox runtime API.
 """
 
+import json
 import logging
 import re
 from typing import Any
 
 from ..handler.capslock_manager import CapsLockManager
 from ..handler.utils import PYAUTOGUI_VALID_KEYS, PyautoguiConfig, make_type_command
-from ..types import ActionType, parse_press_click
+from ..types import ActionType
 
 # Sandbox configuration constants
 DEFAULT_SANDBOX_WIDTH = 1920
@@ -262,6 +263,70 @@ class PyautoguiActionConvertor:
                 f"Coordinates must be comma-separated numeric values, e.g., 'drag(100, 200, 300, 400)'"
             ) from e
 
+    def _parse_press_click(self, argument: str) -> tuple[list[str], str, int, int]:
+        """Parse press_click payload from JSON argument string.
+
+        Args:
+            argument: JSON string with fields:
+                - keys: list[str] (optional)
+                - click_type: left_click/right_click/double_click/triple_click
+                - coordinate: [x, y] in model coordinate space
+
+        Returns:
+            Tuple of (keys, click_type, x, y), where x/y are denormalized.
+
+        Raises:
+            ValueError: If payload is malformed.
+        """
+        try:
+            payload = json.loads(argument)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid press_click format: '{argument}'. Expected JSON payload."
+            ) from e
+
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"Invalid press_click payload type: {type(payload).__name__}. Expected object."
+            )
+
+        raw_keys = payload.get("keys", [])
+        if isinstance(raw_keys, list):
+            keys = [str(key).strip() for key in raw_keys if str(key).strip()]
+        elif isinstance(raw_keys, str) and raw_keys.strip():
+            keys = [raw_keys.strip()]
+        else:
+            keys = []
+
+        click_type = str(payload.get("click_type", "")).strip().lower()
+        if click_type not in {
+            "left_click",
+            "right_click",
+            "double_click",
+            "triple_click",
+        }:
+            raise ValueError(
+                f"Invalid click_type in press_click: '{click_type}'. "
+                "Expected one of left_click/right_click/double_click/triple_click."
+            )
+
+        coordinate = payload.get("coordinate")
+        if not isinstance(coordinate, list | tuple) or len(coordinate) < 2:
+            raise ValueError(
+                f"Invalid coordinate in press_click: '{coordinate}'. Expected [x, y]."
+            )
+        try:
+            raw_x = float(coordinate[0])
+            raw_y = float(coordinate[1])
+        except (ValueError, TypeError, IndexError) as e:
+            raise ValueError(
+                f"Invalid coordinate values in press_click: '{coordinate}'. "
+                "Coordinates must be numeric."
+            ) from e
+
+        x, y = self._denormalize_coords(raw_x, raw_y)
+        return keys, click_type, x, y
+
     def _normalize_key(self, key: str) -> str:
         """Normalize key names for consistency.
 
@@ -439,14 +504,7 @@ class PyautoguiActionConvertor:
             return [make_type_command(text)]
 
         if action_type == ActionType.PRESS_CLICK.value:
-            parsed = parse_press_click(argument)
-            if not parsed:
-                raise ValueError(
-                    f"Invalid press_click format: '{argument}'. "
-                    "Expected JSON with keys, click_type, and coordinate."
-                )
-            keys, click_type, raw_x, raw_y = parsed
-            x, y = self._denormalize_coords(raw_x, raw_y)
+            keys, click_type, x, y = self._parse_press_click(argument)
             normalized_keys = [self._normalize_key(k) for k in keys]
             self._validate_keys(normalized_keys)
 

@@ -11,7 +11,6 @@ import warnings
 from ..constants import DEFAULT_MAX_STEPS, MODEL_ACTOR
 from ..logging import get_logger
 from ..types import AsyncActionHandler, AsyncImageProvider
-from ..utils.prompt_builder import PromptMode
 from .async_ import AsyncActor
 from .base import BaseAutoMode
 
@@ -32,7 +31,6 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
         model: str = MODEL_ACTOR,
         temperature: float | None = None,
         parser_mode: str = "qwen3",
-        prompt_mode: PromptMode = "qwen3",
     ):
         warnings.warn(
             "AsyncShortTask is deprecated and will be removed in a future version. "
@@ -46,7 +44,6 @@ class AsyncShortTask(AsyncActor, BaseAutoMode):
             model=model,
             temperature=temperature,
             parser_mode=parser_mode,
-            prompt_mode=prompt_mode,
         )
 
     async def auto_mode(
