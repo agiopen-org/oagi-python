@@ -144,6 +144,13 @@ def test_wait_action(handler, mock_pyautogui, config):
         mock_sleep.assert_called_once_with(config.wait_duration)
 
 
+def test_wait_action_uses_argument_seconds(handler, mock_pyautogui):
+    with patch("time.sleep") as mock_sleep:
+        action = Action(type=ActionType.WAIT, argument="2.5", count=1)
+        handler([action])
+        mock_sleep.assert_called_once_with(2.5)
+
+
 def test_hotkey_with_custom_interval(mock_pyautogui):
     custom_config = PyautoguiConfig(hotkey_interval=0.5)
     handler = PyautoguiActionHandler(config=custom_config)

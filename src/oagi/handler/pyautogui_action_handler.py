@@ -269,8 +269,14 @@ class PyautoguiActionHandler:
                 self.reset()
 
             case ActionType.WAIT:
-                # Wait for a short period
-                time.sleep(self.config.wait_duration)
+                # Respect per-action wait argument when provided.
+                try:
+                    wait_seconds = (
+                        float(arg) if arg else float(self.config.wait_duration)
+                    )
+                except ValueError:
+                    wait_seconds = float(self.config.wait_duration)
+                time.sleep(max(wait_seconds, 0.0))
 
             case ActionType.CALL_USER:
                 # Call user - implementation depends on requirements

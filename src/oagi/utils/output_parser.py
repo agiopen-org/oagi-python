@@ -31,20 +31,22 @@ def parse_raw_output(
             - "auto": Try qwen3 first when tool-call tags are present, otherwise legacy.
     """
     if parser_mode == "qwen3":
-        return _parse_qwen3_output(raw_output)
+        qwen3_step = _parse_qwen3_output(raw_output)
+        if qwen3_step.actions:
+            return qwen3_step
+        if "<|action_start|>" in raw_output or "<|think_start|>" in raw_output:
+            return _parse_legacy_output(raw_output)
+        return qwen3_step
     if parser_mode == "legacy":
         return _parse_legacy_output(raw_output)
     if parser_mode == "auto":
         if "<tool_call>" in raw_output:
             qwen3_step = _parse_qwen3_output(raw_output)
-            if qwen3_step.actions or qwen3_step.reason:
+            if qwen3_step.actions:
                 return qwen3_step
         if "<|action_start|>" in raw_output or "<|think_start|>" in raw_output:
             return _parse_legacy_output(raw_output)
-        qwen3_step = _parse_qwen3_output(raw_output)
-        if qwen3_step.actions or qwen3_step.reason:
-            return qwen3_step
-        return _parse_legacy_output(raw_output)
+        return _parse_qwen3_output(raw_output)
 
     raise ValueError(
         f"Unsupported parser_mode: {parser_mode}. Expected one of 'qwen3', 'legacy', 'auto'."

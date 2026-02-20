@@ -35,6 +35,7 @@ from .models import (
     FinishEventData,
     HotkeyEventData,
     InitEventData,
+    PressClickEventData,
     ScrollEventData,
     TypeEventData,
     WaitEventData,
@@ -269,6 +270,34 @@ class SessionNamespace(socketio.AsyncNamespace):
             except Exception as e:
                 logger.error(f"Error emitting action {i}: {e}", exc_info=True)
 
+    @staticmethod
+    def _set_last_cursor(session: Session, x: int, y: int) -> None:
+        session.last_cursor_x = x
+        session.last_cursor_y = y
+
+    @staticmethod
+    def _get_last_cursor(session: Session) -> tuple[int, int] | None:
+        if session.last_cursor_x is None or session.last_cursor_y is None:
+            return None
+        return session.last_cursor_x, session.last_cursor_y
+
+    async def _emit_click_event(
+        self,
+        session: Session,
+        event_name: str,
+        common: dict[str, Any],
+        x: int,
+        y: int,
+    ) -> dict | None:
+        ack = await self.call(
+            event_name,
+            ClickEventData(**common, x=x, y=y).model_dump(),
+            to=session.socket_id,
+            timeout=self.config.socketio_timeout,
+        )
+        self._set_last_cursor(session, x, y)
+        return ack
+
     async def _emit_single_action(
         self, session: Session, action: Action, index: int, total: int
     ) -> dict | None:
@@ -283,18 +312,18 @@ class SessionNamespace(socketio.AsyncNamespace):
                 | ActionType.LEFT_TRIPLE
                 | ActionType.RIGHT_SINGLE
                 | ActionType.MOUSE_MOVE
-                | ActionType.LEFT_CLICK_DRAG
             ):
                 coords = parse_coords(arg)
                 if not coords:
                     logger.warning(f"Invalid action coordinates: {arg}")
                     return None
 
-                return await self.call(
-                    "click" if action.type == ActionType.LEFT_CLICK_DRAG else action.type.value,
-                    ClickEventData(**common, x=coords[0], y=coords[1]).model_dump(),
-                    to=session.socket_id,
-                    timeout=self.config.socketio_timeout,
+                return await self._emit_click_event(
+                    session=session,
+                    event_name=action.type.value,
+                    common=common,
+                    x=coords[0],
+                    y=coords[1],
                 )
 
             case ActionType.DRAG:
@@ -303,7 +332,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                     logger.warning(f"Invalid drag coordinates: {arg}")
                     return None
 
-                return await self.call(
+                ack = await self.call(
                     "drag",
                     DragEventData(
                         **common, x1=coords[0], y1=coords[1], x2=coords[2], y2=coords[3]
@@ -311,6 +340,36 @@ class SessionNamespace(socketio.AsyncNamespace):
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
                 )
+                self._set_last_cursor(session, coords[2], coords[3])
+                return ack
+
+            case ActionType.LEFT_CLICK_DRAG:
+                coords = parse_coords(arg)
+                if not coords:
+                    logger.warning(f"Invalid drag target coordinates: {arg}")
+                    return None
+
+                start = self._get_last_cursor(session)
+                if start is None:
+                    logger.warning(
+                        "No prior cursor position for left_click_drag; using target as drag start."
+                    )
+                    start = (coords[0], coords[1])
+
+                ack = await self.call(
+                    "drag",
+                    DragEventData(
+                        **common,
+                        x1=start[0],
+                        y1=start[1],
+                        x2=coords[0],
+                        y2=coords[1],
+                    ).model_dump(),
+                    to=session.socket_id,
+                    timeout=self.config.socketio_timeout,
+                )
+                self._set_last_cursor(session, coords[0], coords[1])
+                return ack
 
             case ActionType.HOTKEY:
                 combo = arg.strip()
@@ -341,7 +400,7 @@ class SessionNamespace(socketio.AsyncNamespace):
 
                 count = action.count or 1
 
-                return await self.call(
+                ack = await self.call(
                     "scroll",
                     ScrollEventData(
                         **common,
@@ -353,10 +412,13 @@ class SessionNamespace(socketio.AsyncNamespace):
                     to=session.socket_id,
                     timeout=self.config.socketio_timeout,
                 )
+                self._set_last_cursor(session, result[0], result[1])
+                return ack
 
             case ActionType.WAIT:
                 try:
-                    duration_ms = int(arg) if arg else 1000
+                    duration_s = float(arg) if arg else 1.0
+                    duration_ms = max(int(duration_s * 1000), 0)
                 except (ValueError, TypeError):
                     duration_ms = 1000
 
@@ -380,19 +442,42 @@ class SessionNamespace(socketio.AsyncNamespace):
                 if not press_click:
                     logger.warning(f"Invalid press_click payload: {action.argument}")
                     return None
-                _, click_type, x, y = press_click
-                event_name = {
-                    "left_click": "click",
-                    "right_click": "right_single",
-                    "double_click": "left_double",
-                    "triple_click": "left_triple",
-                }[click_type]
-                return await self.call(
-                    event_name,
-                    ClickEventData(**common, x=x, y=y).model_dump(),
-                    to=session.socket_id,
-                    timeout=self.config.socketio_timeout,
-                )
+                keys, click_type, x, y = press_click
+
+                try:
+                    ack = await self.call(
+                        "press_click",
+                        PressClickEventData(
+                            **common,
+                            keys=keys,
+                            click_type=click_type,  # type: ignore[arg-type]
+                            x=x,
+                            y=y,
+                        ).model_dump(),
+                        to=session.socket_id,
+                        timeout=self.config.socketio_timeout,
+                    )
+                    self._set_last_cursor(session, x, y)
+                    return ack
+                except Exception as e:
+                    logger.warning(
+                        "press_click event unsupported or failed (%s); "
+                        "falling back to plain click event without modifiers.",
+                        e,
+                    )
+                    fallback_event = {
+                        "left_click": "click",
+                        "right_click": "right_single",
+                        "double_click": "left_double",
+                        "triple_click": "left_triple",
+                    }[click_type]
+                    return await self._emit_click_event(
+                        session=session,
+                        event_name=fallback_event,
+                        common=common,
+                        x=x,
+                        y=y,
+                    )
 
             case _:
                 logger.warning(f"Unknown action type: {action.type}")

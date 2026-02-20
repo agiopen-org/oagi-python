@@ -89,6 +89,15 @@ Action: Click the submit button.
         assert press_click_payload["click_type"] == "left_click"
         assert press_click_payload["coordinate"] == [555, 666]
 
+    def test_qwen3_mode_fallbacks_to_legacy_when_legacy_tags_present(self):
+        raw = "<|think_start|>Legacy reasoning<|think_end|>\n<|action_start|>click(7, 8)<|action_end|>"
+        step = parse_raw_output(raw, parser_mode="qwen3")
+
+        assert step.reason == "Legacy reasoning"
+        assert len(step.actions) == 1
+        assert step.actions[0].type == ActionType.CLICK
+        assert step.actions[0].argument == "7, 8"
+
 
 class TestParserMode:
     def test_legacy_mode(self):
@@ -116,6 +125,20 @@ class TestParserMode:
 
         assert len(step.actions) == 1
         assert step.actions[0].type == ActionType.CLICK
+
+    def test_auto_mode_does_not_early_return_on_bad_tool_call_reason_only(self):
+        raw = """Action: bad tool call.
+<tool_call>
+{not-json}
+</tool_call>
+<|think_start|>Legacy fallback<|think_end|>
+<|action_start|>click(9, 10)<|action_end|>"""
+        step = parse_raw_output(raw, parser_mode="auto")
+
+        assert step.reason == "Legacy fallback"
+        assert len(step.actions) == 1
+        assert step.actions[0].type == ActionType.CLICK
+        assert step.actions[0].argument == "9, 10"
 
     def test_invalid_parser_mode_raises(self):
         with pytest.raises(ValueError, match="Unsupported parser_mode"):
