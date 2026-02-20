@@ -264,6 +264,34 @@ class TestEdgeCases:
 
         assert step.actions[0].argument == "hello world 123"
 
+    @pytest.mark.parametrize(
+        "action_text,expected_arg",
+        [
+            ("type( )", " "),
+            ("type())", ")"),
+            ("type(()", "("),
+            ('type("hello")', '"hello"'),
+            ("type(it's)", "it's"),
+            ('type("reportMissingImports": "none")', '"reportMissingImports": "none"'),
+            ('type(=TEXT(C2,"0000000"))', '=TEXT(C2,"0000000")'),
+        ],
+        ids=[
+            "space-only",
+            "right-paren",
+            "left-paren",
+            "double-quoted",
+            "apostrophe",
+            "json-config",
+            "excel-formula",
+        ],
+    )
+    def test_parse_type_preserves_content(self, action_text, expected_arg):
+        """Parser preserves type() content: spaces, parens, quotes are literal."""
+        action = _parse_action(action_text)
+        assert action is not None
+        assert action.type == ActionType.TYPE
+        assert action.argument == expected_arg
+
     def test_returns_step_type(self):
         raw = "<|think_start|>Test<|think_end|>\n<|action_start|>click(100, 200)<|action_end|>"
         step = parse_raw_output(raw)

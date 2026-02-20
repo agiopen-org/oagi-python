@@ -176,13 +176,32 @@ class TestInputValidation:
         with pytest.raises(ValueError, match="Invalid coordinates format"):
             handler([action])
 
-    def test_type_with_quotes(self, handler, mock_pyautogui):
-        # Mock platform as Linux to use pyautogui.typewrite fallback
+    @pytest.mark.parametrize(
+        "argument,expected_text",
+        [
+            ('"Hello World"', '"Hello World"'),
+            ("it's a test", "it's a test"),
+            (' ', ' '),
+            ('"reportMissingImports": "none"', '"reportMissingImports": "none"'),
+            ('=TEXT(C2,"0000000")', '=TEXT(C2,"0000000")'),
+            (")", ")"),
+        ],
+        ids=[
+            "double-quotes",
+            "apostrophe",
+            "space",
+            "json-config",
+            "excel-formula",
+            "right-paren",
+        ],
+    )
+    def test_type_preserves_content(self, handler, mock_pyautogui, argument, expected_text):
+        """Quotes, spaces, and parens in type() are literal content, not delimiters."""
         with patch.object(sys, "platform", "linux"):
-            action = Action(type=ActionType.TYPE, argument='"Hello World"', count=1)
+            action = Action(type=ActionType.TYPE, argument=argument, count=1)
             handler([action])
 
-            mock_pyautogui.typewrite.assert_called_once_with("Hello World")
+            mock_pyautogui.typewrite.assert_called_once_with(expected_text)
 
 
 class TestCapsLockManager:
