@@ -181,7 +181,7 @@ class TestInputValidation:
         [
             ('"Hello World"', '"Hello World"'),
             ("it's a test", "it's a test"),
-            (' ', ' '),
+            (" ", " "),
             ('"reportMissingImports": "none"', '"reportMissingImports": "none"'),
             ('=TEXT(C2,"0000000")', '=TEXT(C2,"0000000")'),
             (")", ")"),
@@ -195,7 +195,9 @@ class TestInputValidation:
             "right-paren",
         ],
     )
-    def test_type_preserves_content(self, handler, mock_pyautogui, argument, expected_text):
+    def test_type_preserves_content(
+        self, handler, mock_pyautogui, argument, expected_text
+    ):
         """Quotes, spaces, and parens in type() are literal content, not delimiters."""
         with patch.object(sys, "platform", "linux"):
             action = Action(type=ActionType.TYPE, argument=argument, count=1)

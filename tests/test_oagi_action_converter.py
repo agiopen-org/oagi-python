@@ -108,12 +108,12 @@ class TestTypeAction:
     @pytest.mark.parametrize(
         "argument,expected_substr",
         [
-            (' ', ' '),
+            (" ", " "),
             ('"Hello World"', '"Hello World"'),
             ("it's a test", "it's a test"),
             ('"reportMissingImports": "none"', '"reportMissingImports": "none"'),
             ('=TEXT(C2,"0000000")', '=TEXT(C2,"0000000")'),
-            ("find . -name \"*.php\"", 'find . -name "*.php"'),
+            ('find . -name "*.php"', 'find . -name "*.php"'),
             (")", ")"),
         ],
         ids=[
