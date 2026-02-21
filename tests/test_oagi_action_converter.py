@@ -10,7 +10,7 @@ import logging
 
 import pytest
 
-from oagi.converters import OagiActionConverter, PyautoguiActionConvertor
+from oagi.converters import PyautoguiActionConvertor
 from oagi.types import Action, ActionType
 
 
@@ -22,11 +22,6 @@ def converter():
 def _cmds(result: list[tuple[str, bool]]) -> list[str]:
     """Extract command strings from converter result tuples."""
     return [cmd for cmd, _ in result]
-
-
-class TestBackwardCompatAlias:
-    def test_oagi_action_converter_is_alias(self):
-        assert OagiActionConverter is PyautoguiActionConvertor
 
 
 class TestCoordinateBasedActions:

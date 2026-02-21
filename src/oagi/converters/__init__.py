@@ -47,10 +47,9 @@ Creating custom converters:
 """
 
 from .base import BaseActionConverter
-from .pyautogui_action_converter import OagiActionConverter, PyautoguiActionConvertor
+from .pyautogui_action_converter import PyautoguiActionConvertor
 
 __all__ = [
     "BaseActionConverter",
     "PyautoguiActionConvertor",
-    "OagiActionConverter",
 ]
