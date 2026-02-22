@@ -105,6 +105,35 @@ class TestTypeAction:
         assert len(cmds) == 1
         assert "_smart_paste(" in cmds[0]
 
+    @pytest.mark.parametrize(
+        "argument,expected_substr",
+        [
+            (" ", " "),
+            ('"Hello World"', '"Hello World"'),
+            ("it's a test", "it's a test"),
+            ('"reportMissingImports": "none"', '"reportMissingImports": "none"'),
+            ('=TEXT(C2,"0000000")', '=TEXT(C2,"0000000")'),
+            ('find . -name "*.php"', 'find . -name "*.php"'),
+            (")", ")"),
+        ],
+        ids=[
+            "space",
+            "double-quoted-text",
+            "apostrophe",
+            "json-config",
+            "excel-formula",
+            "shell-find",
+            "right-paren",
+        ],
+    )
+    def test_type_preserves_content(self, converter, argument, expected_substr):
+        """Type content (spaces, quotes, parens) is preserved as literal text."""
+        action = Action(type=ActionType.TYPE, argument=argument, count=1)
+        result = converter([action])
+        cmds = _cmds(result)
+        assert len(cmds) == 1
+        assert expected_substr in cmds[0]
+
 
 class TestScrollAction:
     @pytest.mark.parametrize(

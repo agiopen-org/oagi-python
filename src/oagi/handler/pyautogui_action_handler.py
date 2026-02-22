@@ -132,7 +132,7 @@ class PyautoguiActionHandler:
 
     def _execute_single_action(self, action: Action) -> None:
         """Execute a single action once."""
-        arg = action.argument.strip("()")  # Remove outer parentheses if present
+        arg = action.argument or ""
 
         match action.type:
             case ActionType.CLICK:
@@ -185,8 +185,7 @@ class PyautoguiActionHandler:
                     pyautogui.hotkey(*keys, interval=self.config.hotkey_interval)
 
             case ActionType.TYPE:
-                # Remove quotes if present
-                text = arg.strip("\"'")
+                text = arg
                 # Apply caps lock transformation if needed
                 text = self.caps_manager.transform_text(text)
                 # Use platform-specific typing that ignores system capslock

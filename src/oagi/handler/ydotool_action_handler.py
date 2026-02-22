@@ -110,7 +110,8 @@ class YdotoolActionHandler(Ydotool):
         Execute a group of actions and return whether FINISH is reached.
         """
         finished = False
-        arg = (action.argument or "").strip()
+        raw_arg = action.argument or ""
+        arg = raw_arg if action.type == ActionType.TYPE else raw_arg.strip()
         count = int(action.count or 1)
 
         match action.type:
@@ -158,8 +159,7 @@ class YdotoolActionHandler(Ydotool):
                     self.hotkey(keys, count=count)
 
             case ActionType.TYPE:
-                # Remove quotes if present
-                text = arg.strip("\"'")
+                text = arg
                 # Apply caps lock transformation if needed
                 text = self.caps_manager.transform_text(text)
                 self._run_ydotool(["type", text], count=count)

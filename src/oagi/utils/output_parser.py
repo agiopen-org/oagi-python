@@ -120,7 +120,12 @@ def _parse_action(action_text: str) -> Action | None:
         return None
 
     action_type = match.group(1).lower()
-    arguments = match.group(2).strip()
+    # Don't strip TYPE arguments — spaces, tabs etc. are valid content
+    # (e.g. type( ) means "type a space"). Other action types are safe to strip.
+    raw_arguments = match.group(2)
+    arguments = (
+        raw_arguments if action_type == ActionType.TYPE.value else raw_arguments.strip()
+    )
 
     # Parse count from arguments for actions that support it
     count = 1

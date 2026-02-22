@@ -271,7 +271,8 @@ class SessionNamespace(socketio.AsyncNamespace):
     async def _emit_single_action(
         self, session: Session, action: Action, index: int, total: int
     ) -> dict | None:
-        arg = action.argument.strip("()")
+        raw_arg = action.argument or ""
+        arg = raw_arg if action.type == ActionType.TYPE else raw_arg.strip("()")
         common = BaseActionEventData(index=index, total=total).model_dump()
 
         logger.info(f"Emitting action {index + 1}/{total}: {action.type.value} {arg}")
@@ -321,7 +322,7 @@ class SessionNamespace(socketio.AsyncNamespace):
                 )
 
             case ActionType.TYPE:
-                text = arg.strip()
+                text = arg
 
                 return await self.call(
                     "type",

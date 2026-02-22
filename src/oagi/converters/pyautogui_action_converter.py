@@ -367,8 +367,7 @@ class PyautoguiActionConvertor:
 
     def _convert_single_action(self, action: Any) -> list[str]:
         action_type = action.type.value
-        # Strip outer parentheses from argument, similar to official handler
-        argument = (action.argument or "").strip("()")
+        argument = action.argument or ""
 
         drag_duration = self.pyautogui_config.drag_duration
         scroll_default = self.pyautogui_config.scroll_amount
@@ -423,8 +422,7 @@ class PyautoguiActionConvertor:
                 return [f"pyautogui.hotkey({keys_str}, interval={hotkey_interval})"]
 
         if action_type == ActionType.TYPE.value:
-            # Remove quotes if present
-            text = argument.strip("\"'")
+            text = argument
 
             # Apply caps lock transformation if needed
             text = self.caps_manager.transform_text(text)
