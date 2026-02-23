@@ -21,21 +21,36 @@ from ..constants import DEFAULT_STEP_DELAY
 # Key Normalization Mapping
 # =============================================================================
 
-# Minimal key mapping - only normalizes common variations to pyautogui names
-# Matches original PyautoguiActionHandler.hotkey_variations_mapping behavior exactly:
-#   "capslock": ["caps_lock", "caps", "capslock"] -> capslock
-#   "pgup": ["page_up", "pageup"] -> pgup
-#   "pgdn": ["page_down", "pagedown"] -> pgdn
+# Key mapping - normalizes common variations and aliases to pyautogui names.
+# Covers underscore-separated variants, platform-specific aliases, and media key
+# shortcuts so that model outputs like "page_down", "control", "windows" are
+# accepted without requiring the user to know exact pyautogui key names.
 KEY_MAP: dict[str, str] = {
     # Caps lock variations -> capslock
     "caps_lock": "capslock",
     "caps": "capslock",
-    # Page up variations -> pgup (short form, matching original)
+    # Page up variations -> pgup
     "page_up": "pgup",
     "pageup": "pgup",
-    # Page down variations -> pgdn (short form, matching original)
+    # Page down variations -> pgdn
     "page_down": "pgdn",
     "pagedown": "pgdn",
+    # Print screen variations -> printscreen
+    "print_screen": "printscreen",
+    # Num/scroll lock underscore variants
+    "num_lock": "numlock",
+    "scroll_lock": "scrolllock",
+    # Platform-specific modifier aliases
+    # "meta" and "super" map to the platform's primary modifier:
+    #   macOS -> command (⌘), Linux/Windows -> win
+    "windows": "win",
+    "super": "command" if sys.platform == "darwin" else "win",
+    "meta": "command" if sys.platform == "darwin" else "win",
+    "cmd": "command",
+    "control": "ctrl",
+    # Media key aliases
+    "mute": "volumemute",
+    "play": "playpause",
 }
 
 # Valid pyautogui key names

@@ -123,7 +123,7 @@ def test_hotkey_with_custom_interval(mock_pyautogui):
     action = Action(type=ActionType.HOTKEY, argument="cmd+shift+a", count=1)
     handler([action])
 
-    mock_pyautogui.hotkey.assert_called_once_with("cmd", "shift", "a", interval=0.5)
+    mock_pyautogui.hotkey.assert_called_once_with("command", "shift", "a", interval=0.5)
 
 
 def test_finish_action(handler, mock_pyautogui):
