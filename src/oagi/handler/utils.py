@@ -41,9 +41,11 @@ KEY_MAP: dict[str, str] = {
     "num_lock": "numlock",
     "scroll_lock": "scrolllock",
     # Platform-specific modifier aliases
+    # "meta" and "super" map to the platform's primary modifier:
+    #   macOS -> command (⌘), Linux/Windows -> win
     "windows": "win",
-    "super": "win",
-    "meta": "win",
+    "super": "command" if sys.platform == "darwin" else "win",
+    "meta": "command" if sys.platform == "darwin" else "win",
     "cmd": "command",
     "control": "ctrl",
     # Media key aliases
