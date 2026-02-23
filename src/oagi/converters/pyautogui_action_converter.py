@@ -537,6 +537,3 @@ class PyautoguiActionConvertor:
             "parameters": {"command": action_str, "shell": True},
         }
 
-
-# Backward compatibility alias
-OagiActionConverter = PyautoguiActionConvertor

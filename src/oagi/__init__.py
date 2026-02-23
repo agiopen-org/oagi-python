@@ -44,11 +44,6 @@ _LAZY_IMPORTS_DATA: dict[str, tuple[str, str | None, str | None]] = {
         None,
         None,
     ),
-    "OagiActionConverter": (
-        "oagi.converters.pyautogui_action_converter",
-        None,
-        None,
-    ),
     "BaseActionConverter": ("oagi.converters.base", None, None),
     # Desktop handlers (require pyautogui/PIL)
     "AsyncPyautoguiActionHandler": (
@@ -97,10 +92,7 @@ if TYPE_CHECKING:
     from oagi.agent.observer.agent_observer import AsyncAgentObserver
     from oagi.agent.tasker import TaskerAgent
     from oagi.converters.base import BaseActionConverter
-    from oagi.converters.pyautogui_action_converter import (
-        OagiActionConverter,
-        PyautoguiActionConvertor,
-    )
+    from oagi.converters.pyautogui_action_converter import PyautoguiActionConvertor
     from oagi.handler.async_pyautogui_action_handler import AsyncPyautoguiActionHandler
     from oagi.handler.async_screenshot_maker import AsyncScreenshotMaker
     from oagi.handler.async_ydotool_action_handler import AsyncYdotoolActionHandler
@@ -187,6 +179,5 @@ __all__ = [
     "ScreenManager",
     # Lazy imports - Action converters
     "PyautoguiActionConvertor",
-    "OagiActionConverter",
     "BaseActionConverter",
 ]
